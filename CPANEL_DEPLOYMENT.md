@@ -24,26 +24,7 @@ Quick guide for deploying ACF Analyzer plugin using cPanel's "Deploy HEAD Commit
 3. Click **Deploy HEAD Commit**
 4. Wait for deployment to complete
 
-### 3. Copy Plugin Files to Correct Location
-
-The plugin files are in the `wp-plugin/` subdirectory. You need to copy them to the plugin root:
-
-**Option A: Via cPanel File Manager**
-1. Go to **File Manager** in cPanel
-2. Navigate to: `public_html/wp-content/plugins/acf-analyzer/`
-3. Select all files/folders inside `wp-plugin/`
-4. Click **Copy**
-5. Paste to: `public_html/wp-content/plugins/acf-analyzer/`
-6. Confirm to overwrite if needed
-
-**Option B: Via SSH** (if you have SSH access)
-```bash
-cd ~/public_html/wp-content/plugins/acf-analyzer
-cp -R wp-plugin/* .
-echo "Plugin files copied successfully"
-```
-
-### 4. Activate Plugin
+### 3. Activate Plugin
 
 1. Go to **WordPress Admin** → **Plugins**
 2. Find **ACF Field Analyzer**
@@ -56,51 +37,23 @@ echo "Plugin files copied successfully"
 
 When you push changes to GitHub:
 
-### 1. Deploy Latest Changes
-
 1. Go to **cPanel** → **Git Version Control**
 2. Click **Manage** on `acf-analyzer`
 3. Click **Pull or Deploy** tab
 4. Click **Deploy HEAD Commit**
-
-### 2. Copy Updated Files (if needed)
-
-If you modified files in `wp-plugin/` directory:
-- Repeat Step 3 from Initial Setup above
+5. Done! Changes are live immediately
 
 ---
 
-## One-Time Setup Script
+## Optional: Set Correct Permissions
 
-After deploying via cPanel, run this once via SSH or create a cron job:
+If you have SSH access and want to ensure correct file permissions:
 
 ```bash
-#!/bin/bash
-# File: setup-plugin-structure.sh
-# Run once after initial deployment
-
-PLUGIN_DIR=~/public_html/wp-content/plugins/acf-analyzer
-
-cd $PLUGIN_DIR
-
-# Copy plugin files from wp-plugin subdirectory
-if [ -d "wp-plugin" ]; then
-    echo "Copying plugin files..."
-    cp -R wp-plugin/* .
-    echo "Files copied successfully"
-    echo ""
-    echo "Plugin structure:"
-    ls -la
-else
-    echo "Already in correct structure"
-fi
-
-# Set correct permissions
-echo "Setting permissions..."
+cd ~/public_html/wp-content/plugins/acf-analyzer
 find . -type f -exec chmod 644 {} \;
 find . -type d -exec chmod 755 {} \;
-
-echo "Setup complete!"
+echo "Permissions set correctly"
 ```
 
 ---

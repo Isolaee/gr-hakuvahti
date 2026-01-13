@@ -16,21 +16,32 @@ A native WordPress plugin that analyzes Advanced Custom Fields (ACF) usage direc
 
 ## Installation
 
-### Manual Installation
+### Via cPanel Git Deployment (Recommended)
 
-1. Copy the [wp-plugin](wp-plugin/) folder to your WordPress installation's `wp-content/plugins/` directory
-2. Rename the folder to `acf-analyzer` (optional but recommended)
-3. Log in to WordPress admin panel
-4. Navigate to **Plugins** → **Installed Plugins**
-5. Find "ACF Field Analyzer" and click **Activate**
+1. Login to **cPanel** → **Git Version Control**
+2. Click **Create** and enter:
+   - Clone URL: `https://github.com/Isolaee/gr-hakuvahti.git`
+   - Repository Path: `public_html/wp-content/plugins/acf-analyzer`
+   - Repository Name: `acf-analyzer`
+3. Click **Manage** → **Pull or Deploy** → **Deploy HEAD Commit**
+4. Activate in WordPress Admin → Plugins
+
+See [CPANEL_DEPLOYMENT.md](CPANEL_DEPLOYMENT.md) for detailed instructions.
 
 ### Via ZIP Upload
 
-1. Create a ZIP file of the [wp-plugin](wp-plugin/) folder
-2. In WordPress admin, go to **Plugins** → **Add New**
-3. Click **Upload Plugin**
-4. Choose the ZIP file and click **Install Now**
-5. Click **Activate Plugin**
+1. Download or clone this repository
+2. Create a ZIP file of the entire repository
+3. In WordPress admin, go to **Plugins** → **Add New**
+4. Click **Upload Plugin**
+5. Choose the ZIP file and click **Install Now**
+6. Click **Activate Plugin**
+
+### Manual Installation
+
+1. Clone or download this repository
+2. Copy the entire folder to `wp-content/plugins/acf-analyzer/`
+3. Activate in WordPress Admin → Plugins
 
 ## Requirements
 
@@ -82,7 +93,7 @@ Click one of the export buttons:
 ## Plugin Structure
 
 ```
-wp-plugin/
+acf-analyzer/
 ├── acf-analyzer.php                    # Main plugin file
 ├── includes/
 │   ├── class-acf-analyzer.php         # Core analysis engine
@@ -93,7 +104,8 @@ wp-plugin/
 │   └── css/
 │       └── admin.css                  # Styling
 ├── uninstall.php                      # Cleanup on uninstall
-└── README.md                          # Plugin documentation
+├── README.md                          # This file
+└── CPANEL_DEPLOYMENT.md               # Deployment guide
 ```
 
 ## How It Works
