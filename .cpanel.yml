@@ -1,0 +1,11 @@
+---
+# cPanel Deployment Configuration
+# This file configures automatic deployment when you pull/deploy via cPanel Git
+
+deployment:
+  tasks:
+    # Copy only the wp-plugin folder to the plugins directory
+    - export DEPLOYPATH=/home/USERNAME/public_html/wp-content/plugins/acf-analyzer
+    - /bin/mkdir -p $DEPLOYPATH
+    - /bin/cp -R wp-plugin/* $DEPLOYPATH/
+    - echo "ACF Analyzer plugin deployed successfully"
