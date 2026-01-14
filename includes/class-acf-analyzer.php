@@ -119,7 +119,7 @@ class ACF_Analyzer {
         $defaults = array(
             'match_logic' => 'AND',  // 'AND' = all criteria must match, 'OR' = any matches
             'debug'       => false,  // Include matched criteria details per post
-            'post_types'  => array( 'Velkakirjat', 'Osakeannit', 'Osaketori' ),
+            'categories'  => array( 'Velkakirjat', 'Osakeannit', 'Osaketori' ),
         );
 
         $options = wp_parse_args( $options, $defaults );
@@ -141,12 +141,13 @@ class ACF_Analyzer {
         // Query published posts in batches
         while ( true ) {
             $args = array(
-                'post_type'      => $options['post_types'],
+                'post_type'      => 'post',
                 'post_status'    => 'publish',
                 'posts_per_page' => 200,
                 'paged'          => $paged,
                 'orderby'        => 'date',
                 'order'          => 'DESC',
+                'category_name'  => implode( ',', $options['categories'] ),
             );
 
             $query = new WP_Query( $args );
@@ -379,12 +380,12 @@ class ACF_Analyzer {
     /**
      * Get all unique ACF field names from the database
      *
-     * @param array $post_types Post types to scan (defaults to Velkakirjat, Osakeannit, Osaketori)
+     * @param array $categories Category slugs to scan (defaults to Velkakirjat, Osakeannit, Osaketori)
      * @return array List of unique field names
      */
-    public function get_all_field_names( $post_types = array() ) {
-        if ( empty( $post_types ) ) {
-            $post_types = array( 'Velkakirjat', 'Osakeannit', 'Osaketori' );
+    public function get_all_field_names( $categories = array() ) {
+        if ( empty( $categories ) ) {
+            $categories = array( 'Velkakirjat', 'Osakeannit', 'Osaketori' );
         }
 
         $field_names = array();
@@ -393,10 +394,11 @@ class ACF_Analyzer {
         // Query posts in batches (same approach as analyze() method)
         while ( true ) {
             $args = array(
-                'post_type'      => $post_types,
+                'post_type'      => 'post',
                 'post_status'    => 'any',
                 'posts_per_page' => 100,
                 'paged'          => $paged,
+                'category_name'  => implode( ',', $categories ),
             );
 
             $query = new WP_Query( $args );

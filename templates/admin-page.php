@@ -112,20 +112,22 @@ if ( ! defined( 'ABSPATH' ) ) {
                                 </div>
                                 <?php
                                 // Debug info
-                                $debug_post_types = array( 'Velkakirja', 'Osakeannit', 'Osaketori' );
+                                $debug_categories = array( 'Velkakirjat', 'Osakeannit', 'Osaketori' );
                                 $debug_query = new WP_Query( array(
-                                    'post_type'      => $debug_post_types,
+                                    'post_type'      => 'post',
                                     'post_status'    => 'any',
                                     'posts_per_page' => 5,
+                                    'category_name'  => implode( ',', $debug_categories ),
                                 ) );
                                 echo '<div style="background:#f0f0f0; padding:10px; margin-top:10px; font-size:12px;">';
                                 echo '<strong>Debug Info:</strong><br>';
-                                echo 'Post types queried: ' . implode( ', ', $debug_post_types ) . '<br>';
+                                echo 'Post type: post | Categories: ' . implode( ', ', $debug_categories ) . '<br>';
                                 echo 'Posts found: ' . $debug_query->found_posts . '<br>';
                                 if ( $debug_query->have_posts() ) {
                                     echo 'Sample posts:<br>';
                                     foreach ( $debug_query->posts as $p ) {
-                                        echo '- ID: ' . $p->ID . ' | Type: ' . $p->post_type . ' | Status: ' . $p->post_status . '<br>';
+                                        $cats = wp_get_post_categories( $p->ID, array( 'fields' => 'names' ) );
+                                        echo '- ID: ' . $p->ID . ' | Categories: ' . implode( ', ', $cats ) . ' | Status: ' . $p->post_status . '<br>';
                                         $fields = get_fields( $p->ID );
                                         echo '&nbsp;&nbsp;get_fields() returned: ' . ( $fields ? count( $fields ) . ' fields: ' . implode( ', ', array_keys( $fields ) ) : 'false/empty' ) . '<br>';
                                     }
