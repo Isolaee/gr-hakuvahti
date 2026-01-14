@@ -93,6 +93,29 @@ class ACF_Analyzer_Shortcode {
         $analyzer = new ACF_Analyzer();
         $field_names = $analyzer->get_all_field_names( array( $category ) );
 
+        // Exclude specific fields from dropdown
+        $excluded_fields = array(
+            'Ilmoituksen_otsikko',
+            'kuva',
+            'Y-tunnus',
+            'verkkosivu_url',
+            'yrityksen_perustamisvuosi',
+            'ilmoitusteksti',
+            'Videopitch',
+            'markkinnointimateriaali_tiedosto',
+            'tavoitteet_2026',
+            'haluatko_lisata_lisatiedon',
+            'kuvaus_osaamistarpeista',
+            'card_image',
+            'mahdolliset_rajoitukset',
+            'mahdolliset_rajoitukset.0',
+            'mahdolliset_rajoitukset.1',
+            'markkinointimateriaali',
+        );
+
+        // Filter out excluded fields
+        $field_names = array_values( array_diff( $field_names, $excluded_fields ) );
+
         wp_send_json_success( array( 'fields' => $field_names ) );
     }
 
