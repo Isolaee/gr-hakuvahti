@@ -119,7 +119,7 @@ class ACF_Analyzer {
         $defaults = array(
             'match_logic' => 'AND',  // 'AND' = all criteria must match, 'OR' = any matches
             'debug'       => false,  // Include matched criteria details per post
-            'post_types'  => array( 'velkakirja', 'osakeanti', 'osaketori' ),
+            'post_types'  => array( 'Velkakirjat', 'Osakeannit', 'Osaketori' ),
         );
 
         $options = wp_parse_args( $options, $defaults );
@@ -379,12 +379,12 @@ class ACF_Analyzer {
     /**
      * Get all unique ACF field names from the database
      *
-     * @param array $post_types Post types to scan (defaults to velkakirja, osakeanti, osaketori)
+     * @param array $post_types Post types to scan (defaults to Velkakirjat, Osakeannit, Osaketori)
      * @return array List of unique field names
      */
     public function get_all_field_names( $post_types = array() ) {
         if ( empty( $post_types ) ) {
-            $post_types = array( 'velkakirja', 'osakeanti', 'osaketori' );
+            $post_types = array( 'Velkakirjat', 'Osakeannit', 'Osaketori' );
         }
 
         $field_names = array();
