@@ -153,15 +153,26 @@ class ACF_Analyzer_Admin {
         }
 
         // Get criteria from form
-        $field_names  = isset( $_POST['criteria_field'] ) ? array_map( 'sanitize_text_field', $_POST['criteria_field'] ) : array();
-        $field_values = isset( $_POST['criteria_value'] ) ? array_map( 'sanitize_text_field', $_POST['criteria_value'] ) : array();
+        $field_names    = isset( $_POST['criteria_field'] ) ? array_map( 'sanitize_text_field', $_POST['criteria_field'] ) : array();
+        $field_values   = isset( $_POST['criteria_value'] ) ? array_map( 'sanitize_text_field', $_POST['criteria_value'] ) : array();
+        $field_compares = isset( $_POST['criteria_compare'] ) ? array_map( 'sanitize_text_field', $_POST['criteria_compare'] ) : array();
 
-        // Build criteria array
+        // Build criteria array with comparison suffixes
         $criteria = array();
         foreach ( $field_names as $index => $field_name ) {
             $field_name = trim( $field_name );
             if ( ! empty( $field_name ) && isset( $field_values[ $index ] ) ) {
-                $criteria[ $field_name ] = $field_values[ $index ];
+                $compare = isset( $field_compares[ $index ] ) ? $field_compares[ $index ] : 'equals';
+                $key     = $field_name;
+
+                // Append suffix for range comparisons
+                if ( 'min' === $compare ) {
+                    $key = $field_name . '_min';
+                } elseif ( 'max' === $compare ) {
+                    $key = $field_name . '_max';
+                }
+
+                $criteria[ $key ] = $field_values[ $index ];
             }
         }
 

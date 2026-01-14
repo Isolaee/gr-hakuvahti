@@ -139,7 +139,8 @@
     margin-bottom: 10px;
 }
 
-.criteria-row span {
+.criteria-row .criteria-compare {
+    min-width: 90px;
     font-weight: 600;
 }
 

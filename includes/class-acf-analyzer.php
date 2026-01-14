@@ -167,8 +167,26 @@ class ACF_Analyzer {
 
                 // Check each criterion
                 foreach ( $criteria as $field_name => $expected_value ) {
-                    $actual_value = $this->get_nested_field_value( $acf_fields, $field_name );
-                    $is_match     = ( $actual_value === $expected_value );
+                    // Check for range comparison (_min or _max suffix)
+                    if ( preg_match( '/^(.+)_(min|max)$/', $field_name, $matches ) ) {
+                        $base_field = $matches[1];
+                        $comparison = $matches[2];
+                        $actual_value = $this->get_nested_field_value( $acf_fields, $base_field );
+
+                        if ( is_numeric( $actual_value ) && is_numeric( $expected_value ) ) {
+                            $actual_num   = (float) $actual_value;
+                            $expected_num = (float) $expected_value;
+                            $is_match     = ( 'min' === $comparison )
+                                ? ( $actual_num >= $expected_num )
+                                : ( $actual_num <= $expected_num );
+                        } else {
+                            $is_match = false;
+                        }
+                    } else {
+                        // Exact match comparison
+                        $actual_value = $this->get_nested_field_value( $acf_fields, $field_name );
+                        $is_match     = ( $actual_value === $expected_value );
+                    }
 
                     if ( $is_match ) {
                         $match_count++;

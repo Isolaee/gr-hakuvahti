@@ -104,7 +104,11 @@ if ( ! defined( 'ABSPATH' ) ) {
                             <div id="criteria-rows">
                                 <div class="criteria-row">
                                     <input type="text" name="criteria_field[]" placeholder="<?php esc_attr_e( 'Field name', 'acf-analyzer' ); ?>" class="regular-text">
-                                    <span>=</span>
+                                    <select name="criteria_compare[]" class="criteria-compare">
+                                        <option value="equals">=</option>
+                                        <option value="min">&ge; (min)</option>
+                                        <option value="max">&le; (max)</option>
+                                    </select>
                                     <input type="text" name="criteria_value[]" placeholder="<?php esc_attr_e( 'Value', 'acf-analyzer' ); ?>" class="regular-text">
                                     <button type="button" class="button remove-criteria" style="display:none;">&times;</button>
                                 </div>
@@ -158,7 +162,11 @@ if ( ! defined( 'ABSPATH' ) ) {
                     var row = document.createElement('div');
                     row.className = 'criteria-row';
                     row.innerHTML = '<input type="text" name="criteria_field[]" placeholder="<?php echo esc_js( __( 'Field name', 'acf-analyzer' ) ); ?>" class="regular-text">' +
-                        ' <span>=</span> ' +
+                        '<select name="criteria_compare[]" class="criteria-compare">' +
+                            '<option value="equals">=</option>' +
+                            '<option value="min">\u2265 (min)</option>' +
+                            '<option value="max">\u2264 (max)</option>' +
+                        '</select>' +
                         '<input type="text" name="criteria_value[]" placeholder="<?php echo esc_js( __( 'Value', 'acf-analyzer' ) ); ?>" class="regular-text">' +
                         ' <button type="button" class="button remove-criteria">&times;</button>';
                     container.appendChild(row);
