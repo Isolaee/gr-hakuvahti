@@ -30,6 +30,24 @@ if ( ! defined( 'ABSPATH' ) ) {
         </div>
         <?php
     }
+
+    // Display search success message
+    if ( isset( $_GET['search'] ) && $_GET['search'] === 'complete' ) {
+        ?>
+        <div class="notice notice-success is-dismissible">
+            <p><?php esc_html_e( 'Search completed successfully!', 'acf-analyzer' ); ?></p>
+        </div>
+        <?php
+    }
+
+    // Display search error message
+    if ( isset( $_GET['error'] ) && $_GET['error'] === 'no_criteria' ) {
+        ?>
+        <div class="notice notice-error is-dismissible">
+            <p><?php esc_html_e( 'Please enter at least one search criterion.', 'acf-analyzer' ); ?></p>
+        </div>
+        <?php
+    }
     ?>
 
     <div class="acf-analyzer-content">
@@ -67,6 +85,182 @@ if ( ! defined( 'ABSPATH' ) ) {
                 <?php submit_button( __( 'Run Analysis', 'acf-analyzer' ), 'primary', 'submit', false ); ?>
             </form>
         </div>
+
+        <!-- Criteria Search Form -->
+        <div class="acf-analyzer-section">
+            <h2><?php esc_html_e( 'Search by ACF Criteria', 'acf-analyzer' ); ?></h2>
+            <p><?php esc_html_e( 'Search published posts (Velkakirjat, Osakeannit, Osaketori) by ACF field values.', 'acf-analyzer' ); ?></p>
+
+            <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" id="acf-criteria-search-form">
+                <input type="hidden" name="action" value="acf_analyzer_search">
+                <?php wp_nonce_field( 'acf_analyzer_search', 'acf_analyzer_search_nonce' ); ?>
+
+                <table class="form-table">
+                    <tr>
+                        <th scope="row">
+                            <label><?php esc_html_e( 'Criteria', 'acf-analyzer' ); ?></label>
+                        </th>
+                        <td>
+                            <div id="criteria-rows">
+                                <div class="criteria-row">
+                                    <input type="text" name="criteria_field[]" placeholder="<?php esc_attr_e( 'Field name', 'acf-analyzer' ); ?>" class="regular-text">
+                                    <span>=</span>
+                                    <input type="text" name="criteria_value[]" placeholder="<?php esc_attr_e( 'Value', 'acf-analyzer' ); ?>" class="regular-text">
+                                    <button type="button" class="button remove-criteria" style="display:none;">&times;</button>
+                                </div>
+                            </div>
+                            <p>
+                                <button type="button" class="button" id="add-criteria">
+                                    <?php esc_html_e( '+ Add Criterion', 'acf-analyzer' ); ?>
+                                </button>
+                            </p>
+                            <p class="description"><?php esc_html_e( 'Use dot notation for nested fields (e.g., parent.child)', 'acf-analyzer' ); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">
+                            <label><?php esc_html_e( 'Match Logic', 'acf-analyzer' ); ?></label>
+                        </th>
+                        <td>
+                            <label>
+                                <input type="radio" name="match_logic" value="AND" checked>
+                                <?php esc_html_e( 'AND (all criteria must match)', 'acf-analyzer' ); ?>
+                            </label>
+                            <br>
+                            <label>
+                                <input type="radio" name="match_logic" value="OR">
+                                <?php esc_html_e( 'OR (any criterion matches)', 'acf-analyzer' ); ?>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">
+                            <label><?php esc_html_e( 'Debug Mode', 'acf-analyzer' ); ?></label>
+                        </th>
+                        <td>
+                            <label>
+                                <input type="checkbox" name="debug" value="1">
+                                <?php esc_html_e( 'Show matched criteria details per post', 'acf-analyzer' ); ?>
+                            </label>
+                        </td>
+                    </tr>
+                </table>
+
+                <?php submit_button( __( 'Search Posts', 'acf-analyzer' ), 'primary', 'submit', false ); ?>
+            </form>
+
+            <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                var addBtn = document.getElementById('add-criteria');
+                var container = document.getElementById('criteria-rows');
+
+                addBtn.addEventListener('click', function() {
+                    var row = document.createElement('div');
+                    row.className = 'criteria-row';
+                    row.innerHTML = '<input type="text" name="criteria_field[]" placeholder="<?php echo esc_js( __( 'Field name', 'acf-analyzer' ) ); ?>" class="regular-text">' +
+                        ' <span>=</span> ' +
+                        '<input type="text" name="criteria_value[]" placeholder="<?php echo esc_js( __( 'Value', 'acf-analyzer' ) ); ?>" class="regular-text">' +
+                        ' <button type="button" class="button remove-criteria">&times;</button>';
+                    container.appendChild(row);
+                    updateRemoveButtons();
+                });
+
+                container.addEventListener('click', function(e) {
+                    if (e.target.classList.contains('remove-criteria')) {
+                        e.target.parentElement.remove();
+                        updateRemoveButtons();
+                    }
+                });
+
+                function updateRemoveButtons() {
+                    var rows = container.querySelectorAll('.criteria-row');
+                    rows.forEach(function(row, index) {
+                        var btn = row.querySelector('.remove-criteria');
+                        btn.style.display = rows.length > 1 ? 'inline-block' : 'none';
+                    });
+                }
+            });
+            </script>
+        </div>
+
+        <?php if ( $search_results ) : ?>
+            <!-- Search Results -->
+            <div class="acf-analyzer-section acf-analyzer-results">
+                <h2><?php esc_html_e( 'Search Results', 'acf-analyzer' ); ?></h2>
+
+                <div class="acf-analyzer-overview">
+                    <table class="widefat">
+                        <tbody>
+                            <tr>
+                                <th><?php esc_html_e( 'Posts Found', 'acf-analyzer' ); ?></th>
+                                <td><?php echo esc_html( number_format_i18n( $search_results['total_found'] ) ); ?></td>
+                            </tr>
+                            <tr>
+                                <th><?php esc_html_e( 'Match Logic', 'acf-analyzer' ); ?></th>
+                                <td><?php echo esc_html( $search_results['match_logic'] ); ?></td>
+                            </tr>
+                            <tr>
+                                <th><?php esc_html_e( 'Criteria', 'acf-analyzer' ); ?></th>
+                                <td>
+                                    <?php foreach ( $search_results['criteria'] as $field => $value ) : ?>
+                                        <code><?php echo esc_html( $field ); ?> = <?php echo esc_html( $value ); ?></code><br>
+                                    <?php endforeach; ?>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <?php if ( ! empty( $search_results['posts'] ) ) : ?>
+                    <div class="acf-analyzer-fields" style="margin-top: 20px;">
+                        <h3><?php esc_html_e( 'Matching Posts', 'acf-analyzer' ); ?></h3>
+                        <table class="widefat striped">
+                            <thead>
+                                <tr>
+                                    <th><?php esc_html_e( 'ID', 'acf-analyzer' ); ?></th>
+                                    <th><?php esc_html_e( 'Title', 'acf-analyzer' ); ?></th>
+                                    <th><?php esc_html_e( 'Post Type', 'acf-analyzer' ); ?></th>
+                                    <th><?php esc_html_e( 'Actions', 'acf-analyzer' ); ?></th>
+                                    <?php if ( $search_results['debug'] ) : ?>
+                                        <th><?php esc_html_e( 'Matched Criteria', 'acf-analyzer' ); ?></th>
+                                    <?php endif; ?>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ( $search_results['posts'] as $post_item ) : ?>
+                                    <tr>
+                                        <td><?php echo esc_html( $post_item['ID'] ); ?></td>
+                                        <td><strong><?php echo esc_html( $post_item['title'] ); ?></strong></td>
+                                        <td><?php echo esc_html( $post_item['post_type'] ); ?></td>
+                                        <td>
+                                            <a href="<?php echo esc_url( $post_item['url'] ); ?>" target="_blank"><?php esc_html_e( 'View', 'acf-analyzer' ); ?></a> |
+                                            <a href="<?php echo esc_url( get_edit_post_link( $post_item['ID'] ) ); ?>"><?php esc_html_e( 'Edit', 'acf-analyzer' ); ?></a>
+                                        </td>
+                                        <?php if ( $search_results['debug'] && isset( $post_item['matched_criteria'] ) ) : ?>
+                                            <td>
+                                                <?php foreach ( $post_item['matched_criteria'] as $field => $data ) : ?>
+                                                    <div style="margin-bottom: 5px;">
+                                                        <code><?php echo esc_html( $field ); ?></code>:
+                                                        <?php if ( $data['matched'] ) : ?>
+                                                            <span style="color: green;">✓</span>
+                                                        <?php else : ?>
+                                                            <span style="color: red;">✗</span>
+                                                            <small>(actual: <?php echo esc_html( is_null( $data['actual'] ) ? 'null' : $data['actual'] ); ?>)</small>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                <?php endforeach; ?>
+                                            </td>
+                                        <?php endif; ?>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php else : ?>
+                    <p><em><?php esc_html_e( 'No posts matched the criteria.', 'acf-analyzer' ); ?></em></p>
+                <?php endif; ?>
+            </div>
+        <?php endif; ?>
 
         <?php if ( $results ) : ?>
             <!-- Analysis Results -->

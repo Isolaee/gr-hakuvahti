@@ -128,7 +128,3 @@ The plugin:
 
 **Results disappeared**
 - Results are cached for 1 hour. Run a new analysis if needed.
-
-## License
-
-GPL v2 or later

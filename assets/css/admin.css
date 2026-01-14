@@ -131,6 +131,28 @@
     margin-right: 8px;
 }
 
+/* Criteria search form */
+.criteria-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.criteria-row span {
+    font-weight: 600;
+}
+
+.criteria-row .remove-criteria {
+    color: #a00;
+    border-color: #a00;
+}
+
+.criteria-row .remove-criteria:hover {
+    color: #dc3232;
+    border-color: #dc3232;
+}
+
 /* Responsive */
 @media screen and (max-width: 782px) {
     .acf-analyzer-fields table {

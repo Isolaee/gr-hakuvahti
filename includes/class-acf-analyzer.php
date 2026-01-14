@@ -109,6 +109,136 @@ class ACF_Analyzer {
     }
 
     /**
+     * Search posts by ACF field criteria
+     *
+     * @param array $criteria ACF field conditions (field_name => expected_value)
+     * @param array $options Search options
+     * @return array Search results
+     */
+    public function search_by_criteria( $criteria = array(), $options = array() ) {
+        $defaults = array(
+            'match_logic' => 'AND',  // 'AND' = all criteria must match, 'OR' = any matches
+            'debug'       => false,  // Include matched criteria details per post
+            'post_types'  => array( 'velkakirja', 'osakeanti', 'osaketori' ),
+        );
+
+        $options = wp_parse_args( $options, $defaults );
+
+        $results = array(
+            'posts'       => array(),
+            'total_found' => 0,
+            'criteria'    => $criteria,
+            'match_logic' => $options['match_logic'],
+            'debug'       => $options['debug'],
+        );
+
+        if ( empty( $criteria ) ) {
+            return $results;
+        }
+
+        $paged = 1;
+
+        // Query published posts in batches
+        while ( true ) {
+            $args = array(
+                'post_type'      => $options['post_types'],
+                'post_status'    => 'publish',
+                'posts_per_page' => 200,
+                'paged'          => $paged,
+                'orderby'        => 'date',
+                'order'          => 'DESC',
+            );
+
+            $query = new WP_Query( $args );
+
+            if ( ! $query->have_posts() ) {
+                break;
+            }
+
+            foreach ( $query->posts as $post ) {
+                $acf_fields = get_fields( $post->ID );
+
+                if ( empty( $acf_fields ) ) {
+                    continue;
+                }
+
+                $matched_criteria = array();
+                $match_count      = 0;
+
+                // Check each criterion
+                foreach ( $criteria as $field_name => $expected_value ) {
+                    $actual_value = $this->get_nested_field_value( $acf_fields, $field_name );
+                    $is_match     = ( $actual_value === $expected_value );
+
+                    if ( $is_match ) {
+                        $match_count++;
+                    }
+
+                    if ( $options['debug'] ) {
+                        $matched_criteria[ $field_name ] = array(
+                            'expected' => $expected_value,
+                            'actual'   => $actual_value,
+                            'matched'  => $is_match,
+                        );
+                    }
+                }
+
+                // Apply match logic
+                $include_post = false;
+                if ( 'AND' === $options['match_logic'] ) {
+                    $include_post = ( $match_count === count( $criteria ) );
+                } else { // OR
+                    $include_post = ( $match_count > 0 );
+                }
+
+                if ( $include_post ) {
+                    $post_data = array(
+                        'ID'        => $post->ID,
+                        'title'     => $post->post_title,
+                        'post_type' => $post->post_type,
+                        'url'       => get_permalink( $post->ID ),
+                    );
+
+                    if ( $options['debug'] ) {
+                        $post_data['matched_criteria'] = $matched_criteria;
+                    }
+
+                    $results['posts'][] = $post_data;
+                }
+            }
+
+            $paged++;
+            wp_reset_postdata();
+        }
+
+        $results['total_found'] = count( $results['posts'] );
+
+        return $results;
+    }
+
+    /**
+     * Get nested field value using dot notation
+     *
+     * @param array  $fields ACF fields array
+     * @param string $field_name Field name (supports dot notation: 'parent.child')
+     * @return mixed Field value or null if not found
+     */
+    private function get_nested_field_value( $fields, $field_name ) {
+        $keys  = explode( '.', $field_name );
+        $value = $fields;
+
+        foreach ( $keys as $key ) {
+            if ( is_array( $value ) && isset( $value[ $key ] ) ) {
+                $value = $value[ $key ];
+            } else {
+                return null;
+            }
+        }
+
+        return $value;
+    }
+
+    /**
      * Analyze individual fields recursively
      *
      * @param array  $fields Array of ACF fields

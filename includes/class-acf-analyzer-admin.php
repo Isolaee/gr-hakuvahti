@@ -15,6 +15,7 @@ class ACF_Analyzer_Admin {
         add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
         add_action( 'admin_post_acf_analyzer_run', array( $this, 'handle_analysis' ) );
         add_action( 'admin_post_acf_analyzer_export', array( $this, 'handle_export' ) );
+        add_action( 'admin_post_acf_analyzer_search', array( $this, 'handle_search' ) );
     }
 
     /**
@@ -55,6 +56,9 @@ class ACF_Analyzer_Admin {
 
         // Get previous analysis results if available
         $results = get_transient( 'acf_analyzer_results' );
+
+        // Get previous search results if available
+        $search_results = get_transient( 'acf_analyzer_search_results' );
 
         include ACF_ANALYZER_PLUGIN_DIR . 'templates/admin-page.php';
     }
@@ -130,6 +134,61 @@ class ACF_Analyzer_Admin {
             echo $analyzer->export_json( $results );
         }
 
+        exit;
+    }
+
+    /**
+     * Handle search by criteria request
+     */
+    public function handle_search() {
+        // Verify nonce
+        if ( ! isset( $_POST['acf_analyzer_search_nonce'] ) ||
+             ! wp_verify_nonce( $_POST['acf_analyzer_search_nonce'], 'acf_analyzer_search' ) ) {
+            wp_die( __( 'Invalid nonce', 'acf-analyzer' ) );
+        }
+
+        // Check permissions
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_die( __( 'Insufficient permissions', 'acf-analyzer' ) );
+        }
+
+        // Get criteria from form
+        $field_names  = isset( $_POST['criteria_field'] ) ? array_map( 'sanitize_text_field', $_POST['criteria_field'] ) : array();
+        $field_values = isset( $_POST['criteria_value'] ) ? array_map( 'sanitize_text_field', $_POST['criteria_value'] ) : array();
+
+        // Build criteria array
+        $criteria = array();
+        foreach ( $field_names as $index => $field_name ) {
+            $field_name = trim( $field_name );
+            if ( ! empty( $field_name ) && isset( $field_values[ $index ] ) ) {
+                $criteria[ $field_name ] = $field_values[ $index ];
+            }
+        }
+
+        if ( empty( $criteria ) ) {
+            wp_redirect( add_query_arg( 'error', 'no_criteria', admin_url( 'tools.php?page=acf-analyzer' ) ) );
+            exit;
+        }
+
+        // Get options
+        $match_logic = isset( $_POST['match_logic'] ) ? sanitize_text_field( $_POST['match_logic'] ) : 'AND';
+        $debug       = isset( $_POST['debug'] ) && $_POST['debug'] === '1';
+
+        // Run search
+        $analyzer = new ACF_Analyzer();
+        $search_results = $analyzer->search_by_criteria(
+            $criteria,
+            array(
+                'match_logic' => $match_logic,
+                'debug'       => $debug,
+            )
+        );
+
+        // Store results in transient (expires in 1 hour)
+        set_transient( 'acf_analyzer_search_results', $search_results, HOUR_IN_SECONDS );
+
+        // Redirect back with success message
+        wp_redirect( add_query_arg( 'search', 'complete', admin_url( 'tools.php?page=acf-analyzer' ) ) );
         exit;
     }
 }
