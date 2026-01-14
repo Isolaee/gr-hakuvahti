@@ -26,6 +26,7 @@ define( 'ACF_ANALYZER_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 // Load plugin classes
 require_once ACF_ANALYZER_PLUGIN_DIR . 'includes/class-acf-analyzer.php';
 require_once ACF_ANALYZER_PLUGIN_DIR . 'includes/class-acf-analyzer-admin.php';
+require_once ACF_ANALYZER_PLUGIN_DIR . 'includes/class-acf-analyzer-shortcode.php';
 
 // Initialize the plugin
 function acf_analyzer_init() {
@@ -37,6 +38,9 @@ function acf_analyzer_init() {
 
     // Initialize admin interface
     new ACF_Analyzer_Admin();
+    
+    // Initialize shortcode functionality
+    new ACF_Analyzer_Shortcode();
 }
 add_action( 'plugins_loaded', 'acf_analyzer_init' );
 
