@@ -61,6 +61,11 @@ class ACF_Analyzer_Admin {
         // Get previous search results if available
         $search_results = get_transient( 'acf_analyzer_search_results' );
 
+        // Clear field names cache if requested
+        if ( isset( $_GET['refresh_fields'] ) && $_GET['refresh_fields'] === '1' ) {
+            delete_transient( 'acf_analyzer_field_names' );
+        }
+
         // Get available ACF field names for dropdown
         $acf_field_names = $this->get_acf_field_names();
 
@@ -78,10 +83,13 @@ class ACF_Analyzer_Admin {
         if ( false === $field_names ) {
             $analyzer = new ACF_Analyzer();
             $field_names = $analyzer->get_all_field_names();
-            set_transient( 'acf_analyzer_field_names', $field_names, HOUR_IN_SECONDS );
+            // Only cache if we found fields, otherwise try again next load
+            if ( ! empty( $field_names ) ) {
+                set_transient( 'acf_analyzer_field_names', $field_names, HOUR_IN_SECONDS );
+            }
         }
 
-        return $field_names;
+        return is_array( $field_names ) ? $field_names : array();
     }
 
     /**

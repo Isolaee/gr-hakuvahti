@@ -88,7 +88,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 
         <!-- Criteria Search Form -->
         <div class="acf-analyzer-section">
-            <h2><?php esc_html_e( 'Search by ACF Criteria', 'acf-analyzer' ); ?></h2>
+            <h2>
+                <?php esc_html_e( 'Search by ACF Criteria', 'acf-analyzer' ); ?>
+                <a href="<?php echo esc_url( add_query_arg( 'refresh_fields', '1', admin_url( 'tools.php?page=acf-analyzer' ) ) ); ?>" class="button button-small" style="margin-left: 10px; vertical-align: middle;">
+                    <?php esc_html_e( 'Refresh Fields', 'acf-analyzer' ); ?>
+                </a>
+            </h2>
             <p><?php esc_html_e( 'Search published posts (Velkakirjat, Osakeannit, Osaketori) by ACF field values.', 'acf-analyzer' ); ?></p>
 
             <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" id="acf-criteria-search-form">

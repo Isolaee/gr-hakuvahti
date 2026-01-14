@@ -388,43 +388,161 @@ class ACF_Analyzer {
         }
 
         $field_names = array();
-        $paged = 1;
 
-        // Query posts in batches
-        while ( true ) {
-            $args = array(
-                'post_type'      => $post_types,
-                'post_status'    => 'any',
-                'posts_per_page' => 100,
-                'paged'          => $paged,
-                'fields'         => 'ids',
-            );
+        // Method 1: Try to get fields from ACF field groups
+        $field_names = $this->get_field_names_from_acf_groups( $post_types );
 
-            $query = new WP_Query( $args );
-
-            if ( empty( $query->posts ) ) {
-                break;
-            }
-
-            foreach ( $query->posts as $post_id ) {
-                $acf_fields = get_fields( $post_id );
-
-                if ( ! empty( $acf_fields ) ) {
-                    $this->collect_field_names( $acf_fields, $field_names );
-                }
-            }
-
-            $paged++;
-            wp_reset_postdata();
-
-            // Limit scanning to avoid timeout
-            if ( $paged > 10 ) {
-                break;
-            }
+        // Method 2: If no fields found, scan post meta directly
+        if ( empty( $field_names ) ) {
+            $field_names = $this->get_field_names_from_post_meta( $post_types );
         }
 
         sort( $field_names );
         return array_values( array_unique( $field_names ) );
+    }
+
+    /**
+     * Get field names from ACF field groups
+     *
+     * @param array $post_types Post types to check
+     * @return array Field names
+     */
+    private function get_field_names_from_acf_groups( $post_types ) {
+        $field_names = array();
+
+        if ( ! function_exists( 'acf_get_field_groups' ) ) {
+            return $field_names;
+        }
+
+        // Get all field groups
+        $field_groups = acf_get_field_groups();
+
+        foreach ( $field_groups as $group ) {
+            // Check if this group applies to our post types
+            $dominated_types = $this->get_group_post_types( $group );
+
+            if ( empty( $dominated_types ) || array_intersect( $dominated_types, $post_types ) ) {
+                // Get fields for this group
+                if ( function_exists( 'acf_get_fields' ) ) {
+                    $fields = acf_get_fields( $group['key'] );
+                    if ( $fields ) {
+                        $this->collect_acf_field_names( $fields, $field_names );
+                    }
+                }
+            }
+        }
+
+        return $field_names;
+    }
+
+    /**
+     * Get post types that a field group applies to
+     *
+     * @param array $group Field group
+     * @return array Post types
+     */
+    private function get_group_post_types( $group ) {
+        $post_types = array();
+
+        if ( empty( $group['location'] ) ) {
+            return $post_types;
+        }
+
+        foreach ( $group['location'] as $location_group ) {
+            foreach ( $location_group as $rule ) {
+                if ( isset( $rule['param'] ) && 'post_type' === $rule['param'] && '==' === $rule['operator'] ) {
+                    $post_types[] = $rule['value'];
+                }
+            }
+        }
+
+        return $post_types;
+    }
+
+    /**
+     * Collect field names from ACF fields array (from field groups)
+     *
+     * @param array $fields ACF fields
+     * @param array &$field_names Reference to field names collector
+     * @param string $prefix Prefix for nested fields
+     */
+    private function collect_acf_field_names( $fields, &$field_names, $prefix = '' ) {
+        foreach ( $fields as $field ) {
+            $name = isset( $field['name'] ) ? $field['name'] : '';
+            if ( empty( $name ) ) {
+                continue;
+            }
+
+            $full_name = $prefix ? $prefix . '.' . $name : $name;
+
+            if ( ! in_array( $full_name, $field_names, true ) ) {
+                $field_names[] = $full_name;
+            }
+
+            // Handle sub fields (for repeaters, groups, etc.)
+            if ( ! empty( $field['sub_fields'] ) ) {
+                $this->collect_acf_field_names( $field['sub_fields'], $field_names, $full_name );
+            }
+        }
+    }
+
+    /**
+     * Get field names from post meta (fallback method)
+     *
+     * @param array $post_types Post types to scan
+     * @return array Field names
+     */
+    private function get_field_names_from_post_meta( $post_types ) {
+        global $wpdb;
+
+        $field_names = array();
+
+        // Get post IDs for the specified post types
+        $post_types_placeholders = implode( ',', array_fill( 0, count( $post_types ), '%s' ) );
+
+        $post_ids = $wpdb->get_col(
+            $wpdb->prepare(
+                "SELECT ID FROM {$wpdb->posts} WHERE post_type IN ($post_types_placeholders) AND post_status != 'auto-draft' LIMIT 500",
+                ...$post_types
+            )
+        );
+
+        if ( empty( $post_ids ) ) {
+            return $field_names;
+        }
+
+        // Get unique meta keys that look like ACF fields (exclude keys starting with _)
+        $post_ids_placeholders = implode( ',', array_fill( 0, count( $post_ids ), '%d' ) );
+
+        $meta_keys = $wpdb->get_col(
+            $wpdb->prepare(
+                "SELECT DISTINCT meta_key FROM {$wpdb->postmeta}
+                WHERE post_id IN ($post_ids_placeholders)
+                AND meta_key NOT LIKE '\_%'
+                ORDER BY meta_key",
+                ...$post_ids
+            )
+        );
+
+        // Filter to only include keys that have a corresponding ACF reference key
+        foreach ( $meta_keys as $key ) {
+            // Check if there's a corresponding _fieldname key (ACF stores field references this way)
+            $has_acf_reference = $wpdb->get_var(
+                $wpdb->prepare(
+                    "SELECT COUNT(*) FROM {$wpdb->postmeta}
+                    WHERE post_id IN ($post_ids_placeholders)
+                    AND meta_key = %s
+                    LIMIT 1",
+                    ...array_merge( $post_ids, array( '_' . $key ) )
+                )
+            );
+
+            if ( $has_acf_reference ) {
+                $field_names[] = $key;
+            }
+        }
+
+        return $field_names;
     }
 
     /**
