@@ -72,7 +72,7 @@ if ( ! defined( 'ABSPATH' ) ) {
                                         <input type="checkbox"
                                                name="post_types[]"
                                                value="<?php echo esc_attr( $post_type->name ); ?>"
-                                               <?php checked( in_array( $post_type->name, array( 'osakeanti', 'osaketori', 'velkakirja' ) ) ); ?>>
+                                               <?php checked( in_array( $post_type->name, array( 'Osakeannit', 'Osaketori', 'Velkakirjat' ) ) ); ?>>
                                         <?php echo esc_html( $post_type->label ); ?>
                                     </label>
                                     <br>
@@ -112,7 +112,7 @@ if ( ! defined( 'ABSPATH' ) ) {
                                 </div>
                                 <?php
                                 // Debug info
-                                $debug_post_types = array( 'velkakirja', 'osakeanti', 'osaketori' );
+                                $debug_post_types = array( 'Velkakirja', 'Osakeannit', 'Osaketori' );
                                 $debug_query = new WP_Query( array(
                                     'post_type'      => $debug_post_types,
                                     'post_status'    => 'any',
