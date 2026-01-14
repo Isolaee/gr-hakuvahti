@@ -101,9 +101,19 @@ if ( ! defined( 'ABSPATH' ) ) {
                             <label><?php esc_html_e( 'Criteria', 'acf-analyzer' ); ?></label>
                         </th>
                         <td>
+                            <?php if ( empty( $acf_field_names ) ) : ?>
+                                <div class="notice notice-warning inline">
+                                    <p><?php esc_html_e( 'No ACF fields found. Please ensure posts with ACF data exist.', 'acf-analyzer' ); ?></p>
+                                </div>
+                            <?php else : ?>
                             <div id="criteria-rows">
                                 <div class="criteria-row">
-                                    <input type="text" name="criteria_field[]" placeholder="<?php esc_attr_e( 'Field name', 'acf-analyzer' ); ?>" class="regular-text">
+                                    <select name="criteria_field[]" class="criteria-field">
+                                        <option value=""><?php esc_html_e( '-- Select field --', 'acf-analyzer' ); ?></option>
+                                        <?php foreach ( $acf_field_names as $field_name ) : ?>
+                                            <option value="<?php echo esc_attr( $field_name ); ?>"><?php echo esc_html( $field_name ); ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
                                     <select name="criteria_compare[]" class="criteria-compare">
                                         <option value="equals">=</option>
                                         <option value="min">&ge; (min)</option>
@@ -118,8 +128,8 @@ if ( ! defined( 'ABSPATH' ) ) {
                                     <?php esc_html_e( '+ Add Criterion', 'acf-analyzer' ); ?>
                                 </button>
                             </p>
-                            <p class="description"><?php esc_html_e( 'Use dot notation for nested fields (e.g., parent.child)', 'acf-analyzer' ); ?></p>
-                        </td>
+                            <p class="description"><?php esc_html_e( 'Nested fields are shown with dot notation (e.g., parent.child)', 'acf-analyzer' ); ?></p>
+                            <?php endif; ?>
                     </tr>
                     <tr>
                         <th scope="row">
@@ -153,15 +163,27 @@ if ( ! defined( 'ABSPATH' ) ) {
                 <?php submit_button( __( 'Search Posts', 'acf-analyzer' ), 'primary', 'submit', false ); ?>
             </form>
 
+            <?php if ( ! empty( $acf_field_names ) ) : ?>
             <script>
             document.addEventListener('DOMContentLoaded', function() {
                 var addBtn = document.getElementById('add-criteria');
                 var container = document.getElementById('criteria-rows');
 
+                if (!addBtn || !container) return;
+
+                // Build field options HTML from PHP array
+                var fieldOptions = '<?php
+                    $options_html = '<option value="">' . esc_js( __( '-- Select field --', 'acf-analyzer' ) ) . '</option>';
+                    foreach ( $acf_field_names as $field_name ) {
+                        $options_html .= '<option value="' . esc_attr( $field_name ) . '">' . esc_html( $field_name ) . '</option>';
+                    }
+                    echo $options_html;
+                ?>';
+
                 addBtn.addEventListener('click', function() {
                     var row = document.createElement('div');
                     row.className = 'criteria-row';
-                    row.innerHTML = '<input type="text" name="criteria_field[]" placeholder="<?php echo esc_js( __( 'Field name', 'acf-analyzer' ) ); ?>" class="regular-text">' +
+                    row.innerHTML = '<select name="criteria_field[]" class="criteria-field">' + fieldOptions + '</select>' +
                         '<select name="criteria_compare[]" class="criteria-compare">' +
                             '<option value="equals">=</option>' +
                             '<option value="min">\u2265 (min)</option>' +
@@ -189,6 +211,7 @@ if ( ! defined( 'ABSPATH' ) ) {
                 }
             });
             </script>
+            <?php endif; ?>
         </div>
 
         <?php if ( $search_results ) : ?>

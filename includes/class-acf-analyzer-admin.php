@@ -16,6 +16,7 @@ class ACF_Analyzer_Admin {
         add_action( 'admin_post_acf_analyzer_run', array( $this, 'handle_analysis' ) );
         add_action( 'admin_post_acf_analyzer_export', array( $this, 'handle_export' ) );
         add_action( 'admin_post_acf_analyzer_search', array( $this, 'handle_search' ) );
+        add_action( 'wp_ajax_acf_analyzer_get_fields', array( $this, 'ajax_get_field_names' ) );
     }
 
     /**
@@ -60,7 +61,48 @@ class ACF_Analyzer_Admin {
         // Get previous search results if available
         $search_results = get_transient( 'acf_analyzer_search_results' );
 
+        // Get available ACF field names for dropdown
+        $acf_field_names = $this->get_acf_field_names();
+
         include ACF_ANALYZER_PLUGIN_DIR . 'templates/admin-page.php';
+    }
+
+    /**
+     * Get ACF field names (cached)
+     *
+     * @return array
+     */
+    private function get_acf_field_names() {
+        $field_names = get_transient( 'acf_analyzer_field_names' );
+
+        if ( false === $field_names ) {
+            $analyzer = new ACF_Analyzer();
+            $field_names = $analyzer->get_all_field_names();
+            set_transient( 'acf_analyzer_field_names', $field_names, HOUR_IN_SECONDS );
+        }
+
+        return $field_names;
+    }
+
+    /**
+     * AJAX handler to get ACF field names
+     */
+    public function ajax_get_field_names() {
+        check_ajax_referer( 'acf_analyzer_search', 'nonce' );
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( 'Insufficient permissions' );
+        }
+
+        // Clear cache and fetch fresh
+        delete_transient( 'acf_analyzer_field_names' );
+        $field_names = $this->get_acf_field_names();
+
+        if ( empty( $field_names ) ) {
+            wp_send_json_error( __( 'No ACF fields found', 'acf-analyzer' ) );
+        }
+
+        wp_send_json_success( $field_names );
     }
 
     /**

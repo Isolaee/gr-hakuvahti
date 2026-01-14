@@ -377,6 +377,79 @@ class ACF_Analyzer {
     }
 
     /**
+     * Get all unique ACF field names from the database
+     *
+     * @param array $post_types Post types to scan (defaults to velkakirja, osakeanti, osaketori)
+     * @return array List of unique field names
+     */
+    public function get_all_field_names( $post_types = array() ) {
+        if ( empty( $post_types ) ) {
+            $post_types = array( 'velkakirja', 'osakeanti', 'osaketori' );
+        }
+
+        $field_names = array();
+        $paged = 1;
+
+        // Query posts in batches
+        while ( true ) {
+            $args = array(
+                'post_type'      => $post_types,
+                'post_status'    => 'any',
+                'posts_per_page' => 100,
+                'paged'          => $paged,
+                'fields'         => 'ids',
+            );
+
+            $query = new WP_Query( $args );
+
+            if ( empty( $query->posts ) ) {
+                break;
+            }
+
+            foreach ( $query->posts as $post_id ) {
+                $acf_fields = get_fields( $post_id );
+
+                if ( ! empty( $acf_fields ) ) {
+                    $this->collect_field_names( $acf_fields, $field_names );
+                }
+            }
+
+            $paged++;
+            wp_reset_postdata();
+
+            // Limit scanning to avoid timeout
+            if ( $paged > 10 ) {
+                break;
+            }
+        }
+
+        sort( $field_names );
+        return array_values( array_unique( $field_names ) );
+    }
+
+    /**
+     * Recursively collect field names from ACF fields array
+     *
+     * @param array  $fields ACF fields array
+     * @param array  &$field_names Reference to field names collector
+     * @param string $prefix Field name prefix for nested fields
+     */
+    private function collect_field_names( $fields, &$field_names, $prefix = '' ) {
+        foreach ( $fields as $field_name => $value ) {
+            $full_field_name = $prefix ? $prefix . '.' . $field_name : $field_name;
+
+            if ( ! in_array( $full_field_name, $field_names, true ) ) {
+                $field_names[] = $full_field_name;
+            }
+
+            // Recursively collect from nested arrays (but not ACF image arrays)
+            if ( is_array( $value ) && ! $this->is_acf_image_array( $value ) ) {
+                $this->collect_field_names( $value, $field_names, $full_field_name );
+            }
+        }
+    }
+
+    /**
      * Export analysis results as CSV
      *
      * @param array $results Analysis results

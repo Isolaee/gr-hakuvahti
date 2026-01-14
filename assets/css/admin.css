@@ -139,6 +139,10 @@
     margin-bottom: 10px;
 }
 
+.criteria-row .criteria-field {
+    min-width: 250px;
+}
+
 .criteria-row .criteria-compare {
     min-width: 90px;
     font-weight: 600;
