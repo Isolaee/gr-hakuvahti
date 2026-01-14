@@ -60,6 +60,7 @@
         loadFieldsForPopup: function($popup) {
             const category = $popup.data('category');
             const $container = $popup.find('.acf-criteria-list');
+            const self = this;
 
             // Check if fields are already loaded
             if ($container.data('fields-loaded') === true) {
@@ -82,7 +83,8 @@
                         
                         // Add first criteria row automatically
                         if ($container.find('.acf-criteria-row').length === 0) {
-                            ACFPopup.addCriteria.call($popup.find('.acf-add-criteria')[0]);
+                            const $button = $popup.find('.acf-add-criteria');
+                            self.addCriteriaRow($popup);
                         }
                     }
                 },
@@ -93,14 +95,21 @@
         },
 
         addCriteria: function(e) {
-            e.preventDefault();
+            if (e && e.preventDefault) {
+                e.preventDefault();
+            }
             const $button = $(e.currentTarget);
             const $popup = $button.closest('.acf-popup-overlay');
+            
+            this.addCriteriaRow($popup);
+        },
+
+        addCriteriaRow: function($popup) {
             const $container = $popup.find('.acf-criteria-list');
             const fields = $container.data('fields') || [];
 
             if (fields.length === 0) {
-                this.showError($popup, 'No fields available. Please wait for fields to load.');
+                ACFPopup.showError($popup, 'No fields available. Please wait for fields to load.');
                 return;
             }
 
@@ -157,7 +166,7 @@
             });
 
             if (criteria.length === 0) {
-                this.showError($popup, 'Please add at least one search criterion.');
+                ACFPopup.showError($popup, 'Please add at least one search criterion.');
                 return;
             }
 
