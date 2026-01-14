@@ -43,8 +43,10 @@
 
         openPopup: function(e) {
             e.preventDefault();
+            console.log('Button clicked: Open Popup');
             const $button = $(e.currentTarget);
             const popupId = $button.data('popup');
+            console.log('Opening popup:', popupId);
             const $popup = $('#' + popupId);
 
             if ($popup.length) {
@@ -54,6 +56,7 @@
         },
 
         closePopup: function() {
+            console.log('Button clicked: Close Popup');
             $('.acf-popup-overlay').removeClass('active');
         },
 
@@ -95,6 +98,7 @@
         },
 
         addCriteria: function(e) {
+            console.log('Button clicked: Add Field/Criteria');
             if (e && e.preventDefault) {
                 e.preventDefault();
             }
@@ -105,8 +109,10 @@
         },
 
         addCriteriaRow: function($popup) {
+            console.log('Adding criteria row...');
             const $container = $popup.find('.acf-criteria-list');
             const fields = $container.data('fields') || [];
+            console.log('Available fields:', fields.length);
 
             if (fields.length === 0) {
                 ACFPopup.showError($popup, 'No fields available. Please wait for fields to load.');
@@ -136,6 +142,7 @@
         },
 
         removeCriteria: function(e) {
+            console.log('Button clicked: Remove Criteria');
             e.preventDefault();
             const $row = $(e.currentTarget).closest('.acf-criteria-row');
             $row.fadeOut(200, function() {
@@ -144,11 +151,13 @@
         },
 
         performSearch: function(e) {
+            console.log('Button clicked: Search');
             e.preventDefault();
             const $button = $(e.currentTarget);
             const $popup = $button.closest('.acf-popup-overlay');
             const $resultsSection = $popup.find('.acf-results-section');
             const category = $popup.data('category');
+            console.log('Search category:', category);
 
             // Collect criteria
             const criteria = [];
