@@ -5,14 +5,20 @@
 (function($) {
     'use strict';
 
+    console.log('ACF Analyzer Frontend JS loaded');
+
     // Pop-up controller
     const ACFPopup = {
         init: function() {
+            console.log('ACFPopup.init() called');
+            console.log('jQuery available:', typeof $ !== 'undefined');
+            console.log('Popup triggers found:', $('.acf-popup-trigger').length);
             this.bindEvents();
             this.criteriaCount = 0;
         },
 
         bindEvents: function() {
+            console.log('Binding events...');
             // Open popup
             $(document).on('click', '.acf-popup-trigger', this.openPopup.bind(this));
             
@@ -242,6 +248,7 @@
 
     // Initialize on document ready
     $(document).ready(function() {
+        console.log('Document ready - initializing ACFPopup');
         ACFPopup.init();
     });
 
