@@ -17,18 +17,15 @@ class ACF_Analyzer_Shortcode {
         add_action( 'wp_ajax_nopriv_acf_popup_search', array( $this, 'ajax_search_handler' ) );
         add_action( 'wp_ajax_acf_popup_get_fields', array( $this, 'ajax_get_fields' ) );
         add_action( 'wp_ajax_nopriv_acf_popup_get_fields', array( $this, 'ajax_get_fields' ) );
+        
+        // Track if shortcode is used
+        $this->shortcode_used = false;
     }
 
     /**
      * Enqueue frontend CSS and JS
      */
     public function enqueue_frontend_assets() {
-        // Only enqueue if shortcode is present
-        global $post;
-        if ( ! is_a( $post, 'WP_Post' ) || ! has_shortcode( $post->post_content, 'acf_search_popup' ) ) {
-            return;
-        }
-
         wp_enqueue_style(
             'acf-analyzer-frontend',
             ACF_ANALYZER_PLUGIN_URL . 'assets/css/frontend.css',
