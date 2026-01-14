@@ -110,6 +110,30 @@ if ( ! defined( 'ABSPATH' ) ) {
                                 <div class="notice notice-warning inline">
                                     <p><?php esc_html_e( 'No ACF fields found. Please ensure posts with ACF data exist.', 'acf-analyzer' ); ?></p>
                                 </div>
+                                <?php
+                                // Debug info
+                                $debug_post_types = array( 'velkakirja', 'osakeanti', 'osaketori' );
+                                $debug_query = new WP_Query( array(
+                                    'post_type'      => $debug_post_types,
+                                    'post_status'    => 'any',
+                                    'posts_per_page' => 5,
+                                ) );
+                                echo '<div style="background:#f0f0f0; padding:10px; margin-top:10px; font-size:12px;">';
+                                echo '<strong>Debug Info:</strong><br>';
+                                echo 'Post types queried: ' . implode( ', ', $debug_post_types ) . '<br>';
+                                echo 'Posts found: ' . $debug_query->found_posts . '<br>';
+                                if ( $debug_query->have_posts() ) {
+                                    echo 'Sample posts:<br>';
+                                    foreach ( $debug_query->posts as $p ) {
+                                        echo '- ID: ' . $p->ID . ' | Type: ' . $p->post_type . ' | Status: ' . $p->post_status . '<br>';
+                                        $fields = get_fields( $p->ID );
+                                        echo '&nbsp;&nbsp;get_fields() returned: ' . ( $fields ? count( $fields ) . ' fields: ' . implode( ', ', array_keys( $fields ) ) : 'false/empty' ) . '<br>';
+                                    }
+                                }
+                                echo 'function_exists("get_fields"): ' . ( function_exists( 'get_fields' ) ? 'YES' : 'NO' ) . '<br>';
+                                wp_reset_postdata();
+                                echo '</div>';
+                                ?>
                             <?php else : ?>
                             <div id="criteria-rows">
                                 <div class="criteria-row">
