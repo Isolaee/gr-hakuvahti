@@ -116,7 +116,11 @@ class ACF_Analyzer_Shortcode {
 
             // Provide default use_api setting to script
             $use_api_bool = in_array( strtolower( $atts['use_api'] ), array( '1', 'true', 'yes' ), true );
-            wp_localize_script( 'acf-analyzer-wpgb-logger', 'acfWpgbLogger', array( 'use_api_default' => $use_api_bool ) );
+            wp_localize_script( 'acf-analyzer-wpgb-logger', 'acfWpgbLogger', array(
+                'use_api_default' => $use_api_bool,
+                'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+                'nonce' => wp_create_nonce( 'acf_popup_search' ),
+            ) );
             // Also localize facet->ACF mapping. Allow admin-provided mapping (option) to override auto-detected mapping.
             $auto_mapping = $this->get_wpgb_facet_mapping();
             $admin_mapping = get_option( 'acf_wpgb_facet_map', array() );
@@ -309,17 +313,35 @@ class ACF_Analyzer_Shortcode {
         $criteria = isset( $_POST['criteria'] ) ? $_POST['criteria'] : array();
         $match_logic = isset( $_POST['match_logic'] ) ? sanitize_text_field( $_POST['match_logic'] ) : 'AND';
 
-        if ( empty( $category ) || empty( $criteria ) ) {
-            wp_send_json_error( array( 'message' => 'Category and criteria are required' ) );
+        if ( empty( $criteria ) ) {
+            wp_send_json_error( array( 'message' => 'Criteria are required' ) );
         }
 
         // Sanitize criteria
         $sanitized_criteria = array();
-        foreach ( $criteria as $criterion ) {
-            if ( isset( $criterion['field'] ) && isset( $criterion['value'] ) ) {
-                $field = sanitize_text_field( $criterion['field'] );
-                $value = sanitize_text_field( $criterion['value'] );
-                $sanitized_criteria[ $field ] = $value;
+
+        // Support two input shapes:
+        // 1) array of { field: 'name', value: 'x' }
+        // 2) associative mapping: field_name => value
+        if ( is_array( $criteria ) ) {
+            // Detect associative mapping (string keys)
+            $is_assoc = array_keys( $criteria ) !== range( 0, count( $criteria ) - 1 );
+            if ( $is_assoc ) {
+                foreach ( $criteria as $field => $val ) {
+                    $f = sanitize_text_field( (string) $field );
+                    $v = is_scalar( $val ) ? sanitize_text_field( (string) $val ) : wp_json_encode( $val );
+                    if ( $f !== '' ) {
+                        $sanitized_criteria[ $f ] = $v;
+                    }
+                }
+            } else {
+                foreach ( $criteria as $criterion ) {
+                    if ( isset( $criterion['field'] ) && isset( $criterion['value'] ) ) {
+                        $field = sanitize_text_field( $criterion['field'] );
+                        $value = sanitize_text_field( (string) $criterion['value'] );
+                        $sanitized_criteria[ $field ] = $value;
+                    }
+                }
             }
         }
 

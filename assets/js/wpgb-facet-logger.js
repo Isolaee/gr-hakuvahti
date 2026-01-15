@@ -263,13 +263,89 @@
                         }
                     });
 
-                    if (rows.length) {
-                        console.group('wpgb-facet-logger — Grid: ' + gridId + ' (' + rows.length + ' rows)');
-                        console.table(rows);
-                        console.groupEnd();
-                    } else {
-                        console.log('wpgb-facet-logger — Grid: ' + gridId + ' (no facets)');
-                    }
+                        if (rows.length) {
+                            // Build search criteria from mapped rows
+                            var criteriaMap = {}; // field -> array of values
+                            rows.forEach(function(r){
+                                if (!r.acf_field || r.acf_field === '(no mapping)') return;
+                                if (!criteriaMap[r.acf_field]) criteriaMap[r.acf_field] = [];
+                                criteriaMap[r.acf_field].push(r.value);
+                            });
+
+                            // Helper: parse numeric-ish strings
+                            function parseNumber(v){
+                                if (v == null) return null;
+                                if (typeof v === 'number') return v;
+                                var s = String(v).trim();
+                                // remove non digits except dot,comma,minus
+                                var cleaned = s.replace(/[^0-9.,\-]/g, '');
+                                if (cleaned === '') return null;
+                                // normalize comma to dot
+                                cleaned = cleaned.replace(/,/g, '.');
+                                var n = parseFloat(cleaned);
+                                return isNaN(n) ? null : n;
+                            }
+
+                            // Build criteria array for AJAX (supports array-of-objects input)
+                            var criteriaArray = [];
+                            Object.keys(criteriaMap).forEach(function(field){
+                                var vals = criteriaMap[field] || [];
+                                if (vals.length === 0) return;
+                                // try numeric detection
+                                var numericVals = vals.map(parseNumber).filter(function(x){ return x !== null; });
+                                if (vals.length === 1) {
+                                    criteriaArray.push({ field: field, value: vals[0] });
+                                } else if (numericVals.length >= 2) {
+                                    if (vals.length === 2) {
+                                        // user-provided ordering: first = min, second = max
+                                        criteriaArray.push({ field: field + '_min', value: String(numericVals[0]) });
+                                        criteriaArray.push({ field: field + '_max', value: String(numericVals[1]) });
+                                    } else {
+                                        // use overall min/max
+                                        var min = Math.min.apply(null, numericVals);
+                                        var max = Math.max.apply(null, numericVals);
+                                        criteriaArray.push({ field: field + '_min', value: String(min) });
+                                        criteriaArray.push({ field: field + '_max', value: String(max) });
+                                    }
+                                } else {
+                                    // multiple non-numeric values: pick first (exact match)
+                                    criteriaArray.push({ field: field, value: vals[0] });
+                                }
+                            });
+
+                            console.group('wpgb-facet-logger — Grid: ' + gridId + ' (' + rows.length + ' rows)');
+                            console.table(rows);
+
+                            if (typeof window.acfWpgbLogger !== 'undefined' && window.acfWpgbLogger.ajaxUrl) {
+                                console.log('wpgb-facet-logger: sending search AJAX', { criteria: criteriaArray });
+                                $.post(window.acfWpgbLogger.ajaxUrl, {
+                                    action: 'acf_popup_search',
+                                    nonce: window.acfWpgbLogger.nonce || window.acfWpgbLogger.nonce,
+                                    category: '',
+                                    criteria: criteriaArray,
+                                    match_logic: 'AND'
+                                }).done(function(resp){
+                                    if (resp && resp.success) {
+                                        console.log('wpgb-facet-logger: search result', resp.data);
+                                        if (resp.data && resp.data.posts) {
+                                            console.group('wpgb-facet-logger: Matched posts (' + (resp.data.total||0) + ')');
+                                            console.table(resp.data.posts);
+                                            console.groupEnd();
+                                        }
+                                    } else {
+                                        console.warn('wpgb-facet-logger: search returned error', resp && resp.data);
+                                    }
+                                }).fail(function(xhr){
+                                    console.error('wpgb-facet-logger: AJAX search failed', xhr && xhr.responseText);
+                                });
+                            } else {
+                                console.warn('wpgb-facet-logger: ajaxUrl not available; cannot perform search');
+                            }
+
+                            console.groupEnd();
+                        } else {
+                            console.log('wpgb-facet-logger — Grid: ' + gridId + ' (no facets)');
+                        }
                 });
 
             } catch (e) {
