@@ -419,9 +419,47 @@ class ACF_Analyzer_Shortcode {
         $match_logic = isset( $_POST['match_logic'] ) ? sanitize_text_field( $_POST['match_logic'] ) : 'AND';
         $debug = isset( $_POST['debug'] ) && ( $_POST['debug'] === '1' || $_POST['debug'] === 'true' || $_POST['debug'] === 1 );
 
-        // Return error if no criteria provided
-        if ( empty( $criteria ) ) {
-            wp_send_json_error( array( 'message' => 'Criteria are required' ) );
+        // Handle 'ALL' match_logic - return all Osakeanti posts
+        if ( $match_logic === 'ALL' || empty( $criteria ) ) {
+            $all_posts = array();
+            $paged = 1;
+            
+            while ( true ) {
+                $args = array(
+                    'post_type'      => 'post',
+                    'post_status'    => 'publish',
+                    'posts_per_page' => 200,
+                    'paged'          => $paged,
+                    'orderby'        => 'date',
+                    'order'          => 'DESC',
+                    'category_name'  => 'Osakeannit',
+                );
+
+                $query = new WP_Query( $args );
+                if ( ! $query->have_posts() ) {
+                    break;
+                }
+
+                foreach ( $query->posts as $post ) {
+                    $all_posts[] = array(
+                        'id'    => $post->ID,
+                        'title' => $post->post_title,
+                        'url'   => get_permalink( $post->ID ),
+                    );
+                }
+
+                $paged++;
+                wp_reset_postdata();
+            }
+
+            wp_send_json_success( array(
+                'total'   => count( $all_posts ),
+                'posts'   => $all_posts,
+                'message' => sprintf(
+                    _n( 'Found %d Osakeanti post', 'Found %d Osakeanti posts', count( $all_posts ), 'acf-analyzer' ),
+                    count( $all_posts )
+                ),
+            ) );
         }
 
         // Sanitize criteria
@@ -460,53 +498,10 @@ class ACF_Analyzer_Shortcode {
             }
         }
 
+        // If no sanitized criteria after processing, this shouldn't happen anymore
+        // as empty criteria is already handled above with match_logic === 'ALL'
         if ( empty( $sanitized_criteria ) ) {
-            // No criteria means "no filters" — return all posts for the selected categories.
-            $categories = array();
-            if ( ! empty( $category ) ) {
-                $categories = array( $category );
-            } else {
-                $categories = array( 'Velkakirjat', 'Osakeannit', 'Osaketori' );
-            }
-
-            $all_posts = array();
-            $paged = 1;
-            while ( true ) {
-                $args = array(
-                    'post_type'      => 'post',
-                    'post_status'    => 'publish',
-                    'posts_per_page' => 200,
-                    'paged'          => $paged,
-                    'orderby'        => 'date',
-                    'order'          => 'DESC',
-                    'category_name'  => implode( ',', $categories ),
-                );
-
-                $query = new WP_Query( $args );
-                if ( ! $query->have_posts() ) {
-                    break;
-                }
-
-                foreach ( $query->posts as $post ) {
-                    $all_posts[] = array(
-                        'id'    => $post->ID,
-                        'title' => $post->post_title,
-                        'url'   => get_permalink( $post->ID ),
-                    );
-                }
-
-                $paged++;
-                wp_reset_postdata();
-            }
-
-            wp_send_json_success( array(
-                'total'   => count( $all_posts ),
-                'posts'   => $all_posts,
-                'message' => sprintf(
-                    _n( 'Found %d post matching your criteria', 'Found %d posts matching your criteria', count( $all_posts ), 'acf-analyzer' ),
-                    count( $all_posts )
-                ),
-            ) );
+            wp_send_json_error( array( 'message' => 'No valid criteria provided after sanitization' ) );
         }
 
         // Use the existing search_by_criteria method

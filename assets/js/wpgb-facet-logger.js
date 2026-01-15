@@ -345,23 +345,25 @@
                             console.groupEnd();
 
                             if (criteriaArray.length === 0) {
-                                console.log('wpgb-facet-logger: no valid criteria to search; skipping AJAX');
+                                console.log('wpgb-facet-logger: no valid criteria - fetching all Osakeanti posts');
                             }
 
                             console.group('wpgb-facet-logger — Grid: ' + gridId + ' (' + rows.length + ' rows)');
                             console.table(rows);
 
-                            if (criteriaArray.length > 0) {
-                                if (typeof window.acfWpgbLogger !== 'undefined' && window.acfWpgbLogger.ajaxUrl) {
-                                    console.log('wpgb-facet-logger: sending search AJAX', { criteria: criteriaArray });
-                                    $.post(window.acfWpgbLogger.ajaxUrl, {
-                                        action: 'acf_popup_search',
-                                        nonce: window.acfWpgbLogger.nonce || window.acfWpgbLogger.nonce,
-                                        category: '',
-                                        criteria: criteriaArray,
-                                        match_logic: 'AND',
-                                        debug: '1'
-                                    }).done(function(resp){
+                            // Always perform search - empty criteria will return all Osakeanti
+                            if (typeof window.acfWpgbLogger !== 'undefined' && window.acfWpgbLogger.ajaxUrl) {
+                                var searchPayload = {
+                                    action: 'acf_popup_search',
+                                    nonce: window.acfWpgbLogger.nonce || window.acfWpgbLogger.nonce,
+                                    category: '',
+                                    criteria: criteriaArray,
+                                    match_logic: criteriaArray.length > 0 ? 'AND' : 'ALL',
+                                    debug: '1'
+                                };
+                                console.log('wpgb-facet-logger: sending search AJAX', searchPayload);
+                                $.post(window.acfWpgbLogger.ajaxUrl, searchPayload)
+                                    .done(function(resp){
                                         if (resp && resp.success) {
                                             console.log('wpgb-facet-logger: search result', resp.data);
                                             if (resp.data && resp.data.posts) {
@@ -375,11 +377,8 @@
                                     }).fail(function(xhr){
                                         console.error('wpgb-facet-logger: AJAX search failed', xhr && xhr.responseText);
                                     });
-                                } else {
-                                    console.warn('wpgb-facet-logger: ajaxUrl not available; cannot perform search');
-                                }
                             } else {
-                                console.log('wpgb-facet-logger: skipping AJAX because no criteria');
+                                console.warn('wpgb-facet-logger: ajaxUrl not available; cannot perform search');
                             }
 
                             console.groupEnd();
