@@ -347,7 +347,52 @@ class ACF_Analyzer_Shortcode {
         }
 
         if ( empty( $sanitized_criteria ) ) {
-            wp_send_json_error( array( 'message' => 'No valid criteria provided' ) );
+            // No criteria means "no filters" — return all posts for the selected categories.
+            $categories = array();
+            if ( ! empty( $category ) ) {
+                $categories = array( $category );
+            } else {
+                $categories = array( 'Velkakirjat', 'Osakeannit', 'Osaketori' );
+            }
+
+            $all_posts = array();
+            $paged = 1;
+            while ( true ) {
+                $args = array(
+                    'post_type'      => 'post',
+                    'post_status'    => 'publish',
+                    'posts_per_page' => 200,
+                    'paged'          => $paged,
+                    'orderby'        => 'date',
+                    'order'          => 'DESC',
+                    'category_name'  => implode( ',', $categories ),
+                );
+
+                $query = new WP_Query( $args );
+                if ( ! $query->have_posts() ) {
+                    break;
+                }
+
+                foreach ( $query->posts as $post ) {
+                    $all_posts[] = array(
+                        'id'    => $post->ID,
+                        'title' => $post->post_title,
+                        'url'   => get_permalink( $post->ID ),
+                    );
+                }
+
+                $paged++;
+                wp_reset_postdata();
+            }
+
+            wp_send_json_success( array(
+                'total'   => count( $all_posts ),
+                'posts'   => $all_posts,
+                'message' => sprintf(
+                    _n( 'Found %d post matching your criteria', 'Found %d posts matching your criteria', count( $all_posts ), 'acf-analyzer' ),
+                    count( $all_posts )
+                ),
+            ) );
         }
 
         // Use the existing search_by_criteria method
