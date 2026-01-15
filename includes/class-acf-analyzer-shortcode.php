@@ -340,7 +340,15 @@ class ACF_Analyzer_Shortcode {
                     if ( isset( $criterion['field'] ) && isset( $criterion['value'] ) ) {
                         $field = sanitize_text_field( $criterion['field'] );
                         $value = sanitize_text_field( (string) $criterion['value'] );
-                        $sanitized_criteria[ $field ] = $value;
+                        if ( isset( $sanitized_criteria[ $field ] ) ) {
+                            // If existing value is not an array, convert it
+                            if ( ! is_array( $sanitized_criteria[ $field ] ) ) {
+                                $sanitized_criteria[ $field ] = array( $sanitized_criteria[ $field ] );
+                            }
+                            $sanitized_criteria[ $field ][] = $value;
+                        } else {
+                            $sanitized_criteria[ $field ] = $value;
+                        }
                     }
                 }
             }

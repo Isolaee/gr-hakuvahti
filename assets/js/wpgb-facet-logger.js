@@ -334,8 +334,10 @@
                                     // Single numeric value -> exact match
                                     criteriaArray.push({ field: field, value: String(numericVals[0]) });
                                 } else {
-                                    // Non-numeric values: use first provided as exact match
-                                    criteriaArray.push({ field: field, value: valsClean[0] });
+                                    // Non-numeric values: send each provided value as a separate criterion (OR semantics)
+                                    valsClean.forEach(function(v){
+                                        criteriaArray.push({ field: field, value: v });
+                                    });
                                 }
                             });
 

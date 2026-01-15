@@ -184,9 +184,36 @@ class ACF_Analyzer {
                             $is_match = false;
                         }
                     } else {
-                        // Exact match comparison
+                        // Exact match comparison — support multiple expected values (OR) and array fields
                         $actual_value = $this->get_nested_field_value( $acf_fields, $field_name );
-                        $is_match     = ( $actual_value === $expected_value );
+
+                        // If expected_value is an array, treat as OR: match if any expected value equals actual (or intersects actual array)
+                        if ( is_array( $expected_value ) ) {
+                            $is_match = false;
+                            // normalize expected values to strings for comparison
+                            $expected_norm = array_map( 'strval', $expected_value );
+
+                            if ( is_array( $actual_value ) ) {
+                                foreach ( $actual_value as $av ) {
+                                    foreach ( $expected_norm as $ev ) {
+                                        if ( strval( $av ) === strval( $ev ) ) {
+                                            $is_match = true;
+                                            break 2;
+                                        }
+                                    }
+                                }
+                            } else {
+                                foreach ( $expected_norm as $ev ) {
+                                    if ( strval( $actual_value ) === strval( $ev ) ) {
+                                        $is_match = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        } else {
+                            // Single expected value — exact compare
+                            $is_match = ( strval( $actual_value ) === strval( $expected_value ) );
+                        }
                     }
 
                     if ( $is_match ) {
