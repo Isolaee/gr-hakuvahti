@@ -143,6 +143,10 @@ class ACF_Analyzer {
                             // Normalize expected values to strings for comparison
                             $expected_norm = array_map( 'strval', $expected_value );
 
+                            if ( $options['debug'] ) {
+                                error_log( "ACF Analyzer - Comparing field '{$field_name}': expected=" . print_r( $expected_norm, true ) . " actual=" . print_r( $actual_value, true ) );
+                            }
+
                             // Handle array actual values (check intersection)
                             if ( is_array( $actual_value ) ) {
                                 foreach ( $actual_value as $av ) {
@@ -161,6 +165,10 @@ class ACF_Analyzer {
                                         break;
                                     }
                                 }
+                            }
+                            
+                            if ( $options['debug'] ) {
+                                error_log( "ACF Analyzer - Field '{$field_name}' match result: " . ( $is_match ? 'YES' : 'NO' ) );
                             }
                         } else {
                             // Single expected value — exact compare

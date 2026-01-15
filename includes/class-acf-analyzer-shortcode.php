@@ -493,6 +493,9 @@ class ACF_Analyzer_Shortcode {
                             if ( $match_type === 'OR' ) {
                                 $or_fields[] = $field;
                             }
+                            if ( $debug ) {
+                                error_log( "ACF Search - Field '{$field}' received as array: " . print_r( $values, true ) . " match_type: {$match_type}" );
+                            }
                         } else {
                             $value = sanitize_text_field( (string) $criterion['value'] );
                             if ( isset( $sanitized_criteria[ $field ] ) ) {
@@ -508,6 +511,11 @@ class ACF_Analyzer_Shortcode {
                     }
                 }
             }
+        }
+
+        if ( $debug ) {
+            error_log( 'ACF Search - Final sanitized criteria: ' . print_r( $sanitized_criteria, true ) );
+            error_log( 'ACF Search - OR fields: ' . print_r( $or_fields, true ) );
         }
 
         // If no sanitized criteria after processing, this shouldn't happen anymore
