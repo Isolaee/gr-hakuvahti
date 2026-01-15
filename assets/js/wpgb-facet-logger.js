@@ -294,30 +294,44 @@
                             var criteriaArray = [];
                             Object.keys(criteriaMap).forEach(function(field){
                                 var vals = criteriaMap[field] || [];
-                                // clean values: remove placeholders and empty
-                                var valsClean = vals.map(function(v){ return v == null ? '' : String(v).trim(); })
-                                    .filter(function(v){ return v !== '' && v !== '(none)' && v !== '(no mapping)'; });
+                                // clean values: trim and remove common placeholders
+                                var valsClean = vals.map(function(v){ return v == null ? '' : String(v).trim(); });
+                                valsClean = valsClean.filter(function(v){
+                                    if (!v) return false;
+                                    var lower = v.toLowerCase().trim();
+                                    var placeholders = ['(none)', '(no mapping)', 'none', 'any', 'default', 'valitse', 'valitse...', '-- select --', '-- select field --', 'choose', 'choose one', 'not set'];
+                                    if (placeholders.indexOf(lower) !== -1) return false;
+                                    if (/^[-\s]*--.*--[-\s]*$/.test(v)) return false;
+                                    if (/^[-]+$/.test(v)) return false;
+                                    return true;
+                                });
                                 if (valsClean.length === 0) return; // skip fields with no usable values
 
-                                // parse numbers where possible
+                                // parse numbers where possible and also support single "min-max" string
                                 var parsed = valsClean.map(function(v){ var n = parseNumber(v); return { raw: v, num: n }; });
                                 var numericVals = parsed.map(function(p){ return p.num; }).filter(function(x){ return x !== null; });
                                 console.log('field parse', field, parsed, 'numericVals=', numericVals);
 
-                                if (numericVals.length >= 2) {
-                                    // If we have two or more numeric values, use min/max
-                                    // If original order provided two values, treat first as min, second as max
-                                    if (valsClean.length >= 2 && parseNumber(valsClean[0]) !== null && parseNumber(valsClean[1]) !== null) {
-                                        criteriaArray.push({ field: field + '_min', value: String(parseNumber(valsClean[0])) });
-                                        criteriaArray.push({ field: field + '_max', value: String(parseNumber(valsClean[1])) });
-                                    } else {
-                                        var min = Math.min.apply(null, numericVals);
-                                        var max = Math.max.apply(null, numericVals);
-                                        criteriaArray.push({ field: field + '_min', value: String(min) });
-                                        criteriaArray.push({ field: field + '_max', value: String(max) });
+                                // If a single value contains a range like "1000-5000" extract numbers
+                                if (numericVals.length < 2 && valsClean.length === 1) {
+                                    var rangeMatch = String(valsClean[0]).match(/(-?\d+[\.,]?\d*)\D+(-?\d+[\.,]?\d*)/);
+                                    if (rangeMatch) {
+                                        var n1 = parseNumber(rangeMatch[1]);
+                                        var n2 = parseNumber(rangeMatch[2]);
+                                        if (n1 !== null && n2 !== null) {
+                                            numericVals = [n1, n2];
+                                        }
                                     }
+                                }
+
+                                if (numericVals.length >= 2) {
+                                    // Use min/max (order-agnostic)
+                                    var min = Math.min.apply(null, numericVals);
+                                    var max = Math.max.apply(null, numericVals);
+                                    criteriaArray.push({ field: field + '_min', value: String(min) });
+                                    criteriaArray.push({ field: field + '_max', value: String(max) });
                                 } else if (numericVals.length === 1) {
-                                    // Single numeric value -> exact match (only use given value)
+                                    // Single numeric value -> exact match
                                     criteriaArray.push({ field: field, value: String(numericVals[0]) });
                                 } else {
                                     // Non-numeric values: use first provided as exact match
