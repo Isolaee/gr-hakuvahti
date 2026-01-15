@@ -2,45 +2,83 @@
 /**
  * ACF Analyzer Admin Interface
  *
- * Handles the WordPress admin interface for the plugin
+ * Handles the WordPress admin interface for the plugin including:
+ * - Admin menu and page rendering
+ * - WP Grid Builder to ACF field mapping editor
+ * - Search form and results display
+ * - AJAX handlers for saving mappings and field retrieval
+ * 
+ * @package ACF_Analyzer
+ * @since 1.0.0
  */
 
 class ACF_Analyzer_Admin {
 
     /**
-     * Constructor
+     * Constructor - Register WordPress hooks
+     * 
+     * Sets up all admin-related WordPress hooks including:
+     * - Admin menu registration
+     * - Asset enqueueing
+     * - AJAX handlers for mappings and search
+     * 
+     * @since 1.0.0
      */
     public function __construct() {
+        // Register admin menu page
         add_action( 'admin_menu', array( $this, 'add_admin_menu' ) );
+        
+        // Enqueue admin assets (CSS/JS)
         add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
+        
+        // AJAX handler for saving facet mappings
         add_action( 'wp_ajax_acf_analyzer_save_mapping', array( $this, 'ajax_save_mapping' ) );
-        add_action( 'admin_post_acf_analyzer_run', array( $this, 'handle_analysis' ) );
-        add_action( 'admin_post_acf_analyzer_export', array( $this, 'handle_export' ) );
+        
+        // Handler for search form submission
         add_action( 'admin_post_acf_analyzer_search', array( $this, 'handle_search' ) );
+        
+        // AJAX handler for retrieving ACF field names
         add_action( 'wp_ajax_acf_analyzer_get_fields', array( $this, 'ajax_get_field_names' ) );
     }
 
     /**
      * Add admin menu page
+     * 
+     * Creates a submenu page under WordPress Tools menu.
+     * The page displays the search interface and mapping editor.
+     * 
+     * @since 1.0.0
+     * @return void
      */
     public function add_admin_menu() {
         add_management_page(
-            __( 'ACF Field Analyzer', 'acf-analyzer' ),
-            __( 'ACF Analyzer', 'acf-analyzer' ),
-            'manage_options',
-            'acf-analyzer',
-            array( $this, 'render_admin_page' )
+            __( 'ACF Field Analyzer', 'acf-analyzer' ),  // Page title
+            __( 'ACF Analyzer', 'acf-analyzer' ),        // Menu title
+            'manage_options',                             // Capability required
+            'acf-analyzer',                               // Menu slug
+            array( $this, 'render_admin_page' )          // Callback function
         );
     }
 
     /**
      * Enqueue admin CSS and JS
+     * 
+     * Loads admin-specific assets only on the plugin's admin page.
+     * Includes the mapping editor JavaScript and localizes it with
+     * current mappings and AJAX parameters.
+     * 
+     * @since 1.0.0
+     * 
+     * @param string $hook Current admin page hook
+     * @return void
      */
     public function enqueue_admin_assets( $hook ) {
+        // Only load on our admin page
         if ( 'tools_page_acf-analyzer' !== $hook ) {
             return;
         }
 
+        // Enqueue admin stylesheet
         wp_enqueue_style(
             'acf-analyzer-admin',
             ACF_ANALYZER_PLUGIN_URL . 'assets/css/admin.css',
@@ -48,6 +86,7 @@ class ACF_Analyzer_Admin {
             ACF_ANALYZER_VERSION
         );
 
+        // Enqueue mapping editor JavaScript
         wp_enqueue_script(
             'acf-analyzer-admin-js',
             ACF_ANALYZER_PLUGIN_URL . 'assets/js/admin-mapping.js',
@@ -56,7 +95,7 @@ class ACF_Analyzer_Admin {
             true
         );
 
-        // Localize current mapping and nonce
+        // Localize script with current mapping and AJAX parameters
         $mapping = get_option( 'acf_wpgb_facet_map', array() );
         wp_localize_script( 'acf-analyzer-admin-js', 'acfAnalyzerAdmin', array(
             'ajaxUrl' => admin_url( 'admin-ajax.php' ),
@@ -66,20 +105,30 @@ class ACF_Analyzer_Admin {
     }
 
     /**
-     * AJAX: save mapping
+     * AJAX handler: Save WP Grid Builder facet mappings
+     * 
+     * Receives mapping data from the admin interface and saves it to the database.
+     * Mapping format: array( 'facet_slug' => 'acf_field_name' )
+     * 
+     * @since 1.0.0
+     * @return void Sends JSON response
      */
     public function ajax_save_mapping() {
+        // Verify nonce for security
         check_ajax_referer( 'acf_analyzer_save_mapping', 'nonce' );
 
+        // Check user permissions
         if ( ! current_user_can( 'manage_options' ) ) {
             wp_send_json_error( 'Insufficient permissions' );
         }
 
+        // Get and validate mapping data
         $data = isset( $_POST['mapping'] ) ? $_POST['mapping'] : array();
         if ( ! is_array( $data ) ) {
             wp_send_json_error( 'Bad mapping data' );
         }
 
+        // Sanitize mapping entries
         $sanitized = array();
         foreach ( $data as $slug => $field ) {
             $s_slug = sanitize_text_field( $slug );
@@ -89,46 +138,58 @@ class ACF_Analyzer_Admin {
             }
         }
 
+        // Save to database
         update_option( 'acf_wpgb_facet_map', $sanitized );
 
+        // Return success with sanitized data
         wp_send_json_success( $sanitized );
     }
 
     /**
      * Render admin page
+     * 
+     * Loads and displays the admin page template which includes:
+     * - WP Grid Builder facet mapping editor
+     * - ACF field search form
+     * - Search results display
+     * 
+     * @since 1.0.0
+     * @return void
      */
     public function render_admin_page() {
-        // Get all public post types
-        $post_types = get_post_types( array( 'public' => true ), 'objects' );
-
-        // Get previous analysis results if available
-        $results = get_transient( 'acf_analyzer_results' );
-
-        // Get previous search results if available
+        // Get previous search results if available (stored in transient)
         $search_results = get_transient( 'acf_analyzer_search_results' );
 
-        // Clear field names cache if requested
+        // Clear field names cache if requested via URL parameter
         if ( isset( $_GET['refresh_fields'] ) && $_GET['refresh_fields'] === '1' ) {
             delete_transient( 'acf_analyzer_field_names' );
         }
 
-        // Get available ACF field names for dropdown
+        // Get available ACF field names for dropdown population
         $acf_field_names = $this->get_acf_field_names();
 
+        // Load and display the admin template
         include ACF_ANALYZER_PLUGIN_DIR . 'templates/admin-page.php';
     }
 
     /**
-     * Get ACF field names (cached)
-     *
-     * @return array
+     * Get ACF field names with caching
+     * 
+     * Retrieves all ACF field names from the database and caches them
+     * for one hour to improve performance. The cache is stored in a transient.
+     * 
+     * @since 1.0.0
+     * @return array List of ACF field names
      */
     private function get_acf_field_names() {
+        // Try to get from cache first
         $field_names = get_transient( 'acf_analyzer_field_names' );
 
+        // If not in cache, fetch from database
         if ( false === $field_names ) {
             $analyzer = new ACF_Analyzer();
             $field_names = $analyzer->get_all_field_names();
+            
             // Only cache if we found fields, otherwise try again next load
             if ( ! empty( $field_names ) ) {
                 set_transient( 'acf_analyzer_field_names', $field_names, HOUR_IN_SECONDS );
@@ -139,102 +200,48 @@ class ACF_Analyzer_Admin {
     }
 
     /**
-     * AJAX handler to get ACF field names
+     * AJAX handler: Get ACF field names
+     * 
+     * Refreshes the field names cache and returns all available ACF field names.
+     * Used by the admin interface to update field selection dropdowns.
+     * 
+     * @since 1.0.0
+     * @return void Sends JSON response
      */
     public function ajax_get_field_names() {
+        // Verify nonce
         check_ajax_referer( 'acf_analyzer_search', 'nonce' );
 
+        // Check permissions
         if ( ! current_user_can( 'manage_options' ) ) {
             wp_send_json_error( 'Insufficient permissions' );
         }
 
-        // Clear cache and fetch fresh
+        // Clear cache and fetch fresh field names
         delete_transient( 'acf_analyzer_field_names' );
         $field_names = $this->get_acf_field_names();
 
+        // Return error if no fields found
         if ( empty( $field_names ) ) {
             wp_send_json_error( __( 'No ACF fields found', 'acf-analyzer' ) );
         }
 
+        // Return success with field names
         wp_send_json_success( $field_names );
     }
 
     /**
-     * Handle analysis request
-     */
-    public function handle_analysis() {
-        // Verify nonce
-        if ( ! isset( $_POST['acf_analyzer_nonce'] ) ||
-             ! wp_verify_nonce( $_POST['acf_analyzer_nonce'], 'acf_analyzer_run' ) ) {
-            wp_die( __( 'Invalid nonce', 'acf-analyzer' ) );
-        }
-
-        // Check permissions
-        if ( ! current_user_can( 'manage_options' ) ) {
-            wp_die( __( 'Insufficient permissions', 'acf-analyzer' ) );
-        }
-
-        // Get selected post types
-        $selected_post_types = isset( $_POST['post_types'] ) ? array_map( 'sanitize_text_field', $_POST['post_types'] ) : array();
-
-        if ( empty( $selected_post_types ) ) {
-            wp_redirect( add_query_arg( 'error', 'no_post_types', admin_url( 'tools.php?page=acf-analyzer' ) ) );
-            exit;
-        }
-
-        // Run analysis
-        $analyzer = new ACF_Analyzer();
-        $results = $analyzer->analyze( $selected_post_types );
-
-        // Store results in transient (expires in 1 hour)
-        set_transient( 'acf_analyzer_results', $results, HOUR_IN_SECONDS );
-
-        // Redirect back with success message
-        wp_redirect( add_query_arg( 'analysis', 'complete', admin_url( 'tools.php?page=acf-analyzer' ) ) );
-        exit;
-    }
-
-    /**
-     * Handle export request
-     */
-    public function handle_export() {
-        // Verify nonce
-        if ( ! isset( $_GET['nonce'] ) ||
-             ! wp_verify_nonce( $_GET['nonce'], 'acf_analyzer_export' ) ) {
-            wp_die( __( 'Invalid nonce', 'acf-analyzer' ) );
-        }
-
-        // Check permissions
-        if ( ! current_user_can( 'manage_options' ) ) {
-            wp_die( __( 'Insufficient permissions', 'acf-analyzer' ) );
-        }
-
-        // Get results from transient
-        $results = get_transient( 'acf_analyzer_results' );
-
-        if ( ! $results ) {
-            wp_die( __( 'No analysis results available. Please run an analysis first.', 'acf-analyzer' ) );
-        }
-
-        $format = isset( $_GET['format'] ) ? sanitize_text_field( $_GET['format'] ) : 'json';
-        $analyzer = new ACF_Analyzer();
-
-        // Set headers for download
-        header( 'Content-Type: application/octet-stream' );
-        header( 'Content-Disposition: attachment; filename="acf-analysis-' . date( 'Y-m-d-His' ) . '.' . $format . '"' );
-        header( 'Pragma: no-cache' );
-
-        if ( $format === 'csv' ) {
-            echo $analyzer->export_csv( $results );
-        } else {
-            echo $analyzer->export_json( $results );
-        }
-
-        exit;
-    }
-
-    /**
      * Handle search by criteria request
+     * 
+     * Processes the search form submission, validates input, performs the search,
+     * and stores results in a transient for display. Supports:
+     * - Multiple search criteria
+     * - Range comparisons (min/max)
+     * - AND/OR match logic
+     * - Debug mode for detailed match info
+     * 
+     * @since 1.0.0
+     * @return void Redirects back to admin page with results
      */
     public function handle_search() {
         // Verify nonce

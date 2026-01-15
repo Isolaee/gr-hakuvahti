@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ACF Field Analyzer
  * Plugin URI: https://github.com/yourusername/acf-analyzer
- * Description: Analyze Advanced Custom Fields usage across your WordPress site
+ * Description: Search Advanced Custom Fields across your WordPress site
  * Version: 1.0.0
  * Author: Your Name
  * Author URI: https://yoursite.com
@@ -13,28 +13,50 @@
  * Requires PHP: 7.4
  */
 
-// Prevent direct access
+// Prevent direct access to this file
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-// Define plugin constants
+/**
+ * Define plugin version constant
+ * Used for cache busting and version tracking
+ */
 define( 'ACF_ANALYZER_VERSION', '1.0.0' );
+
+/**
+ * Define plugin directory path
+ * Used for including files and templates
+ */
 define( 'ACF_ANALYZER_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
+
+/**
+ * Define plugin URL
+ * Used for enqueueing assets (CSS, JS)
+ */
 define( 'ACF_ANALYZER_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
-// Load plugin classes
+// Load required plugin classes
 require_once ACF_ANALYZER_PLUGIN_DIR . 'includes/class-acf-analyzer.php';
 require_once ACF_ANALYZER_PLUGIN_DIR . 'includes/class-acf-analyzer-admin.php';
 require_once ACF_ANALYZER_PLUGIN_DIR . 'includes/class-acf-analyzer-shortcode.php';
 
-// Initialize the plugin
+/**
+ * Initialize the plugin
+ * 
+ * This function runs after all plugins are loaded and initializes
+ * the admin interface and frontend shortcodes.
+ * 
+ * @since 1.0.0
+ * @return void
+ */
 function acf_analyzer_init() {
     // Initialize admin interface (always available so mappings can be managed)
     new ACF_Analyzer_Admin();
 
     // Check if ACF is active for frontend features
     if ( ! function_exists( 'get_fields' ) ) {
+        // Display admin notice if ACF is not active
         add_action( 'admin_notices', 'acf_analyzer_acf_missing_notice' );
         return;
     }
@@ -44,7 +66,15 @@ function acf_analyzer_init() {
 }
 add_action( 'plugins_loaded', 'acf_analyzer_init' );
 
-// Display notice if ACF is not active
+/**
+ * Display admin notice if ACF is not active
+ * 
+ * Shows a warning message in the WordPress admin area when
+ * Advanced Custom Fields plugin is not installed or activated.
+ * 
+ * @since 1.0.0
+ * @return void
+ */
 function acf_analyzer_acf_missing_notice() {
     ?>
     <div class="notice notice-error">

@@ -2,111 +2,382 @@
 /**
  * ACF Analyzer Core Class
  *
- * Handles the analysis of ACF fields across posts
+ * Provides search functionality for ACF fields across WordPress posts.
+ * This class handles searching posts by ACF field criteria with support for:
+ * - Exact value matching
+ * - Numeric range comparisons (min/max)
+ * - Multiple value OR matching
+ * - Nested field access via dot notation
+ * - Category filtering
+ * 
+ * @package ACF_Analyzer
+ * @since 1.0.0
  */
 
 class ACF_Analyzer {
 
     /**
-     * Analyze ACF fields for given post types
+     * Search posts by ACF field criteria
+     * 
+     * Searches through published posts and matches them against ACF field criteria.
+     * Supports multiple matching strategies including exact match, range comparison,
+     * and OR matching for array values.
      *
-     * @param array $post_types Post types to analyze
-     * @param array $options Analysis options
-     * @return array Analysis results
+     * @since 1.0.0
+     * 
+     * @param array $criteria {
+     *     ACF field conditions to match against
+     * 
+     *     @type mixed $field_name Expected value for the field. Can be:
+     *                             - String/number for exact match
+     *                             - Array for OR matching (matches any value)
+     *                             - For range: use {field}_min or {field}_max as key
+     * }
+     * @param array $options {
+     *     Optional. Search configuration options.
+     * 
+     *     @type string   $match_logic 'AND' (default) all criteria must match,
+     *                                 'OR' any criterion matches
+     *     @type bool     $debug       False (default). If true, includes matched
+     *                                 criteria details per post
+     *     @type string[] $categories  Category slugs to filter posts.
+     *                                 Default: ['Velkakirjat', 'Osakeannit', 'Osaketori']
+     * }
+     * 
+     * @return array {
+     *     Search results containing matched posts and metadata
+     * 
+     *     @type array  $posts       Array of matched posts with ID, title, post_type, url
+     *     @type int    $total_found Total number of posts found
+     *     @type array  $criteria    The criteria used for search
+     *     @type string $match_logic The match logic applied
+     *     @type bool   $debug       Whether debug mode was enabled
+     * }
      */
-    public function analyze( $post_types = array(), $options = array() ) {
+    public function search_by_criteria( $criteria = array(), $options = array() ) {
+        // Set default options
         $defaults = array(
-            'posts_per_page' => 200,
-            'post_status'    => 'any',
-            'fields_filter'  => null, // Array of field names to include, or null for all
+            'match_logic' => 'AND',  // 'AND' = all criteria must match, 'OR' = any matches
+            'debug'       => false,  // Include matched criteria details per post
+            'categories'  => array( 'Velkakirjat', 'Osakeannit', 'Osaketori' ),
         );
 
         $options = wp_parse_args( $options, $defaults );
 
-        // If no post types specified, analyze all public post types
-        if ( empty( $post_types ) ) {
-            $post_types = get_post_types( array( 'public' => true ), 'names' );
-        }
-
+        // Initialize results structure
         $results = array(
-            'total_posts'        => 0,
-            'empty_acf_count'    => 0,
-            'post_type_breakdown'=> array(),
-            'field_usage'        => array(),
-            'date_range'         => array(
-                'earliest' => null,
-                'latest'   => null,
-            ),
+            'posts'       => array(),
+            'total_found' => 0,
+            'criteria'    => $criteria,
+            'match_logic' => $options['match_logic'],
+            'debug'       => $options['debug'],
         );
 
-        $paged = 1;
-        $field_usage = array();
+        // Return early if no criteria provided
+        if ( empty( $criteria ) ) {
+            return $results;
+        }
 
-        // Query posts in batches
+        $paged = 1;
+
+        // Query published posts in batches to avoid memory issues
         while ( true ) {
             $args = array(
-                'post_type'      => $post_types,
-                'post_status'    => $options['post_status'],
-                'posts_per_page' => $options['posts_per_page'],
+                'post_type'      => 'post',
+                'post_status'    => 'publish',
+                'posts_per_page' => 200,
                 'paged'          => $paged,
                 'orderby'        => 'date',
                 'order'          => 'DESC',
+                'category_name'  => implode( ',', $options['categories'] ),
             );
 
             $query = new WP_Query( $args );
 
+            // Break loop if no more posts
             if ( ! $query->have_posts() ) {
                 break;
             }
 
+            // Process each post
             foreach ( $query->posts as $post ) {
-                $results['total_posts']++;
-
-                // Update post type breakdown
-                if ( ! isset( $results['post_type_breakdown'][ $post->post_type ] ) ) {
-                    $results['post_type_breakdown'][ $post->post_type ] = 0;
-                }
-                $results['post_type_breakdown'][ $post->post_type ]++;
-
-                // Update date range
-                if ( is_null( $results['date_range']['earliest'] ) || $post->post_date < $results['date_range']['earliest'] ) {
-                    $results['date_range']['earliest'] = $post->post_date;
-                }
-                if ( is_null( $results['date_range']['latest'] ) || $post->post_date > $results['date_range']['latest'] ) {
-                    $results['date_range']['latest'] = $post->post_date;
-                }
-
-                // Analyze ACF fields
+                // Get all ACF fields for this post
                 $acf_fields = get_fields( $post->ID );
 
+                // Skip posts without ACF data
                 if ( empty( $acf_fields ) ) {
-                    $results['empty_acf_count']++;
                     continue;
                 }
 
-                // Filter fields if specified
-                if ( is_array( $options['fields_filter'] ) ) {
-                    $filtered = array();
-                    foreach ( $options['fields_filter'] as $field_name ) {
-                        if ( isset( $acf_fields[ $field_name ] ) ) {
-                            $filtered[ $field_name ] = $acf_fields[ $field_name ];
+                $matched_criteria = array();
+                $match_count      = 0;
+
+                // Check each criterion against this post's ACF fields
+                foreach ( $criteria as $field_name => $expected_value ) {
+                    // Check for range comparison (_min or _max suffix)
+                    if ( preg_match( '/^(.+)_(min|max)$/', $field_name, $matches ) ) {
+                        $base_field = $matches[1];
+                        $comparison = $matches[2];
+                        $actual_value = $this->get_nested_field_value( $acf_fields, $base_field );
+
+                        // Perform numeric comparison if both values are numeric
+                        if ( is_numeric( $actual_value ) && is_numeric( $expected_value ) ) {
+                            $actual_num   = (float) $actual_value;
+                            $expected_num = (float) $expected_value;
+                            // For 'min': actual must be >= expected
+                            // For 'max': actual must be <= expected
+                            $is_match     = ( 'min' === $comparison )
+                                ? ( $actual_num >= $expected_num )
+                                : ( $actual_num <= $expected_num );
+                        } else {
+                            $is_match = false;
+                        }
+                    } else {
+                        // Exact match comparison — support multiple expected values (OR) and array fields
+                        $actual_value = $this->get_nested_field_value( $acf_fields, $field_name );
+
+                        // If expected_value is an array, treat as OR: match if any expected value equals actual
+                        if ( is_array( $expected_value ) ) {
+                            $is_match = false;
+                            // Normalize expected values to strings for comparison
+                            $expected_norm = array_map( 'strval', $expected_value );
+
+                            // Handle array actual values (check intersection)
+                            if ( is_array( $actual_value ) ) {
+                                foreach ( $actual_value as $av ) {
+                                    foreach ( $expected_norm as $ev ) {
+                                        if ( strval( $av ) === strval( $ev ) ) {
+                                            $is_match = true;
+                                            break 2;
+                                        }
+                                    }
+                                }
+                            } else {
+                                // Handle scalar actual values
+                                foreach ( $expected_norm as $ev ) {
+                                    if ( strval( $actual_value ) === strval( $ev ) ) {
+                                        $is_match = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        } else {
+                            // Single expected value — exact compare
+                            $is_match = ( strval( $actual_value ) === strval( $expected_value ) );
                         }
                     }
-                    $acf_fields = $filtered;
+
+                    // Track matches
+                    if ( $is_match ) {
+                        $match_count++;
+                    }
+
+                    // Store debug info if requested
+                    if ( $options['debug'] ) {
+                        $matched_criteria[ $field_name ] = array(
+                            'expected' => $expected_value,
+                            'actual'   => $actual_value,
+                            'matched'  => $is_match,
+                        );
+                    }
                 }
 
-                $this->analyze_fields( $acf_fields, $field_usage, $post->post_type );
+                // Apply match logic to determine if post should be included
+                $include_post = false;
+                if ( 'AND' === $options['match_logic'] ) {
+                    // AND: all criteria must match
+                    $include_post = ( $match_count === count( $criteria ) );
+                } else {
+                    // OR: at least one criterion must match
+                    $include_post = ( $match_count > 0 );
+                }
+
+                // Add post to results if it matches
+                if ( $include_post ) {
+                    $post_data = array(
+                        'ID'        => $post->ID,
+                        'title'     => $post->post_title,
+                        'post_type' => $post->post_type,
+                        'url'       => get_permalink( $post->ID ),
+                    );
+
+                    // Include debug info if requested
+                    if ( $options['debug'] ) {
+                        $post_data['matched_criteria'] = $matched_criteria;
+                    }
+
+                    $results['posts'][] = $post_data;
+                }
             }
 
             $paged++;
             wp_reset_postdata();
         }
 
-        // Convert field usage data to array format
-        $results['field_usage'] = $this->format_field_usage( $field_usage );
+        // Update total count
+        $results['total_found'] = count( $results['posts'] );
 
         return $results;
     }
+
+    /**
+     * Get nested field value using dot notation
+     * 
+     * Retrieves a field value from a nested array structure using dot notation.
+     * For example: 'parent.child.grandchild' will traverse the array hierarchy.
+     *
+     * @since 1.0.0
+     * 
+     * @param array  $fields     ACF fields array
+     * @param string $field_name Field name (supports dot notation: 'parent.child')
+     * 
+     * @return mixed Field value or null if not found
+     */
+    private function get_nested_field_value( $fields, $field_name ) {
+        // Split field name by dots
+        $keys  = explode( '.', $field_name );
+        $value = $fields;
+
+        // Traverse the array hierarchy
+        foreach ( $keys as $key ) {
+            if ( is_array( $value ) && isset( $value[ $key ] ) ) {
+                $value = $value[ $key ];
+            } else {
+                // Key not found, return null
+                return null;
+            }
+        }
+
+        return $value;
+    }
+
+    /**
+     * Get all unique ACF field names from the database
+     * 
+     * Scans through posts in specified categories and collects all unique
+     * ACF field names found. This is used to populate field selection dropdowns.
+     * Supports nested fields with dot notation.
+     *
+     * @since 1.0.0
+     * 
+     * @param array $categories Optional. Category slugs to scan.
+     *                          Default: ['Velkakirjat', 'Osakeannit', 'Osaketori']
+     * 
+     * @return array List of unique field names (sorted alphabetically)
+     */
+    public function get_all_field_names( $categories = array() ) {
+        // Use default categories if none provided
+        if ( empty( $categories ) ) {
+            $categories = array( 'Velkakirjat', 'Osakeannit', 'Osaketori' );
+        }
+
+        $field_names = array();
+        $paged = 1;
+
+        // Query posts in batches to collect field names
+        while ( true ) {
+            $args = array(
+                'post_type'      => 'post',
+                'post_status'    => 'any',
+                'posts_per_page' => 100,
+                'paged'          => $paged,
+                'category_name'  => implode( ',', $categories ),
+            );
+
+            $query = new WP_Query( $args );
+
+            // Break if no more posts
+            if ( ! $query->have_posts() ) {
+                break;
+            }
+
+            // Collect field names from each post
+            foreach ( $query->posts as $post ) {
+                $acf_fields = get_fields( $post->ID );
+
+                if ( ! empty( $acf_fields ) ) {
+                    $this->collect_field_names( $acf_fields, $field_names );
+                }
+            }
+
+            $paged++;
+            wp_reset_postdata();
+
+            // Limit scanning to avoid timeout (max 1000 posts)
+            if ( $paged > 10 ) {
+                break;
+            }
+        }
+
+        // Sort alphabetically and remove duplicates
+        sort( $field_names );
+        return array_values( array_unique( $field_names ) );
+    }
+
+    /**
+     * Recursively collect field names from ACF fields array
+     * 
+     * Traverses a nested ACF fields structure and collects all field names,
+     * using dot notation for nested fields (e.g., 'parent.child').
+     *
+     * @since 1.0.0
+     * 
+     * @param array  $fields      ACF fields array to process
+     * @param array  &$field_names Reference to field names collector (modified in place)
+     * @param string $prefix      Field name prefix for nested fields (for recursion)
+     * 
+     * @return void
+     */
+    private function collect_field_names( $fields, &$field_names, $prefix = '' ) {
+        foreach ( $fields as $field_name => $value ) {
+            // Build full field name with prefix for nested fields
+            $full_field_name = $prefix ? $prefix . '.' . $field_name : $field_name;
+
+            // Add to list if not already present
+            if ( ! in_array( $full_field_name, $field_names, true ) ) {
+                $field_names[] = $full_field_name;
+            }
+
+            // Recursively collect from nested arrays (but not ACF image arrays)
+            if ( is_array( $value ) && ! $this->is_acf_image_array( $value ) ) {
+                $this->collect_field_names( $value, $field_names, $full_field_name );
+            }
+        }
+    }
+
+    /**
+     * Check if array is an ACF image/file array
+     * 
+     * ACF stores images and files as arrays with specific keys.
+     * This method identifies such arrays to prevent them from being
+     * recursively processed as nested fields.
+     *
+     * @since 1.0.0
+     * 
+     * @param mixed $value Value to check
+     * 
+     * @return bool True if the value is an ACF image/file array, false otherwise
+     */
+    private function is_acf_image_array( $value ) {
+        if ( ! is_array( $value ) ) {
+            return false;
+        }
+
+        // ACF image arrays typically have these keys: ID, url, alt, width, height
+        $image_keys = array( 'ID', 'url', 'alt', 'width', 'height' );
+        $has_image_keys = 0;
+
+        // Count how many image-specific keys are present
+        foreach ( $image_keys as $key ) {
+            if ( isset( $value[ $key ] ) ) {
+                $has_image_keys++;
+            }
+        }
+
+        // Consider it an image array if at least 3 image keys are present
+        return $has_image_keys >= 3;
+    }
+}
 
     /**
      * Search posts by ACF field criteria
@@ -285,126 +556,6 @@ class ACF_Analyzer {
     }
 
     /**
-     * Analyze individual fields recursively
-     *
-     * @param array  $fields Array of ACF fields
-     * @param array  &$field_usage Reference to field usage tracker
-     * @param string $post_type Current post type
-     * @param string $prefix Field name prefix for nested fields
-     */
-    private function analyze_fields( $fields, &$field_usage, $post_type, $prefix = '' ) {
-        foreach ( $fields as $field_name => $value ) {
-            $full_field_name = $prefix ? $prefix . '.' . $field_name : $field_name;
-
-            // Initialize field tracking
-            if ( ! isset( $field_usage[ $full_field_name ] ) ) {
-                $field_usage[ $full_field_name ] = array(
-                    'count'        => 0,
-                    'post_types'   => array(),
-                    'data_types'   => array(),
-                    'sample_values'=> array(),
-                    'null_count'   => 0,
-                );
-            }
-
-            $field_usage[ $full_field_name ]['count']++;
-
-            // Track post type
-            if ( ! in_array( $post_type, $field_usage[ $full_field_name ]['post_types'] ) ) {
-                $field_usage[ $full_field_name ]['post_types'][] = $post_type;
-            }
-
-            // Handle null or empty values
-            if ( is_null( $value ) || $value === '' ) {
-                $field_usage[ $full_field_name ]['null_count']++;
-            } else {
-                // Track data type
-                $data_type = gettype( $value );
-                if ( ! in_array( $data_type, $field_usage[ $full_field_name ]['data_types'] ) ) {
-                    $field_usage[ $full_field_name ]['data_types'][] = $data_type;
-                }
-
-                // Store sample values (max 5)
-                if ( count( $field_usage[ $full_field_name ]['sample_values'] ) < 5 ) {
-                    $field_usage[ $full_field_name ]['sample_values'][] = $value;
-                }
-
-                // Recursively analyze nested arrays/objects
-                if ( is_array( $value ) && ! $this->is_acf_image_array( $value ) ) {
-                    $this->analyze_fields( $value, $field_usage, $post_type, $full_field_name );
-                }
-            }
-        }
-    }
-
-    /**
-     * Check if array is an ACF image/file array
-     *
-     * @param mixed $value Value to check
-     * @return bool
-     */
-    private function is_acf_image_array( $value ) {
-        if ( ! is_array( $value ) ) {
-            return false;
-        }
-
-        // ACF image arrays typically have these keys
-        $image_keys = array( 'ID', 'url', 'alt', 'width', 'height' );
-        $has_image_keys = 0;
-
-        foreach ( $image_keys as $key ) {
-            if ( isset( $value[ $key ] ) ) {
-                $has_image_keys++;
-            }
-        }
-
-        return $has_image_keys >= 3;
-    }
-
-    /**
-     * Format field usage data for output
-     *
-     * @param array $field_usage Raw field usage data
-     * @return array Formatted field usage
-     */
-    private function format_field_usage( $field_usage ) {
-        $formatted = array();
-
-        foreach ( $field_usage as $field_name => $data ) {
-            $fill_rate = $data['count'] > 0
-                ? round( ( ( $data['count'] - $data['null_count'] ) / $data['count'] ) * 100, 1 )
-                : 0;
-
-            $formatted[] = array(
-                'field_name'    => $field_name,
-                'count'         => $data['count'],
-                'null_count'    => $data['null_count'],
-                'fill_rate'     => $fill_rate,
-                'post_types'    => $data['post_types'],
-                'data_types'    => $data['data_types'],
-                'sample_values' => $data['sample_values'],
-            );
-        }
-
-        // Sort by usage count (descending)
-        usort( $formatted, function( $a, $b ) {
-            return $b['count'] - $a['count'];
-        });
-
-        return $formatted;
-    }
-
-    /**
-     * Export analysis results as JSON
-     *
-     * @param array $results Analysis results
-     * @return string JSON string
-     */
-    public function export_json( $results ) {
-        return wp_json_encode( $results, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE );
-    }
-
-    /**
      * Get all unique ACF field names from the database
      *
      * @param array $categories Category slugs to scan (defaults to Velkakirjat, Osakeannit, Osaketori)
@@ -478,43 +629,26 @@ class ACF_Analyzer {
     }
 
     /**
-     * Export analysis results as CSV
+     * Check if array is an ACF image/file array
      *
-     * @param array $results Analysis results
-     * @return string CSV string
+     * @param mixed $value Value to check
+     * @return bool
      */
-    public function export_csv( $results ) {
-        $csv = array();
-
-        // CSV Header
-        $csv[] = array(
-            'Field Name',
-            'Usage Count',
-            'Null Count',
-            'Fill Rate (%)',
-            'Post Types',
-            'Data Types',
-        );
-
-        // CSV Rows
-        foreach ( $results['field_usage'] as $field ) {
-            $csv[] = array(
-                $field['field_name'],
-                $field['count'],
-                $field['null_count'],
-                $field['fill_rate'],
-                implode( ', ', $field['post_types'] ),
-                implode( ', ', $field['data_types'] ),
-            );
+    private function is_acf_image_array( $value ) {
+        if ( ! is_array( $value ) ) {
+            return false;
         }
 
-        // Convert to CSV string
-        ob_start();
-        $output = fopen( 'php://output', 'w' );
-        foreach ( $csv as $row ) {
-            fputcsv( $output, $row );
+        // ACF image arrays typically have these keys
+        $image_keys = array( 'ID', 'url', 'alt', 'width', 'height' );
+        $has_image_keys = 0;
+
+        foreach ( $image_keys as $key ) {
+            if ( isset( $value[ $key ] ) ) {
+                $has_image_keys++;
+            }
         }
-        fclose( $output );
-        return ob_get_clean();
+
+        return $has_image_keys >= 3;
     }
 }
