@@ -30,16 +30,16 @@ require_once ACF_ANALYZER_PLUGIN_DIR . 'includes/class-acf-analyzer-shortcode.ph
 
 // Initialize the plugin
 function acf_analyzer_init() {
-    // Check if ACF is active
+    // Initialize admin interface (always available so mappings can be managed)
+    new ACF_Analyzer_Admin();
+
+    // Check if ACF is active for frontend features
     if ( ! function_exists( 'get_fields' ) ) {
         add_action( 'admin_notices', 'acf_analyzer_acf_missing_notice' );
         return;
     }
 
-    // Initialize admin interface
-    new ACF_Analyzer_Admin();
-    
-    // Initialize shortcode functionality
+    // Initialize shortcode functionality (only when ACF is present)
     new ACF_Analyzer_Shortcode();
 }
 add_action( 'plugins_loaded', 'acf_analyzer_init' );
