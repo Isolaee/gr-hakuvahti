@@ -97,6 +97,28 @@ class ACF_Analyzer_Shortcode {
             'wpgb_facet_logger'
         );
 
+        // Ensure the logger script is enqueued when the shortcode is rendered
+        if ( function_exists( 'wp_enqueue_script' ) ) {
+            // Register script if not already registered by enqueue_frontend_assets
+            if ( ! wp_script_is( 'acf-analyzer-wpgb-logger', 'registered' ) ) {
+                wp_register_script(
+                    'acf-analyzer-wpgb-logger',
+                    ACF_ANALYZER_PLUGIN_URL . 'assets/js/wpgb-facet-logger.js',
+                    array( 'jquery' ),
+                    ACF_ANALYZER_VERSION,
+                    true
+                );
+            }
+
+            if ( ! wp_script_is( 'acf-analyzer-wpgb-logger', 'enqueued' ) ) {
+                wp_enqueue_script( 'acf-analyzer-wpgb-logger' );
+            }
+
+            // Provide default use_api setting to script
+            $use_api_bool = in_array( strtolower( $atts['use_api'] ), array( '1', 'true', 'yes' ), true );
+            wp_localize_script( 'acf-analyzer-wpgb-logger', 'acfWpgbLogger', array( 'use_api_default' => $use_api_bool ) );
+        }
+
         ob_start();
         include ACF_ANALYZER_PLUGIN_DIR . 'templates/logger-button.php';
         return ob_get_clean();
