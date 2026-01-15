@@ -337,9 +337,9 @@
                                     // Single numeric value -> exact match
                                     criteriaArray.push({ field: field, value: String(numericVals[0]) });
                                 } else {
-                                    // Non-numeric values OR location/category: send values with OR logic marker
-                                    if (isLocationOrCategory && valsClean.length > 1) {
-                                        // Multiple location/category values - use OR logic (any match is sufficient)
+                                    // Non-numeric values OR location/category
+                                    if (isLocationOrCategory) {
+                                        // Always send location/category as array for OR logic (even single values)
                                         criteriaArray.push({ field: field, value: valsClean, match_type: 'OR' });
                                     } else {
                                         // Send each value as separate criterion
