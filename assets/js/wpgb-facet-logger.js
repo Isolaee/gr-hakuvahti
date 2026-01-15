@@ -217,14 +217,29 @@
                         }
                     });
 
+                        // Log all collected facets (including unmapped ones)
+                        console.group('Collected Facets from WPGB');
+                        console.table(rows);
+                        console.groupEnd();
+
                         if (rows.length) {
                             // Build search criteria from mapped rows
                             var criteriaMap = {}; // field -> array of values
+                            var skippedUnmapped = [];
                             rows.forEach(function(r){
-                                if (!r.acf_field || r.acf_field === '(no mapping)') return;
+                                if (!r.acf_field || r.acf_field === '(no mapping)') {
+                                    skippedUnmapped.push(r.facet);
+                                    return;
+                                }
                                 if (!criteriaMap[r.acf_field]) criteriaMap[r.acf_field] = [];
                                 criteriaMap[r.acf_field].push(r.value);
                             });
+
+                            // Warn about unmapped facets
+                            if (skippedUnmapped.length > 0) {
+                                console.warn('Skipped unmapped facets:', Array.from(new Set(skippedUnmapped)).join(', '));
+                                console.log('Please map these facets in the admin panel to include them in the search.');
+                            }
 
                             // Helper: parse numeric-ish strings
                             function parseNumber(v){
