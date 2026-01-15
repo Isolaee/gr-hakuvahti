@@ -159,7 +159,31 @@
 
         console.debug('wpgb-facet-logger: button clicked', { target: target, useApi: useApi });
         var collected = collectAll(target, useApi);
-        console.log('wpgb-facet-logger: collected', collected);
+
+        // Apply mapping if provided by PHP
+        var map = window.acfWpgbFacetMap || {};
+        try {
+            var mappedOutput = [];
+            if (Array.isArray(collected)) {
+                collected.forEach(function(item){
+                    var mappedFacets = {};
+                    if (item && item.facets) {
+                        Object.keys(item.facets).forEach(function(slug){
+                            mappedFacets[slug] = {
+                                values: item.facets[slug],
+                                acf_field: map[slug] || null
+                            };
+                        });
+                    }
+                    mappedOutput.push({ grid: item.grid || null, facets: mappedFacets });
+                });
+            }
+            console.log('wpgb-facet-logger: collected', collected);
+            console.log('wpgb-facet-logger: mapped', mappedOutput, 'mappingProvided=', !!Object.keys(map).length);
+        } catch (e) {
+            console.error('wpgb-facet-logger: mapping error', e);
+            console.log('wpgb-facet-logger: collected', collected);
+        }
     });
 
 })(jQuery);

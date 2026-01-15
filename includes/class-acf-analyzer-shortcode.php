@@ -117,11 +117,116 @@ class ACF_Analyzer_Shortcode {
             // Provide default use_api setting to script
             $use_api_bool = in_array( strtolower( $atts['use_api'] ), array( '1', 'true', 'yes' ), true );
             wp_localize_script( 'acf-analyzer-wpgb-logger', 'acfWpgbLogger', array( 'use_api_default' => $use_api_bool ) );
+            // Also localize facet->ACF mapping
+            $mapping = $this->get_wpgb_facet_mapping();
+            wp_localize_script( 'acf-analyzer-wpgb-logger', 'acfWpgbFacetMap', $mapping );
         }
 
         ob_start();
         include ACF_ANALYZER_PLUGIN_DIR . 'templates/logger-button.php';
         return ob_get_clean();
+    }
+
+    /**
+     * Attempt to build a best-effort mapping of WP Grid Builder facet slug => ACF field/key
+     * Returns an associative array suitable for localizing into JS.
+     *
+     * @return array
+     */
+    protected function get_wpgb_facet_mapping() {
+        $mapping = array();
+
+        if ( ! function_exists( 'get_post_types' ) ) {
+            return $mapping;
+        }
+
+        $types = get_post_types( array(), 'names' );
+        $candidates = array();
+        foreach ( $types as $t ) {
+            if ( stripos( $t, 'wpgb' ) !== false || stripos( $t, 'grid' ) !== false || stripos( $t, 'facet' ) !== false ) {
+                $candidates[] = $t;
+            }
+        }
+
+        if ( empty( $candidates ) ) {
+            return $mapping;
+        }
+
+        foreach ( $candidates as $ptype ) {
+            $posts = get_posts( array( 'post_type' => $ptype, 'numberposts' => -1 ) );
+            foreach ( $posts as $p ) {
+                $slug = null;
+                // try common places: post_name, post_title
+                if ( ! empty( $p->post_name ) ) {
+                    $slug = $p->post_name;
+                }
+
+                // try to extract from post meta
+                $meta = get_post_meta( $p->ID );
+                if ( is_array( $meta ) && ! empty( $meta ) ) {
+                    foreach ( $meta as $k => $v ) {
+                        // look for obvious keys
+                        if ( stripos( $k, 'slug' ) !== false || stripos( $k, 'name' ) !== false ) {
+                            if ( is_array( $v ) ) {
+                                $candidate = reset( $v );
+                            } else {
+                                $candidate = $v;
+                            }
+                            if ( is_string( $candidate ) && $candidate !== '' ) {
+                                $slug = $slug ?: sanitize_text_field( $candidate );
+                            }
+                        }
+
+                        // if meta contains 'acf' or 'field' try to extract mapping
+                        if ( ( stripos( $k, 'acf' ) !== false || stripos( $k, 'field' ) !== false || stripos( $k, 'source' ) !== false ) && ! empty( $v ) ) {
+                            $val = is_array( $v ) ? reset( $v ) : $v;
+                            if ( is_string( $val ) && $val !== '' ) {
+                                $acf_field = sanitize_text_field( $val );
+                                if ( $slug ) {
+                                    $mapping[ $slug ] = $acf_field;
+                                }
+                            } elseif ( is_array( $val ) ) {
+                                // if it's an array try to find keys that look like ACF
+                                foreach ( $val as $sub ) {
+                                    if ( is_string( $sub ) && ( stripos( $sub, 'field_' ) !== false || stripos( $sub, 'acf_' ) !== false || preg_match('/^[a-z0-9_]+$/i', $sub) ) ) {
+                                        if ( $slug ) {
+                                            $mapping[ $slug ] = sanitize_text_field( $sub );
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // try to parse JSON from content if present
+                if ( empty( $mapping ) || ! isset( $mapping[ $slug ] ) ) {
+                    $content = trim( $p->post_content );
+                    if ( $content ) {
+                        $decoded = json_decode( $content, true );
+                        if ( is_array( $decoded ) ) {
+                            // look for keys that point to source/field
+                            if ( isset( $decoded['source'] ) && $slug ) {
+                                $mapping[ $slug ] = sanitize_text_field( (string) $decoded['source'] );
+                            } elseif ( isset( $decoded['field'] ) && $slug ) {
+                                $mapping[ $slug ] = sanitize_text_field( (string) $decoded['field'] );
+                            } else {
+                                // deep scan for any value containing 'acf' or 'field'
+                                array_walk_recursive( $decoded, function( $v ) use ( &$mapping, $slug ) {
+                                    if ( ! $slug ) return;
+                                    if ( is_string( $v ) && ( stripos( $v, 'acf' ) !== false || stripos( $v, 'field' ) !== false ) ) {
+                                        $mapping[ $slug ] = sanitize_text_field( $v );
+                                    }
+                                } );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return $mapping;
     }
 
     /**
