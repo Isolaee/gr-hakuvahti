@@ -1,19 +1,9 @@
 (function($){
     'use strict';
 
-    console.log('wpgb-facet-logger: script loaded');
-    console.log('wpgb-facet-logger: localized mapping (acfWpgbFacetMap)=', window.acfWpgbFacetMap || null);
-
     function getWpgbInstances(){
         var wpgb = window.WP_Grid_Builder;
-        console.log('wpgb-facet-logger: checking WP_Grid_Builder presence', !!wpgb);
         if (!wpgb) return null;
-        try {
-            console.log('wpgb-facet-logger: WP_Grid_Builder info', {
-                hasInstances: !!wpgb.instances,
-                getInstancesFunc: typeof wpgb.getInstances === 'function'
-            });
-        } catch (e) { console.error('wpgb-facet-logger: WP_Grid_Builder introspect error', e && e.stack); }
         if (Array.isArray(wpgb.instances)) return wpgb.instances;
         if (typeof wpgb.getInstances === 'function') return wpgb.getInstances();
         if (typeof wpgb.instances === 'object') {
@@ -27,18 +17,11 @@
     }
 
     function collectViaAPI(target){
-        console.log('wpgb-facet-logger: collectViaAPI target=', target);
         var instances = getWpgbInstances();
-        console.log('wpgb-facet-logger: instances found', instances && instances.length ? instances.length : 0);
         if (!instances) return null;
         var output = [];
         instances.forEach(function(inst){
             try {
-                console.log('wpgb-facet-logger: API instance', {
-                    id: inst.id || inst.name || null,
-                    container: !!inst.container,
-                    facetsObj: !!inst.facets
-                });
                 // If target is provided, try to match container or grid slug
                 if (target) {
                     // if target matches container selector
@@ -49,7 +32,7 @@
                 }
 
                 var facets = inst.facets;
-                console.log('wpgb-facet-logger: instance.facets keys', Object.keys(facets || {}));
+
                 if (!facets) return;
 
                 // Try to get all params at once
@@ -59,7 +42,6 @@
                         paramsRaw = facets.getParams();
                     } catch (e) {
                         paramsRaw = null;
-                        console.error('wpgb-facet-logger: facets.getParams error', e && e.stack);
                     }
                 }
 
@@ -73,7 +55,7 @@
                                 try{ paramsRaw[f.slug] = facets.getParams(f.slug) || []; }catch(e){}
                             });
                         }
-                    }catch(e){ console.error('wpgb-facet-logger: facets._facets read error', e && e.stack); }
+                    }catch(e){ }
                 }
 
                 // Normalize params into slug -> array
@@ -122,14 +104,13 @@
 
                 try {
                     params = normalizeFacetParams(paramsRaw);
-                } catch(e) { params = {}; console.error('wpgb-facet-logger: normalize error', e && e.stack); }
+                } catch(e) { params = {}; }
 
                 if (params && Object.keys(params).length) {
                     output.push({ grid: inst.id || inst.name || null, facets: params });
                 }
 
             } catch (e) {
-                console.error('wpgb-facet-logger: instance loop error', e && e.stack);
             }
         });
 
@@ -137,18 +118,14 @@
     }
 
     function collectViaDOM(target){
-        console.log('wpgb-facet-logger: collectViaDOM target=', target);
         var scope = document;
         if (target) {
             try { var el = document.querySelector(target); if (el) scope = el; } catch(e){}
         }
         var facets = scope.querySelectorAll('.wpgb-facet');
-        console.log('wpgb-facet-logger: DOM facets found count=', facets.length);
         var result = {};
         Array.prototype.forEach.call(facets, function(f){
             var slug = f.getAttribute('data-slug') || f.dataset.slug || f.getAttribute('data-wpgb-facet') || f.getAttribute('data-name') || null;
-            // log facet element snapshot
-            try { console.log('wpgb-facet-logger: facet element', { slugGuess: slug, dataset: f.dataset, htmlSnippet: (f.innerText||f.textContent||'').trim().slice(0,80) }); } catch(e) {}
             if (!slug) {
                 // try to derive from inputs
                 var inp = f.querySelector('input[name]');
@@ -182,7 +159,6 @@
         // if no .wpgb-facet elements found, try generic inputs inside grid
         if (!Object.keys(result).length) {
             var inputs = scope.querySelectorAll('[data-wpgb-facet], [data-facet]');
-            console.log('wpgb-facet-logger: fallback inputs found count=', inputs.length);
             Array.prototype.forEach.call(inputs, function(i){
                 var slug = i.getAttribute('data-wpgb-facet') || i.getAttribute('data-facet') || i.name || null;
                 if (!slug) return;
@@ -200,14 +176,11 @@
     function collectAll(target, useApiPref) {
         var useApi = (typeof useApiPref !== 'undefined') ? !!useApiPref : false;
         var apiData = null;
-        console.log('wpgb-facet-logger: collectAll useApi=', useApi, 'WP_Grid_Builder present=', !!window.WP_Grid_Builder);
         if ( useApi && window.WP_Grid_Builder ) {
             apiData = collectViaAPI(target);
-            console.log('wpgb-facet-logger: apiData count=', apiData ? apiData.length : 0);
         }
         if (!apiData) {
             var domData = collectViaDOM(target) || [];
-            console.log('wpgb-facet-logger: domData count=', domData ? domData.length : 0);
             return domData;
         }
         return apiData;
@@ -220,31 +193,12 @@
         var useApiAttr = $btn.attr('data-use-api');
         var useApi = (typeof useApiAttr !== 'undefined') ? (useApiAttr === '1' || useApiAttr === 'true') : (window.acfWpgbLogger && window.acfWpgbLogger.use_api_default);
 
-        console.log('wpgb-facet-logger: button clicked', { target: target, useApi: useApi });
-        // snapshot mapping at click time
-        try { console.log('wpgb-facet-logger: mapping at click', window.acfWpgbFacetMap || {}); } catch(e) {}
         var collected = collectAll(target, useApi);
-        // Log mapping keys vs collected slugs for debugging
-        try {
-            var mapKeys = Object.keys(window.acfWpgbFacetMap || {});
-            var collectedSlugs = [];
-            if (Array.isArray(collected)) {
-                collected.forEach(function(item){
-                    var facets = item && item.facets ? item.facets : {};
-                    Object.keys(facets).forEach(function(s){ if (collectedSlugs.indexOf(s) === -1) collectedSlugs.push(s); });
-                });
-            }
-            console.log('wpgb-facet-logger: mapping keys=', mapKeys);
-            console.log('wpgb-facet-logger: collected slugs=', collectedSlugs);
-            var missing = collectedSlugs.filter(function(s){ return mapKeys.indexOf(s) === -1; });
-            if (missing.length) console.log('wpgb-facet-logger: slugs without mapping=', missing);
-        } catch (e) { console.error('wpgb-facet-logger: compare map/slug error', e && e.stack); }
 
             // Apply mapping if provided by PHP and print compact rows
             var map = window.acfWpgbFacetMap || {};
             try {
                 if (!Array.isArray(collected) || !collected.length) {
-                    console.log('wpgb-facet-logger: no facet data found');
                     return;
                 }
 
@@ -272,9 +226,7 @@
                                 criteriaMap[r.acf_field].push(r.value);
                             });
 
-                            console.groupCollapsed('wpgb-facet-logger: criteria build');
-                            console.log('mapping used:', map);
-                            console.log('initial criteriaMap:', criteriaMap);
+
 
                             // Helper: parse numeric-ish strings
                             function parseNumber(v){
@@ -313,7 +265,6 @@
                                 // parse numbers where possible and also support single "min-max" string
                                 var parsed = valsClean.map(function(v){ var n = parseNumber(v); return { raw: v, num: n }; });
                                 var numericVals = parsed.map(function(p){ return p.num; }).filter(function(x){ return x !== null; });
-                                console.log('field parse', field, parsed, 'numericVals=', numericVals, 'isLocationOrCategory=', isLocationOrCategory);
 
                                 // If a single value contains a range like "1000-5000" extract numbers
                                 if (numericVals.length < 2 && valsClean.length === 1) {
@@ -350,15 +301,21 @@
                                 }
                             });
 
-                            console.log('final criteriaArray:', criteriaArray);
-                            console.groupEnd();
-
-                            if (criteriaArray.length === 0) {
-                                console.log('wpgb-facet-logger: no valid criteria - fetching all Osakeanti posts');
+                            // Display search criteria
+                            var criteriaDisplay = criteriaArray.map(function(c) {
+                                return {
+                                    field: c.field,
+                                    value: Array.isArray(c.value) ? c.value.join(', ') : c.value,
+                                    match_type: c.match_type || 'exact'
+                                };
+                            });
+                            console.group('Search Criteria (' + (criteriaArray.length || 'none') + ')');
+                            if (criteriaArray.length > 0) {
+                                console.table(criteriaDisplay);
+                            } else {
+                                console.log('No criteria - fetching all Osakeanti posts');
                             }
-
-                            console.group('wpgb-facet-logger — Grid: ' + gridId + ' (' + rows.length + ' rows)');
-                            console.table(rows);
+                            console.groupEnd();
 
                             // Always perform search - empty criteria will return all Osakeanti
                             if (typeof window.acfWpgbLogger !== 'undefined' && window.acfWpgbLogger.ajaxUrl) {
@@ -370,34 +327,29 @@
                                     match_logic: criteriaArray.length > 0 ? 'AND' : 'ALL',
                                     debug: '1'
                                 };
-                                console.log('wpgb-facet-logger: sending search AJAX', searchPayload);
                                 $.post(window.acfWpgbLogger.ajaxUrl, searchPayload)
                                     .done(function(resp){
                                         if (resp && resp.success) {
-                                            console.log('wpgb-facet-logger: search result', resp.data);
                                             if (resp.data && resp.data.posts) {
-                                                console.group('wpgb-facet-logger: Matched posts (' + (resp.data.total||0) + ')');
+                                                console.group('Matched Posts (' + (resp.data.total||0) + ')');
                                                 console.table(resp.data.posts);
                                                 console.groupEnd();
                                             }
                                         } else {
-                                            console.warn('wpgb-facet-logger: search returned error', resp && resp.data);
+                                            console.error('Search failed:', resp && resp.data);
                                         }
                                     }).fail(function(xhr){
-                                        console.error('wpgb-facet-logger: AJAX search failed', xhr && xhr.responseText);
+                                        console.error('Search request failed:', xhr && xhr.responseText);
                                     });
                             } else {
                                 console.warn('wpgb-facet-logger: ajaxUrl not available; cannot perform search');
                             }
 
                             console.groupEnd();
-                        } else {
-                            console.log('wpgb-facet-logger — Grid: ' + gridId + ' (no facets)');
                         }
                 });
 
             } catch (e) {
-                console.error('wpgb-facet-logger: print error', e && e.stack ? e.stack : e);
             }
     });
 
