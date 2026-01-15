@@ -3,10 +3,8 @@
  * ACF Analyzer Shortcode Handler
  *
  * Handles frontend shortcodes and AJAX functionality for:
- * - Search popup shortcode for ACF field searching
  * - WP Grid Builder facet logger button
  * - Frontend AJAX handlers for search and field retrieval
- * - Asset enqueueing for frontend pages
  * 
  * @package ACF_Analyzer
  * @since 1.0.0
@@ -26,7 +24,6 @@ class ACF_Analyzer_Shortcode {
      */
     public function __construct() {
         // Register shortcodes
-        add_shortcode( 'acf_search_popup', array( $this, 'render_search_popup' ) );
         add_shortcode( 'wpgb_facet_logger', array( $this, 'render_wpgb_facet_logger' ) );
         
         // Enqueue frontend assets
@@ -59,33 +56,6 @@ class ACF_Analyzer_Shortcode {
      * @return void
      */
     public function enqueue_frontend_assets() {
-        // Enqueue frontend stylesheet
-        wp_enqueue_style(
-            'acf-analyzer-frontend',
-            ACF_ANALYZER_PLUGIN_URL . 'assets/css/frontend.css',
-            array(),
-            ACF_ANALYZER_VERSION
-        );
-
-        // Enqueue frontend JavaScript
-        wp_enqueue_script(
-            'acf-analyzer-frontend',
-            ACF_ANALYZER_PLUGIN_URL . 'assets/js/frontend.js',
-            array( 'jquery' ),
-            ACF_ANALYZER_VERSION,
-            true
-        );
-
-        // Localize script with AJAX URL and nonce
-        wp_localize_script(
-            'acf-analyzer-frontend',
-            'acfAnalyzer',
-            array(
-                'ajaxUrl' => admin_url( 'admin-ajax.php' ),
-                'nonce'   => wp_create_nonce( 'acf_popup_search' ),
-            )
-        );
-
         // Register logger script (do not always enqueue; only on pages where shortcode is used)
         wp_register_script(
             'acf-analyzer-wpgb-logger',
@@ -101,8 +71,7 @@ class ACF_Analyzer_Shortcode {
             $post = get_post();
             if ( $post ) {
                 $content = $post->post_content;
-                // Check if either shortcode is present in the content
-                if ( has_shortcode( $content, 'wpgb_facet_logger' ) || has_shortcode( $content, 'acf_search_popup' ) ) {
+                if ( has_shortcode( $content, 'wpgb_facet_logger' ) ) {
                     $should_enqueue_logger = true;
                 }
             }
@@ -182,154 +151,6 @@ class ACF_Analyzer_Shortcode {
         // Load and return the button template
         ob_start();
         include ACF_ANALYZER_PLUGIN_DIR . 'templates/logger-button.php';
-        return ob_get_clean();
-    }
-
-    /**
-     * Get WP Grid Builder facet to ACF field mapping
-     * 
-     * Legacy method - mapping is now handled via admin interface
-     * and stored in 'acf_wpgb_facet_map' option.
-     * 
-     * @since 1.0.0
-     * @deprecated Use get_option('acf_wpgb_facet_map') instead
-     * 
-     * @return array Mapping array (facet_slug => acf_field_name)
-     */
-    protected function get_wpgb_facet_mapping() {
-        $mapping = array();
-
-        if ( ! function_exists( 'get_post_types' ) ) {
-            return $mapping;
-        }
-
-        $types = get_post_types( array(), 'names' );
-        $candidates = array();
-        foreach ( $types as $t ) {
-            if ( stripos( $t, 'wpgb' ) !== false || stripos( $t, 'grid' ) !== false || stripos( $t, 'facet' ) !== false ) {
-                $candidates[] = $t;
-            }
-        }
-
-        if ( empty( $candidates ) ) {
-            return $mapping;
-        }
-
-        foreach ( $candidates as $ptype ) {
-            $posts = get_posts( array( 'post_type' => $ptype, 'numberposts' => -1 ) );
-            foreach ( $posts as $p ) {
-                $slug = null;
-                // try common places: post_name, post_title
-                if ( ! empty( $p->post_name ) ) {
-                    $slug = $p->post_name;
-                }
-
-                // try to extract from post meta
-                $meta = get_post_meta( $p->ID );
-                if ( is_array( $meta ) && ! empty( $meta ) ) {
-                    foreach ( $meta as $k => $v ) {
-                        // look for obvious keys
-                        if ( stripos( $k, 'slug' ) !== false || stripos( $k, 'name' ) !== false ) {
-                            if ( is_array( $v ) ) {
-                                $candidate = reset( $v );
-                            } else {
-                                $candidate = $v;
-                            }
-                            if ( is_string( $candidate ) && $candidate !== '' ) {
-                                $slug = $slug ?: sanitize_text_field( $candidate );
-                            }
-                        }
-
-                        // if meta contains 'acf' or 'field' try to extract mapping
-                        if ( ( stripos( $k, 'acf' ) !== false || stripos( $k, 'field' ) !== false || stripos( $k, 'source' ) !== false ) && ! empty( $v ) ) {
-                            $val = is_array( $v ) ? reset( $v ) : $v;
-                            if ( is_string( $val ) && $val !== '' ) {
-                                $acf_field = sanitize_text_field( $val );
-                                if ( $slug ) {
-                                    $mapping[ $slug ] = $acf_field;
-                                }
-                            } elseif ( is_array( $val ) ) {
-                                // if it's an array try to find keys that look like ACF
-                                foreach ( $val as $sub ) {
-                                    if ( is_string( $sub ) && ( stripos( $sub, 'field_' ) !== false || stripos( $sub, 'acf_' ) !== false || preg_match('/^[a-z0-9_]+$/i', $sub) ) ) {
-                                        if ( $slug ) {
-                                            $mapping[ $slug ] = sanitize_text_field( $sub );
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // try to parse JSON from content if present
-                if ( empty( $mapping ) || ! isset( $mapping[ $slug ] ) ) {
-                    $content = trim( $p->post_content );
-                    if ( $content ) {
-                        $decoded = json_decode( $content, true );
-                        if ( is_array( $decoded ) ) {
-                            // look for keys that point to source/field
-                            if ( isset( $decoded['source'] ) && $slug ) {
-                                $mapping[ $slug ] = sanitize_text_field( (string) $decoded['source'] );
-                            } elseif ( isset( $decoded['field'] ) && $slug ) {
-                                $mapping[ $slug ] = sanitize_text_field( (string) $decoded['field'] );
-                            } else {
-                                // deep scan for any value containing 'acf' or 'field'
-                                array_walk_recursive( $decoded, function( $v ) use ( &$mapping, $slug ) {
-                                    if ( ! $slug ) return;
-                                    if ( is_string( $v ) && ( stripos( $v, 'acf' ) !== false || stripos( $v, 'field' ) !== false ) ) {
-                                        $mapping[ $slug ] = sanitize_text_field( $v );
-                                    }
-                                } );
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        return $mapping;
-    }
-
-    /**
-     * Render search popup shortcode
-     * 
-     * Creates a search popup interface for searching posts by ACF fields.
-     * The popup type can be specified to filter by specific categories.
-     * 
-     * Shortcode: [acf_search_popup type="Osakeannit"]
-     * 
-     * @since 1.0.0
-     * 
-     * @param array $atts {
-     *     Shortcode attributes
-     * 
-     *     @type string $type Post category type (Osakeannit, Osaketori, or Velkakirjat).
-     *                        Default: 'Osakeannit'
-     * }
-     * 
-     * @return string HTML output for the search popup
-     */
-    public function render_search_popup( $atts ) {
-        // Parse attributes with defaults
-        $atts = shortcode_atts(
-            array(
-                'type' => 'Osakeannit', // Default type: Osakeannit, Osaketori, or Velkakirjat
-            ),
-            $atts,
-            'acf_search_popup'
-        );
-
-        // Validate type against allowed values
-        $allowed_types = array( 'Osakeannit', 'Osaketori', 'Velkakirjat' );
-        if ( ! in_array( $atts['type'], $allowed_types, true ) ) {
-            $atts['type'] = 'Osakeannit';
-        }
-
-        // Load and return the popup template
-        ob_start();
-        include ACF_ANALYZER_PLUGIN_DIR . 'templates/popup-search.php';
         return ob_get_clean();
     }
 
