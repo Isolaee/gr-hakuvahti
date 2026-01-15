@@ -283,51 +283,61 @@ class ACF_Analyzer_Shortcode {
             ) );
         }
 
-        // Sanitize criteria
+        // Sanitize criteria - new format: array of { name, label, values }
         $sanitized_criteria = array();
         $or_fields = array(); // Track fields that should use OR logic
 
-        // Support two input shapes:
-        // 1) array of { field: 'name', value: 'x', match_type: 'OR' }
-        // 2) associative mapping: field_name => value
         if ( is_array( $criteria ) ) {
-            // Detect associative mapping (string keys)
-            $is_assoc = array_keys( $criteria ) !== range( 0, count( $criteria ) - 1 );
-            if ( $is_assoc ) {
-                foreach ( $criteria as $field => $val ) {
-                    $f = sanitize_text_field( (string) $field );
-                    $v = is_scalar( $val ) ? sanitize_text_field( (string) $val ) : wp_json_encode( $val );
-                    if ( $f !== '' ) {
-                        $sanitized_criteria[ $f ] = $v;
+            foreach ( $criteria as $criterion ) {
+                // New format: { name: field_name, label: 'range'|'multiple_choice', values: [...] }
+                if ( isset( $criterion['name'] ) && isset( $criterion['label'] ) && isset( $criterion['values'] ) ) {
+                    $field_name = sanitize_text_field( $criterion['name'] );
+                    $label = sanitize_text_field( $criterion['label'] );
+                    $values = is_array( $criterion['values'] ) ? array_map( 'sanitize_text_field', $criterion['values'] ) : array( sanitize_text_field( $criterion['values'] ) );
+                    
+                    if ( $debug ) {
+                        error_log( "ACF Search - Processing criterion: name={$field_name}, label={$label}, values=" . print_r( $values, true ) );
                     }
-                }
-            } else {
-                foreach ( $criteria as $criterion ) {
-                    if ( isset( $criterion['field'] ) && isset( $criterion['value'] ) ) {
-                        $field = sanitize_text_field( $criterion['field'] );
-                        $match_type = isset( $criterion['match_type'] ) ? sanitize_text_field( $criterion['match_type'] ) : 'AND';
-                        
-                        // Handle array values (for OR logic fields like sijainti/Luokitus)
-                        if ( is_array( $criterion['value'] ) ) {
-                            $values = array_map( 'sanitize_text_field', $criterion['value'] );
-                            $sanitized_criteria[ $field ] = $values;
-                            if ( $match_type === 'OR' ) {
-                                $or_fields[] = $field;
-                            }
-                            if ( $debug ) {
-                                error_log( "ACF Search - Field '{$field}' received as array: " . print_r( $values, true ) . " match_type: {$match_type}" );
-                            }
-                        } else {
-                            $value = sanitize_text_field( (string) $criterion['value'] );
-                            if ( isset( $sanitized_criteria[ $field ] ) ) {
-                                // If existing value is not an array, convert it
-                                if ( ! is_array( $sanitized_criteria[ $field ] ) ) {
-                                    $sanitized_criteria[ $field ] = array( $sanitized_criteria[ $field ] );
-                                }
-                                $sanitized_criteria[ $field ][] = $value;
+                    
+                    // Process based on label type
+                    if ( $label === 'range' ) {
+                        // Range: parse numeric values and create _min and _max fields
+                        $numeric_vals = array();
+                        foreach ( $values as $val ) {
+                            // Parse numeric value (handle comma as decimal separator)
+                            $cleaned = preg_replace( '/[^0-9.,\-]/', '', $val );
+                            $cleaned = str_replace( ',', '.', $cleaned );
+                            if ( is_numeric( $cleaned ) ) {
+                                $numeric_vals[] = floatval( $cleaned );
                             } else {
-                                $sanitized_criteria[ $field ] = $value;
+                                // Try to extract range from string like "1000-5000"
+                                if ( preg_match( '/(-?\d+[\.,]?\d*)\D+(-?\d+[\.,]?\d*)/', $val, $matches ) ) {
+                                    $n1 = str_replace( ',', '.', preg_replace( '/[^0-9.,\-]/', '', $matches[1] ) );
+                                    $n2 = str_replace( ',', '.', preg_replace( '/[^0-9.,\-]/', '', $matches[2] ) );
+                                    if ( is_numeric( $n1 ) ) $numeric_vals[] = floatval( $n1 );
+                                    if ( is_numeric( $n2 ) ) $numeric_vals[] = floatval( $n2 );
+                                }
                             }
+                        }
+                        
+                        if ( count( $numeric_vals ) >= 2 ) {
+                            $min = min( $numeric_vals );
+                            $max = max( $numeric_vals );
+                            $sanitized_criteria[ $field_name . '_min' ] = (string) $min;
+                            $sanitized_criteria[ $field_name . '_max' ] = (string) $max;
+                            if ( $debug ) {
+                                error_log( "ACF Search - Range field '{$field_name}': min={$min}, max={$max}" );
+                            }
+                        } elseif ( count( $numeric_vals ) === 1 ) {
+                            // Single numeric value - exact match
+                            $sanitized_criteria[ $field_name ] = (string) $numeric_vals[0];
+                        }
+                    } elseif ( $label === 'multiple_choice' ) {
+                        // Multiple choice: store as array and mark for OR logic
+                        $sanitized_criteria[ $field_name ] = $values;
+                        $or_fields[] = $field_name;
+                        if ( $debug ) {
+                            error_log( "ACF Search - Multiple choice field '{$field_name}': " . print_r( $values, true ) );
                         }
                     }
                 }
