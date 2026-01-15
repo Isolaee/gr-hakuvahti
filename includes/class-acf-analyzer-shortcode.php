@@ -12,6 +12,7 @@ class ACF_Analyzer_Shortcode {
      */
     public function __construct() {
         add_shortcode( 'acf_search_popup', array( $this, 'render_search_popup' ) );
+        add_shortcode( 'wpgb_facet_logger', array( $this, 'render_wpgb_facet_logger' ) );
         add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_frontend_assets' ) );
         add_action( 'wp_ajax_acf_popup_search', array( $this, 'ajax_search_handler' ) );
         add_action( 'wp_ajax_nopriv_acf_popup_search', array( $this, 'ajax_search_handler' ) );
@@ -49,6 +50,56 @@ class ACF_Analyzer_Shortcode {
                 'nonce'   => wp_create_nonce( 'acf_popup_search' ),
             )
         );
+
+        // Register logger script (do not always enqueue; only on pages where shortcode is used)
+        wp_register_script(
+            'acf-analyzer-wpgb-logger',
+            ACF_ANALYZER_PLUGIN_URL . 'assets/js/wpgb-facet-logger.js',
+            array( 'jquery' ),
+            ACF_ANALYZER_VERSION,
+            true
+        );
+
+        // Enqueue logger script only if the current post content contains the shortcode
+        $should_enqueue_logger = false;
+        if ( is_singular() ) {
+            $post = get_post();
+            if ( $post ) {
+                $content = $post->post_content;
+                if ( has_shortcode( $content, 'wpgb_facet_logger' ) || has_shortcode( $content, 'acf_search_popup' ) ) {
+                    $should_enqueue_logger = true;
+                }
+            }
+        }
+
+        if ( $should_enqueue_logger ) {
+            wp_enqueue_script( 'acf-analyzer-wpgb-logger' );
+            wp_localize_script( 'acf-analyzer-wpgb-logger', 'acfWpgbLogger', array(
+                'use_api_default' => true,
+            ) );
+        }
+    }
+
+    /**
+     * Render the WP Grid Builder facet logger button shortcode
+     *
+     * @param array $atts
+     * @return string
+     */
+    public function render_wpgb_facet_logger( $atts ) {
+        $atts = shortcode_atts(
+            array(
+                'label'  => 'Log WPGB facets',
+                'target' => '',
+                'use_api' => 'true',
+            ),
+            $atts,
+            'wpgb_facet_logger'
+        );
+
+        ob_start();
+        include ACF_ANALYZER_PLUGIN_DIR . 'templates/logger-button.php';
+        return ob_get_clean();
     }
 
     /**
