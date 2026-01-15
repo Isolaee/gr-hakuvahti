@@ -148,8 +148,8 @@ class ACF_Analyzer {
                         // If expected_value is an array, treat as OR: match if any expected value equals actual
                         if ( is_array( $expected_value ) ) {
                             $is_match = false;
-                            // Normalize expected values to strings for comparison
-                            $expected_norm = array_map( 'strval', $expected_value );
+                            // Normalize expected values to slugs for comparison
+                            $expected_norm = array_map( array( $this, 'normalize_to_slug' ), $expected_value );
 
                             if ( $options['debug'] ) {
                                 error_log( "ACF Analyzer - Comparing field '{$field_name}': expected=" . print_r( $expected_norm, true ) . " actual=" . print_r( $actual_value, true ) );
@@ -158,29 +158,31 @@ class ACF_Analyzer {
                             // Handle array actual values (check intersection)
                             if ( is_array( $actual_value ) ) {
                                 foreach ( $actual_value as $av ) {
+                                    $av_norm = $this->normalize_to_slug( $av );
                                     foreach ( $expected_norm as $ev ) {
-                                        if ( strval( $av ) === strval( $ev ) ) {
+                                        if ( $av_norm === $ev ) {
                                             $is_match = true;
                                             break 2;
                                         }
                                     }
                                 }
                             } else {
-                                // Handle scalar actual values
+                                // Handle scalar actual values - normalize for comparison
+                                $actual_norm = $this->normalize_to_slug( $actual_value );
                                 foreach ( $expected_norm as $ev ) {
-                                    if ( strval( $actual_value ) === strval( $ev ) ) {
+                                    if ( $actual_norm === $ev ) {
                                         $is_match = true;
                                         break;
                                     }
                                 }
                             }
-                            
+
                             if ( $options['debug'] ) {
                                 error_log( "ACF Analyzer - Field '{$field_name}' match result: " . ( $is_match ? 'YES' : 'NO' ) );
                             }
                         } else {
-                            // Single expected value — exact compare
-                            $is_match = ( strval( $actual_value ) === strval( $expected_value ) );
+                            // Single expected value — normalize both for comparison
+                            $is_match = ( $this->normalize_to_slug( $actual_value ) === $this->normalize_to_slug( $expected_value ) );
                         }
                     }
 
@@ -266,6 +268,47 @@ class ACF_Analyzer {
         }
 
         return $value;
+    }
+
+    /**
+     * Normalize a string to slug format for comparison
+     *
+     * Converts strings like "Päijät-Häme" to "paijat-hame" for matching
+     * against WPGB facet slugs.
+     *
+     * @since 1.0.0
+     *
+     * @param string $value The value to normalize
+     * @return string Normalized slug-like string
+     */
+    private function normalize_to_slug( $value ) {
+        if ( ! is_string( $value ) ) {
+            return strval( $value );
+        }
+
+        // Convert to lowercase
+        $slug = mb_strtolower( $value, 'UTF-8' );
+
+        // Replace Finnish/Swedish special characters
+        $slug = str_replace(
+            array( 'ä', 'ö', 'å', 'ü', 'é', 'è', 'ê', 'á', 'à', 'â', 'í', 'ì', 'î', 'ó', 'ò', 'ô', 'ú', 'ù', 'û' ),
+            array( 'a', 'o', 'a', 'u', 'e', 'e', 'e', 'a', 'a', 'a', 'i', 'i', 'i', 'o', 'o', 'o', 'u', 'u', 'u' ),
+            $slug
+        );
+
+        // Replace spaces with hyphens
+        $slug = preg_replace( '/\s+/', '-', $slug );
+
+        // Remove any characters that aren't alphanumeric or hyphens
+        $slug = preg_replace( '/[^a-z0-9\-]/', '', $slug );
+
+        // Remove multiple consecutive hyphens
+        $slug = preg_replace( '/-+/', '-', $slug );
+
+        // Trim hyphens from start and end
+        $slug = trim( $slug, '-' );
+
+        return $slug;
     }
 
     /**
