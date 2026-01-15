@@ -316,12 +316,23 @@
                             }
                             console.groupEnd();
 
-                            // Always perform search - empty criteria will return all Osakeanti
+                            // Determine category based on current page URL
+                            var category = '';
+                            var path = window.location.pathname.toLowerCase();
+                            if (path.indexOf('/osakeannit') !== -1) {
+                                category = 'Osakeannit';
+                            } else if (path.indexOf('/velkakirjat') !== -1) {
+                                category = 'Velkakirjat';
+                            } else if (path.indexOf('/osaketori') !== -1) {
+                                category = 'Osaketori';
+                            }
+
+                            // Always perform search - empty criteria will return all posts in category
                             if (typeof window.acfWpgbLogger !== 'undefined' && window.acfWpgbLogger.ajaxUrl) {
                                 var searchPayload = {
                                     action: 'acf_popup_search',
                                     nonce: window.acfWpgbLogger.nonce || window.acfWpgbLogger.nonce,
-                                    category: '',
+                                    category: category,
                                     criteria: criteriaArray,
                                     match_logic: criteriaArray.length > 0 ? 'AND' : 'ALL',
                                     debug: '1'
