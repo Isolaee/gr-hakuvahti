@@ -53,33 +53,79 @@
                 if (!facets) return;
 
                 // Try to get all params at once
-                var params = null;
+                var paramsRaw = null;
                 if (typeof facets.getParams === 'function') {
                     try {
-                        params = facets.getParams();
+                        paramsRaw = facets.getParams();
                     } catch (e) {
-                        params = null;
+                        paramsRaw = null;
+                        console.error('wpgb-facet-logger: facets.getParams error', e && e.stack);
                     }
                 }
 
                 // Fallback: if no params returned, try to enumerate facet slugs
-                if (!params && typeof facets.getFacet === 'function') {
-                    params = {};
+                if (!paramsRaw && typeof facets.getFacet === 'function') {
+                    paramsRaw = {};
                     // best-effort attempt to read internal list
                     try{
                         if (Array.isArray(facets._facets)){
                             facets._facets.forEach(function(f){
-                                try{ params[f.slug] = facets.getParams(f.slug) || []; }catch(e){}
+                                try{ paramsRaw[f.slug] = facets.getParams(f.slug) || []; }catch(e){}
                             });
                         }
-                    }catch(e){}
+                    }catch(e){ console.error('wpgb-facet-logger: facets._facets read error', e && e.stack); }
                 }
 
-                if (params) {
-                    output.push({
-                        grid: inst.id || inst.name || null,
-                        facets: params
-                    });
+                // Normalize params into slug -> array
+                var params = {};
+                function normalizeFacetParams(raw){
+                    var out = {};
+                    if (!raw) return out;
+                    if (Array.isArray(raw)){
+                        // array of objects or values
+                        raw.forEach(function(item){
+                            if (!item || typeof item !== 'object') return;
+                            Object.keys(item).forEach(function(k){
+                                var v = item[k];
+                                if (v == null) return;
+                                if (Array.isArray(v)) out[k] = v;
+                                else out[k] = [String(v)];
+                            });
+                        });
+                        return out;
+                    }
+                    if (typeof raw === 'object'){
+                        Object.keys(raw).forEach(function(k){
+                            var v = raw[k];
+                            if (v == null) { out[k] = []; return; }
+                            if (Array.isArray(v)) { out[k] = v; return; }
+                            if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') { out[k] = [String(v)]; return; }
+                            if (typeof v === 'object'){
+                                if (Array.isArray(v.values)) { out[k] = v.values; return; }
+                                if (Array.isArray(v.selected)) { out[k] = v.selected; return; }
+                                // flatten primitives inside object
+                                var vals = [];
+                                Object.keys(v).forEach(function(sub){
+                                    var sv = v[sub];
+                                    if (Array.isArray(sv)) vals = vals.concat(sv);
+                                    else if (typeof sv === 'string' || typeof sv === 'number' || typeof sv === 'boolean') vals.push(String(sv));
+                                });
+                                out[k] = vals;
+                                return;
+                            }
+                            out[k] = [];
+                        });
+                        return out;
+                    }
+                    return out;
+                }
+
+                try {
+                    params = normalizeFacetParams(paramsRaw);
+                } catch(e) { params = {}; console.error('wpgb-facet-logger: normalize error', e && e.stack); }
+
+                if (params && Object.keys(params).length) {
+                    output.push({ grid: inst.id || inst.name || null, facets: params });
                 }
 
             } catch (e) {
@@ -178,6 +224,21 @@
         // snapshot mapping at click time
         try { console.log('wpgb-facet-logger: mapping at click', window.acfWpgbFacetMap || {}); } catch(e) {}
         var collected = collectAll(target, useApi);
+        // Log mapping keys vs collected slugs for debugging
+        try {
+            var mapKeys = Object.keys(window.acfWpgbFacetMap || {});
+            var collectedSlugs = [];
+            if (Array.isArray(collected)) {
+                collected.forEach(function(item){
+                    var facets = item && item.facets ? item.facets : {};
+                    Object.keys(facets).forEach(function(s){ if (collectedSlugs.indexOf(s) === -1) collectedSlugs.push(s); });
+                });
+            }
+            console.log('wpgb-facet-logger: mapping keys=', mapKeys);
+            console.log('wpgb-facet-logger: collected slugs=', collectedSlugs);
+            var missing = collectedSlugs.filter(function(s){ return mapKeys.indexOf(s) === -1; });
+            if (missing.length) console.log('wpgb-facet-logger: slugs without mapping=', missing);
+        } catch (e) { console.error('wpgb-facet-logger: compare map/slug error', e && e.stack); }
 
             // Apply mapping if provided by PHP and print compact rows
             var map = window.acfWpgbFacetMap || {};
