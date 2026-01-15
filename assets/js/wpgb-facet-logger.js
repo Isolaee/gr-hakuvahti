@@ -1,8 +1,11 @@
 (function($){
     'use strict';
 
+    console.log('wpgb-facet-logger: script loaded');
+
     function getWpgbInstances(){
         var wpgb = window.WP_Grid_Builder;
+        console.debug('wpgb-facet-logger: checking WP_Grid_Builder presence', !!wpgb);
         if (!wpgb) return null;
         if (Array.isArray(wpgb.instances)) return wpgb.instances;
         if (typeof wpgb.getInstances === 'function') return wpgb.getInstances();
@@ -17,7 +20,9 @@
     }
 
     function collectViaAPI(target){
+        console.debug('wpgb-facet-logger: collectViaAPI target=', target);
         var instances = getWpgbInstances();
+        console.debug('wpgb-facet-logger: instances found', instances && instances.length ? instances.length : 0);
         if (!instances) return null;
         var output = [];
         instances.forEach(function(inst){
@@ -73,6 +78,7 @@
     }
 
     function collectViaDOM(target){
+        console.debug('wpgb-facet-logger: collectViaDOM target=', target);
         var scope = document;
         if (target) {
             try { var el = document.querySelector(target); if (el) scope = el; } catch(e){}
@@ -131,11 +137,15 @@
     function collectAll(target, useApiPref) {
         var useApi = (typeof useApiPref !== 'undefined') ? !!useApiPref : false;
         var apiData = null;
+        console.debug('wpgb-facet-logger: collectAll useApi=', useApi);
         if ( useApi && window.WP_Grid_Builder ) {
             apiData = collectViaAPI(target);
+            console.debug('wpgb-facet-logger: apiData', apiData);
         }
         if (!apiData) {
-            return collectViaDOM(target) || [];
+            var domData = collectViaDOM(target) || [];
+            console.debug('wpgb-facet-logger: domData', domData);
+            return domData;
         }
         return apiData;
     }
@@ -147,8 +157,9 @@
         var useApiAttr = $btn.attr('data-use-api');
         var useApi = (typeof useApiAttr !== 'undefined') ? (useApiAttr === '1' || useApiAttr === 'true') : (window.acfWpgbLogger && window.acfWpgbLogger.use_api_default);
 
+        console.debug('wpgb-facet-logger: button clicked', { target: target, useApi: useApi });
         var collected = collectAll(target, useApi);
-        console.log({ source: 'wpgb-facet-logger', collected: collected });
+        console.log('wpgb-facet-logger: collected', collected);
     });
 
 })(jQuery);
