@@ -60,6 +60,7 @@ class ACF_Analyzer {
             'match_logic' => 'AND',  // 'AND' = all criteria must match, 'OR' = any matches
             'debug'       => false,  // Include matched criteria details per post
             'categories'  => array( 'Velkakirjat', 'Osakeannit', 'Osaketori' ),
+            'or_fields'   => array(), // Fields that should use OR logic (e.g., sijainti, Luokitus)
         );
 
         $options = wp_parse_args( $options, $defaults );

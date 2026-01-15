@@ -307,10 +307,13 @@
                                 });
                                 if (valsClean.length === 0) return; // skip fields with no usable values
 
+                                // Check if this is sijainti or Luokitus field - use OR logic for multiple values
+                                var isLocationOrCategory = field.toLowerCase().indexOf('sijainti') !== -1 || field.toLowerCase().indexOf('luokitus') !== -1;
+
                                 // parse numbers where possible and also support single "min-max" string
                                 var parsed = valsClean.map(function(v){ var n = parseNumber(v); return { raw: v, num: n }; });
                                 var numericVals = parsed.map(function(p){ return p.num; }).filter(function(x){ return x !== null; });
-                                console.log('field parse', field, parsed, 'numericVals=', numericVals);
+                                console.log('field parse', field, parsed, 'numericVals=', numericVals, 'isLocationOrCategory=', isLocationOrCategory);
 
                                 // If a single value contains a range like "1000-5000" extract numbers
                                 if (numericVals.length < 2 && valsClean.length === 1) {
@@ -324,20 +327,26 @@
                                     }
                                 }
 
-                                if (numericVals.length >= 2) {
+                                if (numericVals.length >= 2 && !isLocationOrCategory) {
                                     // Use min/max (order-agnostic)
                                     var min = Math.min.apply(null, numericVals);
                                     var max = Math.max.apply(null, numericVals);
                                     criteriaArray.push({ field: field + '_min', value: String(min) });
                                     criteriaArray.push({ field: field + '_max', value: String(max) });
-                                } else if (numericVals.length === 1) {
+                                } else if (numericVals.length === 1 && !isLocationOrCategory) {
                                     // Single numeric value -> exact match
                                     criteriaArray.push({ field: field, value: String(numericVals[0]) });
                                 } else {
-                                    // Non-numeric values: send each provided value as a separate criterion (OR semantics)
-                                    valsClean.forEach(function(v){
-                                        criteriaArray.push({ field: field, value: v });
-                                    });
+                                    // Non-numeric values OR location/category: send values with OR logic marker
+                                    if (isLocationOrCategory && valsClean.length > 1) {
+                                        // Multiple location/category values - use OR logic (any match is sufficient)
+                                        criteriaArray.push({ field: field, value: valsClean, match_type: 'OR' });
+                                    } else {
+                                        // Send each value as separate criterion
+                                        valsClean.forEach(function(v){
+                                            criteriaArray.push({ field: field, value: v });
+                                        });
+                                    }
                                 }
                             });
 

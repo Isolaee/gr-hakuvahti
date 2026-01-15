@@ -464,9 +464,10 @@ class ACF_Analyzer_Shortcode {
 
         // Sanitize criteria
         $sanitized_criteria = array();
+        $or_fields = array(); // Track fields that should use OR logic
 
         // Support two input shapes:
-        // 1) array of { field: 'name', value: 'x' }
+        // 1) array of { field: 'name', value: 'x', match_type: 'OR' }
         // 2) associative mapping: field_name => value
         if ( is_array( $criteria ) ) {
             // Detect associative mapping (string keys)
@@ -483,15 +484,26 @@ class ACF_Analyzer_Shortcode {
                 foreach ( $criteria as $criterion ) {
                     if ( isset( $criterion['field'] ) && isset( $criterion['value'] ) ) {
                         $field = sanitize_text_field( $criterion['field'] );
-                        $value = sanitize_text_field( (string) $criterion['value'] );
-                        if ( isset( $sanitized_criteria[ $field ] ) ) {
-                            // If existing value is not an array, convert it
-                            if ( ! is_array( $sanitized_criteria[ $field ] ) ) {
-                                $sanitized_criteria[ $field ] = array( $sanitized_criteria[ $field ] );
+                        $match_type = isset( $criterion['match_type'] ) ? sanitize_text_field( $criterion['match_type'] ) : 'AND';
+                        
+                        // Handle array values (for OR logic fields like sijainti/Luokitus)
+                        if ( is_array( $criterion['value'] ) ) {
+                            $values = array_map( 'sanitize_text_field', $criterion['value'] );
+                            $sanitized_criteria[ $field ] = $values;
+                            if ( $match_type === 'OR' ) {
+                                $or_fields[] = $field;
                             }
-                            $sanitized_criteria[ $field ][] = $value;
                         } else {
-                            $sanitized_criteria[ $field ] = $value;
+                            $value = sanitize_text_field( (string) $criterion['value'] );
+                            if ( isset( $sanitized_criteria[ $field ] ) ) {
+                                // If existing value is not an array, convert it
+                                if ( ! is_array( $sanitized_criteria[ $field ] ) ) {
+                                    $sanitized_criteria[ $field ] = array( $sanitized_criteria[ $field ] );
+                                }
+                                $sanitized_criteria[ $field ][] = $value;
+                            } else {
+                                $sanitized_criteria[ $field ] = $value;
+                            }
                         }
                     }
                 }
@@ -510,6 +522,7 @@ class ACF_Analyzer_Shortcode {
             'match_logic' => $match_logic,
             'categories'  => array( $category ),
             'debug'       => $debug,
+            'or_fields'   => $or_fields, // Pass OR fields to the analyzer
         );
 
         $results = $analyzer->search_by_criteria( $sanitized_criteria, $options );
