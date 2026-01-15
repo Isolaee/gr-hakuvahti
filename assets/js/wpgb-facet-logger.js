@@ -160,54 +160,31 @@
         console.debug('wpgb-facet-logger: button clicked', { target: target, useApi: useApi });
         var collected = collectAll(target, useApi);
 
-        // Apply mapping if provided by PHP
-        var map = window.acfWpgbFacetMap || {};
-        try {
-            var mappedOutput = [];
-            if (Array.isArray(collected)) {
-                collected.forEach(function(item){
-                    var mappedFacets = {};
-                    if (item && item.facets) {
-                        Object.keys(item.facets).forEach(function(slug){
-                            mappedFacets[slug] = {
-                                values: item.facets[slug],
-                                acf_field: map[slug] || null
-                            };
-                        });
-                    }
-                    mappedOutput.push({ grid: item.grid || null, facets: mappedFacets });
-                });
-            }
-            console.log('wpgb-facet-logger: collected', collected);
-            console.log('wpgb-facet-logger: mapped', mappedOutput, 'mappingProvided=', !!Object.keys(map).length);
-
-            // Simple print per user request: facet name, ACF field, input value
+            // Apply mapping if provided by PHP and print compact rows
+            var map = window.acfWpgbFacetMap || {};
             try {
-                mappedOutput.forEach(function(item){
-                    var facets = item.facets || {};
-                    Object.keys(facets).forEach(function(slug){
-                        var acfField = (facets[slug] && facets[slug].acf_field) ? facets[slug].acf_field : '(no mapping)';
-                        var values = (facets[slug] && facets[slug].values) ? facets[slug].values : [];
-                        if (values.length) {
-                            values.forEach(function(v){
-                                console.log('facet name:', slug);
-                                console.log('ACF field:', acfField);
-                                console.log('input value:', v);
-                            });
-                        } else {
-                            console.log('facet name:', slug);
-                            console.log('ACF field:', acfField);
-                            console.log('input value:', '(none)');
-                        }
+                if (Array.isArray(collected)) {
+                    collected.forEach(function(item){
+                        var gridId = item.grid || '(no-grid)';
+                        var facets = item.facets || {};
+                        Object.keys(facets).forEach(function(slug){
+                            var acfField = (map && map[slug]) ? map[slug] : '(no mapping)';
+                            var values = facets[slug] || [];
+                            if (values && values.length) {
+                                values.forEach(function(v){
+                                    console.log('grid:', gridId, '| facet:', slug, '| acf:', acfField, '| value:', v);
+                                });
+                            } else {
+                                console.log('grid:', gridId, '| facet:', slug, '| acf:', acfField, '| value:', '(none)');
+                            }
+                        });
                     });
-                });
+                } else {
+                    console.log('wpgb-facet-logger: no facet data found');
+                }
             } catch (e) {
-                console.error('wpgb-facet-logger: simple-print error', e);
+                console.error('wpgb-facet-logger: print error', e);
             }
-        } catch (e) {
-            console.error('wpgb-facet-logger: mapping error', e);
-            console.log('wpgb-facet-logger: collected', collected);
-        }
     });
 
 })(jQuery);
