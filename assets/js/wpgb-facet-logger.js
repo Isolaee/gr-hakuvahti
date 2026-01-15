@@ -294,61 +294,76 @@
                             var criteriaArray = [];
                             Object.keys(criteriaMap).forEach(function(field){
                                 var vals = criteriaMap[field] || [];
-                                if (vals.length === 0) return;
-                                // try numeric detection
-                                var parsed = vals.map(function(v){ var n = parseNumber(v); return { raw: v, num: n }; });
+                                // clean values: remove placeholders and empty
+                                var valsClean = vals.map(function(v){ return v == null ? '' : String(v).trim(); })
+                                    .filter(function(v){ return v !== '' && v !== '(none)' && v !== '(no mapping)'; });
+                                if (valsClean.length === 0) return; // skip fields with no usable values
+
+                                // parse numbers where possible
+                                var parsed = valsClean.map(function(v){ var n = parseNumber(v); return { raw: v, num: n }; });
                                 var numericVals = parsed.map(function(p){ return p.num; }).filter(function(x){ return x !== null; });
                                 console.log('field parse', field, parsed, 'numericVals=', numericVals);
-                                if (vals.length === 1) {
-                                    criteriaArray.push({ field: field, value: vals[0] });
-                                } else if (numericVals.length >= 2) {
-                                    if (vals.length === 2 && numericVals.length === 2) {
-                                        // user-provided ordering: first = min, second = max
-                                        criteriaArray.push({ field: field + '_min', value: String(numericVals[0]) });
-                                        criteriaArray.push({ field: field + '_max', value: String(numericVals[1]) });
+
+                                if (numericVals.length >= 2) {
+                                    // If we have two or more numeric values, use min/max
+                                    // If original order provided two values, treat first as min, second as max
+                                    if (valsClean.length >= 2 && parseNumber(valsClean[0]) !== null && parseNumber(valsClean[1]) !== null) {
+                                        criteriaArray.push({ field: field + '_min', value: String(parseNumber(valsClean[0])) });
+                                        criteriaArray.push({ field: field + '_max', value: String(parseNumber(valsClean[1])) });
                                     } else {
-                                        // use overall min/max
                                         var min = Math.min.apply(null, numericVals);
                                         var max = Math.max.apply(null, numericVals);
                                         criteriaArray.push({ field: field + '_min', value: String(min) });
                                         criteriaArray.push({ field: field + '_max', value: String(max) });
                                     }
+                                } else if (numericVals.length === 1) {
+                                    // Single numeric value -> exact match (only use given value)
+                                    criteriaArray.push({ field: field, value: String(numericVals[0]) });
                                 } else {
-                                    // multiple non-numeric values: pick first (exact match)
-                                    criteriaArray.push({ field: field, value: vals[0] });
+                                    // Non-numeric values: use first provided as exact match
+                                    criteriaArray.push({ field: field, value: valsClean[0] });
                                 }
                             });
 
                             console.log('final criteriaArray:', criteriaArray);
                             console.groupEnd();
 
+                            if (criteriaArray.length === 0) {
+                                console.log('wpgb-facet-logger: no valid criteria to search; skipping AJAX');
+                            }
+
                             console.group('wpgb-facet-logger — Grid: ' + gridId + ' (' + rows.length + ' rows)');
                             console.table(rows);
 
-                            if (typeof window.acfWpgbLogger !== 'undefined' && window.acfWpgbLogger.ajaxUrl) {
-                                console.log('wpgb-facet-logger: sending search AJAX', { criteria: criteriaArray });
-                                $.post(window.acfWpgbLogger.ajaxUrl, {
-                                    action: 'acf_popup_search',
-                                    nonce: window.acfWpgbLogger.nonce || window.acfWpgbLogger.nonce,
-                                    category: '',
-                                    criteria: criteriaArray,
-                                    match_logic: 'AND'
-                                }).done(function(resp){
-                                    if (resp && resp.success) {
-                                        console.log('wpgb-facet-logger: search result', resp.data);
-                                        if (resp.data && resp.data.posts) {
-                                            console.group('wpgb-facet-logger: Matched posts (' + (resp.data.total||0) + ')');
-                                            console.table(resp.data.posts);
-                                            console.groupEnd();
+                            if (criteriaArray.length > 0) {
+                                if (typeof window.acfWpgbLogger !== 'undefined' && window.acfWpgbLogger.ajaxUrl) {
+                                    console.log('wpgb-facet-logger: sending search AJAX', { criteria: criteriaArray });
+                                    $.post(window.acfWpgbLogger.ajaxUrl, {
+                                        action: 'acf_popup_search',
+                                        nonce: window.acfWpgbLogger.nonce || window.acfWpgbLogger.nonce,
+                                        category: '',
+                                        criteria: criteriaArray,
+                                        match_logic: 'AND',
+                                        debug: '1'
+                                    }).done(function(resp){
+                                        if (resp && resp.success) {
+                                            console.log('wpgb-facet-logger: search result', resp.data);
+                                            if (resp.data && resp.data.posts) {
+                                                console.group('wpgb-facet-logger: Matched posts (' + (resp.data.total||0) + ')');
+                                                console.table(resp.data.posts);
+                                                console.groupEnd();
+                                            }
+                                        } else {
+                                            console.warn('wpgb-facet-logger: search returned error', resp && resp.data);
                                         }
-                                    } else {
-                                        console.warn('wpgb-facet-logger: search returned error', resp && resp.data);
-                                    }
-                                }).fail(function(xhr){
-                                    console.error('wpgb-facet-logger: AJAX search failed', xhr && xhr.responseText);
-                                });
+                                    }).fail(function(xhr){
+                                        console.error('wpgb-facet-logger: AJAX search failed', xhr && xhr.responseText);
+                                    });
+                                } else {
+                                    console.warn('wpgb-facet-logger: ajaxUrl not available; cannot perform search');
+                                }
                             } else {
-                                console.warn('wpgb-facet-logger: ajaxUrl not available; cannot perform search');
+                                console.log('wpgb-facet-logger: skipping AJAX because no criteria');
                             }
 
                             console.groupEnd();
