@@ -180,6 +180,30 @@
             }
             console.log('wpgb-facet-logger: collected', collected);
             console.log('wpgb-facet-logger: mapped', mappedOutput, 'mappingProvided=', !!Object.keys(map).length);
+
+            // Simple print per user request: facet name, ACF field, input value
+            try {
+                mappedOutput.forEach(function(item){
+                    var facets = item.facets || {};
+                    Object.keys(facets).forEach(function(slug){
+                        var acfField = (facets[slug] && facets[slug].acf_field) ? facets[slug].acf_field : '(no mapping)';
+                        var values = (facets[slug] && facets[slug].values) ? facets[slug].values : [];
+                        if (values.length) {
+                            values.forEach(function(v){
+                                console.log('facet name:', slug);
+                                console.log('ACF field:', acfField);
+                                console.log('input value:', v);
+                            });
+                        } else {
+                            console.log('facet name:', slug);
+                            console.log('ACF field:', acfField);
+                            console.log('input value:', '(none)');
+                        }
+                    });
+                });
+            } catch (e) {
+                console.error('wpgb-facet-logger: simple-print error', e);
+            }
         } catch (e) {
             console.error('wpgb-facet-logger: mapping error', e);
             console.log('wpgb-facet-logger: collected', collected);
