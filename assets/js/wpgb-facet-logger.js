@@ -2,11 +2,18 @@
     'use strict';
 
     console.log('wpgb-facet-logger: script loaded');
+    console.log('wpgb-facet-logger: localized mapping (acfWpgbFacetMap)=', window.acfWpgbFacetMap || null);
 
     function getWpgbInstances(){
         var wpgb = window.WP_Grid_Builder;
         console.log('wpgb-facet-logger: checking WP_Grid_Builder presence', !!wpgb);
         if (!wpgb) return null;
+        try {
+            console.log('wpgb-facet-logger: WP_Grid_Builder info', {
+                hasInstances: !!wpgb.instances,
+                getInstancesFunc: typeof wpgb.getInstances === 'function'
+            });
+        } catch (e) { console.error('wpgb-facet-logger: WP_Grid_Builder introspect error', e && e.stack); }
         if (Array.isArray(wpgb.instances)) return wpgb.instances;
         if (typeof wpgb.getInstances === 'function') return wpgb.getInstances();
         if (typeof wpgb.instances === 'object') {
@@ -27,6 +34,11 @@
         var output = [];
         instances.forEach(function(inst){
             try {
+                console.log('wpgb-facet-logger: API instance', {
+                    id: inst.id || inst.name || null,
+                    container: !!inst.container,
+                    facetsObj: !!inst.facets
+                });
                 // If target is provided, try to match container or grid slug
                 if (target) {
                     // if target matches container selector
@@ -37,6 +49,7 @@
                 }
 
                 var facets = inst.facets;
+                console.log('wpgb-facet-logger: instance.facets keys', Object.keys(facets || {}));
                 if (!facets) return;
 
                 // Try to get all params at once
@@ -70,7 +83,7 @@
                 }
 
             } catch (e) {
-                // ignore instance errors
+                console.error('wpgb-facet-logger: instance loop error', e && e.stack);
             }
         });
 
@@ -84,9 +97,12 @@
             try { var el = document.querySelector(target); if (el) scope = el; } catch(e){}
         }
         var facets = scope.querySelectorAll('.wpgb-facet');
+        console.log('wpgb-facet-logger: DOM facets found count=', facets.length);
         var result = {};
         Array.prototype.forEach.call(facets, function(f){
             var slug = f.getAttribute('data-slug') || f.dataset.slug || f.getAttribute('data-wpgb-facet') || f.getAttribute('data-name') || null;
+            // log facet element snapshot
+            try { console.log('wpgb-facet-logger: facet element', { slugGuess: slug, dataset: f.dataset, htmlSnippet: (f.innerText||f.textContent||'').trim().slice(0,80) }); } catch(e) {}
             if (!slug) {
                 // try to derive from inputs
                 var inp = f.querySelector('input[name]');
@@ -120,6 +136,7 @@
         // if no .wpgb-facet elements found, try generic inputs inside grid
         if (!Object.keys(result).length) {
             var inputs = scope.querySelectorAll('[data-wpgb-facet], [data-facet]');
+            console.log('wpgb-facet-logger: fallback inputs found count=', inputs.length);
             Array.prototype.forEach.call(inputs, function(i){
                 var slug = i.getAttribute('data-wpgb-facet') || i.getAttribute('data-facet') || i.name || null;
                 if (!slug) return;
@@ -137,7 +154,7 @@
     function collectAll(target, useApiPref) {
         var useApi = (typeof useApiPref !== 'undefined') ? !!useApiPref : false;
         var apiData = null;
-        console.log('wpgb-facet-logger: collectAll useApi=', useApi);
+        console.log('wpgb-facet-logger: collectAll useApi=', useApi, 'WP_Grid_Builder present=', !!window.WP_Grid_Builder);
         if ( useApi && window.WP_Grid_Builder ) {
             apiData = collectViaAPI(target);
             console.log('wpgb-facet-logger: apiData', apiData);
@@ -158,6 +175,8 @@
         var useApi = (typeof useApiAttr !== 'undefined') ? (useApiAttr === '1' || useApiAttr === 'true') : (window.acfWpgbLogger && window.acfWpgbLogger.use_api_default);
 
         console.log('wpgb-facet-logger: button clicked', { target: target, useApi: useApi });
+        // snapshot mapping at click time
+        try { console.log('wpgb-facet-logger: mapping at click', window.acfWpgbFacetMap || {}); } catch(e) {}
         var collected = collectAll(target, useApi);
 
             // Apply mapping if provided by PHP and print compact rows
