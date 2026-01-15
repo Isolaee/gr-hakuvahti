@@ -272,6 +272,10 @@
                                 criteriaMap[r.acf_field].push(r.value);
                             });
 
+                            console.groupCollapsed('wpgb-facet-logger: criteria build');
+                            console.log('mapping used:', map);
+                            console.log('initial criteriaMap:', criteriaMap);
+
                             // Helper: parse numeric-ish strings
                             function parseNumber(v){
                                 if (v == null) return null;
@@ -292,11 +296,13 @@
                                 var vals = criteriaMap[field] || [];
                                 if (vals.length === 0) return;
                                 // try numeric detection
-                                var numericVals = vals.map(parseNumber).filter(function(x){ return x !== null; });
+                                var parsed = vals.map(function(v){ var n = parseNumber(v); return { raw: v, num: n }; });
+                                var numericVals = parsed.map(function(p){ return p.num; }).filter(function(x){ return x !== null; });
+                                console.log('field parse', field, parsed, 'numericVals=', numericVals);
                                 if (vals.length === 1) {
                                     criteriaArray.push({ field: field, value: vals[0] });
                                 } else if (numericVals.length >= 2) {
-                                    if (vals.length === 2) {
+                                    if (vals.length === 2 && numericVals.length === 2) {
                                         // user-provided ordering: first = min, second = max
                                         criteriaArray.push({ field: field + '_min', value: String(numericVals[0]) });
                                         criteriaArray.push({ field: field + '_max', value: String(numericVals[1]) });
@@ -312,6 +318,9 @@
                                     criteriaArray.push({ field: field, value: vals[0] });
                                 }
                             });
+
+                            console.log('final criteriaArray:', criteriaArray);
+                            console.groupEnd();
 
                             console.group('wpgb-facet-logger — Grid: ' + gridId + ' (' + rows.length + ' rows)');
                             console.table(rows);

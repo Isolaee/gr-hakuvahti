@@ -312,6 +312,7 @@ class ACF_Analyzer_Shortcode {
         $category = isset( $_POST['category'] ) ? sanitize_text_field( $_POST['category'] ) : '';
         $criteria = isset( $_POST['criteria'] ) ? $_POST['criteria'] : array();
         $match_logic = isset( $_POST['match_logic'] ) ? sanitize_text_field( $_POST['match_logic'] ) : 'AND';
+        $debug = isset( $_POST['debug'] ) && ( $_POST['debug'] === '1' || $_POST['debug'] === 'true' || $_POST['debug'] === 1 );
 
         if ( empty( $criteria ) ) {
             wp_send_json_error( array( 'message' => 'Criteria are required' ) );
@@ -354,7 +355,7 @@ class ACF_Analyzer_Shortcode {
         $options = array(
             'match_logic' => $match_logic,
             'categories'  => array( $category ),
-            'debug'       => false,
+            'debug'       => $debug,
         );
 
         $results = $analyzer->search_by_criteria( $sanitized_criteria, $options );
@@ -362,11 +363,15 @@ class ACF_Analyzer_Shortcode {
         // Format results for display
         $formatted_results = array();
         foreach ( $results['posts'] as $post ) {
-            $formatted_results[] = array(
+            $item = array(
                 'id'    => $post['ID'],
                 'title' => $post['title'],
                 'url'   => $post['url'],
             );
+            if ( $options['debug'] && isset( $post['matched_criteria'] ) ) {
+                $item['matched_criteria'] = $post['matched_criteria'];
+            }
+            $formatted_results[] = $item;
         }
 
         wp_send_json_success( array(
