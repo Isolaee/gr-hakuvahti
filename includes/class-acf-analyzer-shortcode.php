@@ -117,8 +117,10 @@ class ACF_Analyzer_Shortcode {
             // Provide default use_api setting to script
             $use_api_bool = in_array( strtolower( $atts['use_api'] ), array( '1', 'true', 'yes' ), true );
             wp_localize_script( 'acf-analyzer-wpgb-logger', 'acfWpgbLogger', array( 'use_api_default' => $use_api_bool ) );
-            // Also localize facet->ACF mapping
-            $mapping = $this->get_wpgb_facet_mapping();
+            // Also localize facet->ACF mapping. Allow admin-provided mapping (option) to override auto-detected mapping.
+            $auto_mapping = $this->get_wpgb_facet_mapping();
+            $admin_mapping = get_option( 'acf_wpgb_facet_map', array() );
+            $mapping = array_merge( (array) $auto_mapping, (array) $admin_mapping );
             wp_localize_script( 'acf-analyzer-wpgb-logger', 'acfWpgbFacetMap', $mapping );
         }
 

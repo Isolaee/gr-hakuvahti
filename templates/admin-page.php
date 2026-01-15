@@ -19,6 +19,14 @@ if ( ! defined( 'ABSPATH' ) ) {
         <div class="notice notice-success is-dismissible">
             <p><?php esc_html_e( 'Analysis completed successfully!', 'acf-analyzer' ); ?></p>
         </div>
+
+        <!-- WP Grid Builder facet -> ACF mapping editor -->
+        <div class="acf-analyzer-section">
+            <h2><?php esc_html_e( 'WP Grid Builder facet → ACF mapping', 'acf-analyzer' ); ?></h2>
+            <p><?php esc_html_e( 'Edit mappings from WP Grid Builder facet slugs to ACF field names. These mappings are used by the facet logger to show ACF field names.', 'acf-analyzer' ); ?></p>
+
+            <div id="acf-wpgb-mapping-editor"></div>
+        </div>
         <?php
     }
 

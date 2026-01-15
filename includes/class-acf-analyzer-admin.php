@@ -13,6 +13,7 @@ class ACF_Analyzer_Admin {
     public function __construct() {
         add_action( 'admin_menu', array( $this, 'add_admin_menu' ) );
         add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
+        add_action( 'wp_ajax_acf_analyzer_save_mapping', array( $this, 'ajax_save_mapping' ) );
         add_action( 'admin_post_acf_analyzer_run', array( $this, 'handle_analysis' ) );
         add_action( 'admin_post_acf_analyzer_export', array( $this, 'handle_export' ) );
         add_action( 'admin_post_acf_analyzer_search', array( $this, 'handle_search' ) );
@@ -46,6 +47,51 @@ class ACF_Analyzer_Admin {
             array(),
             ACF_ANALYZER_VERSION
         );
+
+        wp_enqueue_script(
+            'acf-analyzer-admin-js',
+            ACF_ANALYZER_PLUGIN_URL . 'assets/js/admin-mapping.js',
+            array( 'jquery' ),
+            ACF_ANALYZER_VERSION,
+            true
+        );
+
+        // Localize current mapping and nonce
+        $mapping = get_option( 'acf_wpgb_facet_map', array() );
+        wp_localize_script( 'acf-analyzer-admin-js', 'acfAnalyzerAdmin', array(
+            'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+            'nonce'   => wp_create_nonce( 'acf_analyzer_save_mapping' ),
+            'mapping' => $mapping,
+        ) );
+    }
+
+    /**
+     * AJAX: save mapping
+     */
+    public function ajax_save_mapping() {
+        check_ajax_referer( 'acf_analyzer_save_mapping', 'nonce' );
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( 'Insufficient permissions' );
+        }
+
+        $data = isset( $_POST['mapping'] ) ? $_POST['mapping'] : array();
+        if ( ! is_array( $data ) ) {
+            wp_send_json_error( 'Bad mapping data' );
+        }
+
+        $sanitized = array();
+        foreach ( $data as $slug => $field ) {
+            $s_slug = sanitize_text_field( $slug );
+            $s_field = sanitize_text_field( $field );
+            if ( $s_slug !== '' ) {
+                $sanitized[ $s_slug ] = $s_field;
+            }
+        }
+
+        update_option( 'acf_wpgb_facet_map', $sanitized );
+
+        wp_send_json_success( $sanitized );
     }
 
     /**
