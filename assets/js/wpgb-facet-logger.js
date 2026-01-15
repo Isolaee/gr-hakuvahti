@@ -157,11 +157,11 @@
         console.log('wpgb-facet-logger: collectAll useApi=', useApi, 'WP_Grid_Builder present=', !!window.WP_Grid_Builder);
         if ( useApi && window.WP_Grid_Builder ) {
             apiData = collectViaAPI(target);
-            console.log('wpgb-facet-logger: apiData', apiData);
+            console.log('wpgb-facet-logger: apiData count=', apiData ? apiData.length : 0);
         }
         if (!apiData) {
             var domData = collectViaDOM(target) || [];
-            console.log('wpgb-facet-logger: domData', domData);
+            console.log('wpgb-facet-logger: domData count=', domData ? domData.length : 0);
             return domData;
         }
         return apiData;
@@ -182,27 +182,37 @@
             // Apply mapping if provided by PHP and print compact rows
             var map = window.acfWpgbFacetMap || {};
             try {
-                if (Array.isArray(collected)) {
-                    collected.forEach(function(item){
-                        var gridId = item.grid || '(no-grid)';
-                        var facets = item.facets || {};
-                        Object.keys(facets).forEach(function(slug){
-                            var acfField = (map && map[slug]) ? map[slug] : '(no mapping)';
-                            var values = facets[slug] || [];
-                            if (values && values.length) {
-                                values.forEach(function(v){
-                                    console.log('grid:', gridId, '| facet:', slug, '| acf:', acfField, '| value:', v);
-                                });
-                            } else {
-                                console.log('grid:', gridId, '| facet:', slug, '| acf:', acfField, '| value:', '(none)');
-                            }
-                        });
-                    });
-                } else {
+                if (!Array.isArray(collected) || !collected.length) {
                     console.log('wpgb-facet-logger: no facet data found');
+                    return;
                 }
+
+                // Print a neat table per grid
+                collected.forEach(function(item){
+                    var gridId = item.grid || '(no-grid)';
+                    var facets = item.facets || {};
+                    var rows = [];
+                    Object.keys(facets).forEach(function(slug){
+                        var acfField = (map && map[slug]) ? map[slug] : '(no mapping)';
+                        var values = facets[slug] || [];
+                        if (values && values.length) {
+                            values.forEach(function(v){ rows.push({ facet: slug, acf_field: acfField, value: v }); });
+                        } else {
+                            rows.push({ facet: slug, acf_field: acfField, value: '(none)' });
+                        }
+                    });
+
+                    if (rows.length) {
+                        console.group('wpgb-facet-logger — Grid: ' + gridId + ' (' + rows.length + ' rows)');
+                        console.table(rows);
+                        console.groupEnd();
+                    } else {
+                        console.log('wpgb-facet-logger — Grid: ' + gridId + ' (no facets)');
+                    }
+                });
+
             } catch (e) {
-                console.error('wpgb-facet-logger: print error', e);
+                console.error('wpgb-facet-logger: print error', e && e.stack ? e.stack : e);
             }
     });
 
