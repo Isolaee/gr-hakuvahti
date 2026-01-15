@@ -110,6 +110,14 @@ class ACF_Analyzer {
                     continue;
                 }
 
+                // Debug: Log first post's sijainti and Luokitus fields to see actual structure
+                if ( $options['debug'] && $paged === 1 && $post === $query->posts[0] ) {
+                    error_log( "ACF Analyzer DEBUG - First post ID: {$post->ID}, Title: {$post->post_title}" );
+                    error_log( "ACF Analyzer DEBUG - sijainti field value: " . print_r( isset( $acf_fields['sijainti'] ) ? $acf_fields['sijainti'] : 'NOT SET', true ) );
+                    error_log( "ACF Analyzer DEBUG - Luokitus field value: " . print_r( isset( $acf_fields['Luokitus'] ) ? $acf_fields['Luokitus'] : 'NOT SET', true ) );
+                    error_log( "ACF Analyzer DEBUG - All field keys: " . implode( ', ', array_keys( $acf_fields ) ) );
+                }
+
                 $matched_criteria = array();
                 $match_count      = 0;
 
