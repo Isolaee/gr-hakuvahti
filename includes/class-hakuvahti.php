@@ -17,6 +17,111 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Hakuvahti {
 
     /**
+     * Get matches table name
+     *
+     * @return string
+     */
+    private static function get_matches_table_name() {
+        global $wpdb;
+        return $wpdb->prefix . 'hakuvahti_matches';
+    }
+
+    /**
+     * Run all saved searches and send email summaries for new matches
+     *
+     * This method is intended to be called by the scheduled daily event.
+     * It uses the existing `run_search()` method to find NEW results per watch
+     * and persists deduplicated matches into the `hakuvahti_matches` table.
+     * New matches are aggregated by user and emailed using `wp_mail()`.
+     *
+     * @return void
+     */
+    public static function run_daily_searches() {
+        global $wpdb;
+
+        $table = self::get_table_name();
+        $matches_table = self::get_matches_table_name();
+
+        $rows = $wpdb->get_results( "SELECT * FROM $table" );
+        if ( empty( $rows ) ) {
+            update_option( 'acf_analyzer_last_run', current_time( 'mysql' ) );
+            return;
+        }
+
+        $emails = array();
+
+        foreach ( $rows as $row ) {
+            $hakuvahti_id = $row->id;
+            $user_id = $row->user_id;
+
+            $result = self::run_search( $hakuvahti_id, $user_id );
+            if ( ! $result || empty( $result['posts'] ) ) {
+                continue;
+            }
+
+            // For each new post, attempt to insert into matches table (deduplicated by unique index)
+            foreach ( $result['posts'] as $post_item ) {
+                $match_hash = sha1( $post_item['ID'] . '|' . $hakuvahti_id );
+                $meta = wp_json_encode( $post_item );
+                $now = current_time( 'mysql' );
+
+                $sql = $wpdb->prepare(
+                    "INSERT INTO $matches_table (search_id, match_id, match_hash, meta, created_at) VALUES (%d, %d, %s, %s, %s) ON DUPLICATE KEY UPDATE id = id",
+                    $hakuvahti_id,
+                    $post_item['ID'],
+                    $match_hash,
+                    $meta,
+                    $now
+                );
+                $wpdb->query( $sql );
+
+                // If rows_affected > 0, we inserted a new match
+                if ( isset( $wpdb->rows_affected ) && $wpdb->rows_affected > 0 ) {
+                    $emails[ $user_id ][] = array(
+                        'hakuvahti' => $result['hakuvahti'],
+                        'post'      => $post_item,
+                    );
+                }
+            }
+        }
+
+        // Send emails per user
+        if ( ! empty( $emails ) ) {
+            foreach ( $emails as $uid => $items ) {
+                $user = get_userdata( $uid );
+                if ( ! $user || empty( $user->user_email ) ) {
+                    continue;
+                }
+
+                $subject = sprintf( __( 'Hakuvahti: %d uutta tulosta', 'acf-analyzer' ), count( $items ) );
+
+                $lines = array();
+                $lines[] = sprintf( __( 'Hei %s,', 'acf-analyzer' ), $user->display_name );
+                $lines[] = '';
+                $lines[] = sprintf( __( 'Löytyi %d uutta hakutulosta hakuvahdeillesi:', 'acf-analyzer' ), count( $items ) );
+                $lines[] = '';
+
+                foreach ( $items as $it ) {
+                    $hv = $it['hakuvahti'];
+                    $p = $it['post'];
+                    $lines[] = sprintf( '- %s (ID: %d) — %s — %s', esc_html( $p['title'] ), $p['ID'], esc_html( $hv['name'] ), esc_url( $p['url'] ) );
+                }
+
+                $lines[] = '';
+                $lines[] = __( 'Kirjaudu sisään nähdäksesi yksityiskohtaiset tulokset.', 'acf-analyzer' );
+
+                $message = implode( "\n", $lines );
+
+                // Send email
+                wp_mail( $user->user_email, $subject, $message );
+            }
+        }
+
+        // Record last run time
+        update_option( 'acf_analyzer_last_run', current_time( 'mysql' ) );
+    }
+
+    /**
      * Get the database table name
      *
      * @return string Table name with WordPress prefix

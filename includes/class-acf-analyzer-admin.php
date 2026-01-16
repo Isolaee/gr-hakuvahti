@@ -39,6 +39,8 @@ class ACF_Analyzer_Admin {
         
         // AJAX handler for retrieving ACF field names
         add_action( 'wp_ajax_acf_analyzer_get_fields', array( $this, 'ajax_get_field_names' ) );
+        // Admin action to manually trigger daily run
+        add_action( 'admin_post_acf_analyzer_run_now', array( $this, 'handle_run_now' ) );
     }
 
     /**
@@ -168,8 +170,31 @@ class ACF_Analyzer_Admin {
         // Get available ACF field names for dropdown population
         $acf_field_names = $this->get_acf_field_names();
 
+        // Provide last run and secret key to template
+        $last_run = get_option( 'acf_analyzer_last_run', '' );
+        $secret_key = get_option( 'acf_analyzer_secret_key', '' );
+
         // Load and display the admin template
         include ACF_ANALYZER_PLUGIN_DIR . 'templates/admin-page.php';
+    }
+
+    /**
+     * Handle manual 'Run now' admin_post action
+     *
+     * @return void
+     */
+    public function handle_run_now() {
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_die( __( 'Insufficient permissions', 'acf-analyzer' ) );
+        }
+
+        check_admin_referer( 'acf_analyzer_run_now' );
+
+        // Trigger the same scheduled action immediately
+        do_action( 'acf_analyzer_daily_runner' );
+
+        wp_redirect( add_query_arg( 'run', 'ok', admin_url( 'tools.php?page=acf-analyzer' ) ) );
+        exit;
     }
 
     /**

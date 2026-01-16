@@ -71,6 +71,33 @@ function acf_analyzer_activate() {
     require_once ABSPATH . 'wp-admin/includes/upgrade.php';
     dbDelta( $sql );
 
+    // Create matches table to store discovered matches (deduplicated)
+    $matches_table = $wpdb->prefix . 'hakuvahti_matches';
+    $sql2 = "CREATE TABLE $matches_table (
+        id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+        search_id bigint(20) unsigned NOT NULL,
+        match_id bigint(20) unsigned NOT NULL,
+        match_hash varchar(64) NOT NULL,
+        meta longtext,
+        created_at datetime NOT NULL,
+        PRIMARY KEY (id),
+        UNIQUE KEY search_match (search_id, match_hash),
+        KEY search_id (search_id),
+        KEY match_id (match_id)
+    ) $charset_collate;";
+    dbDelta( $sql2 );
+
+    // Ensure a secret key exists for true-cron ping URL
+    if ( ! get_option( 'acf_analyzer_secret_key' ) ) {
+        $secret = wp_generate_password( 32, false, false );
+        update_option( 'acf_analyzer_secret_key', $secret );
+    }
+
+    // Schedule daily runner if not already scheduled
+    if ( ! wp_next_scheduled( 'acf_analyzer_daily_runner' ) ) {
+        wp_schedule_event( time(), 'daily', 'acf_analyzer_daily_runner' );
+    }
+
     // Flush rewrite rules for WooCommerce endpoint
     flush_rewrite_rules();
 }
@@ -84,6 +111,10 @@ register_activation_hook( __FILE__, 'acf_analyzer_activate' );
  */
 function acf_analyzer_deactivate() {
     flush_rewrite_rules();
+    // Clear scheduled daily runner
+    if ( wp_next_scheduled( 'acf_analyzer_daily_runner' ) ) {
+        wp_clear_scheduled_hook( 'acf_analyzer_daily_runner' );
+    }
 }
 register_deactivation_hook( __FILE__, 'acf_analyzer_deactivate' );
 
@@ -100,6 +131,12 @@ function acf_analyzer_init() {
     // Initialize admin interface (always available so mappings can be managed)
     new ACF_Analyzer_Admin();
 
+    // Register scheduled runner hook
+    add_action( 'acf_analyzer_daily_runner', array( 'Hakuvahti', 'run_daily_searches' ) );
+
+    // Register a simple HTTP ping handler for true-cron (cPanel)
+    add_action( 'init', 'acf_analyzer_handle_ping' );
+
     // Check if ACF is active for frontend features
     if ( ! function_exists( 'get_fields' ) ) {
         // Display admin notice if ACF is not active
@@ -111,6 +148,29 @@ function acf_analyzer_init() {
     new ACF_Analyzer_Shortcode();
 }
 add_action( 'plugins_loaded', 'acf_analyzer_init' );
+
+/**
+ * Handle HTTP ping to trigger the daily runner (protected by secret key)
+ * Example: https://example.com/?hakuvahti_ping=1&key=SECRET
+ */
+function acf_analyzer_handle_ping() {
+    if ( isset( $_GET['hakuvahti_ping'] ) && (int) $_GET['hakuvahti_ping'] === 1 ) {
+        $key = isset( $_GET['key'] ) ? sanitize_text_field( wp_unslash( $_GET['key'] ) ) : '';
+        $secret = get_option( 'acf_analyzer_secret_key', '' );
+        if ( ! empty( $secret ) && hash_equals( $secret, $key ) ) {
+            // Run the scheduled action immediately
+            do_action( 'acf_analyzer_daily_runner' );
+            // Output simple response and exit
+            status_header( 200 );
+            echo 'ACF Analyzer: daily runner executed';
+            exit;
+        } else {
+            status_header( 403 );
+            echo 'Forbidden';
+            exit;
+        }
+    }
+}
 
 /**
  * Display admin notice if ACF is not active
