@@ -28,8 +28,11 @@ class Hakuvahti_WooCommerce {
         // Register endpoint
         add_action( 'init', array( $this, 'add_endpoint' ) );
 
-        // Add menu item to My Account
-        add_filter( 'woocommerce_account_menu_items', array( $this, 'add_menu_item' ) );
+        // Add menu item to My Account (priority 20 to run after theme customizations)
+        add_filter( 'woocommerce_account_menu_items', array( $this, 'add_menu_item' ), 20 );
+
+        // Add query var for the endpoint
+        add_filter( 'woocommerce_get_query_vars', array( $this, 'add_query_vars' ) );
 
         // Register endpoint content
         add_action( 'woocommerce_account_hakuvahdit_endpoint', array( $this, 'render_endpoint_content' ) );
@@ -43,6 +46,17 @@ class Hakuvahti_WooCommerce {
      */
     public function add_endpoint() {
         add_rewrite_endpoint( 'hakuvahdit', EP_ROOT | EP_PAGES );
+    }
+
+    /**
+     * Add hakuvahdit to WooCommerce query vars
+     *
+     * @param array $vars Query vars
+     * @return array
+     */
+    public function add_query_vars( $vars ) {
+        $vars[] = 'hakuvahdit';
+        return $vars;
     }
 
     /**
