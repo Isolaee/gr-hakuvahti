@@ -20,13 +20,21 @@ class Hakuvahti_WooCommerce {
      * Constructor - Register hooks
      */
     public function __construct() {
-        // Only initialize if WooCommerce is active
+        // Register endpoint early (needed for rewrite rules regardless of WooCommerce)
+        add_action( 'init', array( $this, 'add_endpoint' ), 5 );
+
+        // Wait for plugins_loaded to check WooCommerce and add WC-specific hooks
+        add_action( 'plugins_loaded', array( $this, 'init_woocommerce_hooks' ), 20 );
+    }
+
+    /**
+     * Initialize WooCommerce-specific hooks
+     */
+    public function init_woocommerce_hooks() {
+        // Only proceed if WooCommerce is active
         if ( ! class_exists( 'WooCommerce' ) ) {
             return;
         }
-
-        // Register endpoint
-        add_action( 'init', array( $this, 'add_endpoint' ) );
 
         // Add menu item to My Account (priority 20 to run after theme customizations)
         add_filter( 'woocommerce_account_menu_items', array( $this, 'add_menu_item' ), 20 );
