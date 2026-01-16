@@ -363,4 +363,206 @@
             }
     });
 
+    // ============================================
+    // HAKUVAHTI SAVE FUNCTIONALITY
+    // ============================================
+
+    // Store the last collected criteria for saving
+    var lastCollectedCriteria = null;
+    var lastCollectedCategory = '';
+
+    // Function to get current criteria (reusable)
+    function getCurrentCriteria(target, useApi) {
+        var collected = collectAll(target, useApi);
+        var map = window.acfWpgbFacetMap || {};
+        var criteriaArray = [];
+
+        if (!Array.isArray(collected) || !collected.length) {
+            return { criteria: [], category: '' };
+        }
+
+        // Determine category based on current page URL
+        var category = '';
+        var path = window.location.pathname.toLowerCase();
+        if (path.indexOf('/osakeannit') !== -1) {
+            category = 'Osakeannit';
+        } else if (path.indexOf('/velkakirjat') !== -1) {
+            category = 'Velkakirjat';
+        } else if (path.indexOf('/osaketori') !== -1) {
+            category = 'Osaketori';
+        }
+
+        collected.forEach(function(item) {
+            var facets = item.facets || {};
+            var rows = [];
+
+            Object.keys(facets).forEach(function(slug) {
+                var acfField = (map && map[slug]) ? map[slug] : null;
+                var values = facets[slug] || [];
+                if (values && values.length && acfField) {
+                    rows.push({ facet: slug, acf_field: acfField, values: values });
+                }
+            });
+
+            // Build criteria from rows
+            var criteriaMap = {};
+            rows.forEach(function(r) {
+                if (!r.acf_field) return;
+                if (!criteriaMap[r.acf_field]) criteriaMap[r.acf_field] = [];
+                r.values.forEach(function(v) {
+                    criteriaMap[r.acf_field].push(v);
+                });
+            });
+
+            // Helper: parse numeric-ish strings
+            function parseNumber(v) {
+                if (v == null) return null;
+                if (typeof v === 'number') return v;
+                var s = String(v).trim();
+                var cleaned = s.replace(/[^0-9.,\-]/g, '');
+                if (cleaned === '') return null;
+                cleaned = cleaned.replace(/,/g, '.');
+                var n = parseFloat(cleaned);
+                return isNaN(n) ? null : n;
+            }
+
+            // Build criteria array
+            Object.keys(criteriaMap).forEach(function(field) {
+                var vals = criteriaMap[field] || [];
+                var valsClean = vals.map(function(v) { return v == null ? '' : String(v).trim(); });
+                valsClean = valsClean.filter(function(v) {
+                    if (!v) return false;
+                    var lower = v.toLowerCase().trim();
+                    var placeholders = ['(none)', '(no mapping)', 'none', 'any', 'default', 'valitse', 'valitse...', '-- select --', '-- select field --', 'choose', 'choose one', 'not set'];
+                    if (placeholders.indexOf(lower) !== -1) return false;
+                    if (/^[-\s]*--.*--[-\s]*$/.test(v)) return false;
+                    if (/^[-]+$/.test(v)) return false;
+                    return true;
+                });
+
+                if (valsClean.length === 0) return;
+
+                // Detect if values are numeric range
+                var parsed = valsClean.map(function(v) { var n = parseNumber(v); return { raw: v, num: n }; });
+                var numericVals = parsed.map(function(p) { return p.num; }).filter(function(x) { return x !== null; });
+
+                // Detect range format in single value
+                if (numericVals.length < 2 && valsClean.length === 1) {
+                    var rangeMatch = String(valsClean[0]).match(/(-?\d+[\.,]?\d*)\D+(-?\d+[\.,]?\d*)/);
+                    if (rangeMatch) {
+                        var n1 = parseNumber(rangeMatch[1]);
+                        var n2 = parseNumber(rangeMatch[2]);
+                        if (n1 !== null && n2 !== null) {
+                            numericVals = [n1, n2];
+                        }
+                    }
+                }
+
+                var label = 'multiple_choice';
+                if (numericVals.length >= 2) {
+                    label = 'range';
+                }
+
+                criteriaArray.push({
+                    name: field,
+                    label: label,
+                    values: valsClean
+                });
+            });
+        });
+
+        return { criteria: criteriaArray, category: category };
+    }
+
+    // Format criteria for display
+    function formatCriteriaPreview(criteria) {
+        if (!criteria || !criteria.length) {
+            return '<p>Ei hakuehtoja valittu</p>';
+        }
+
+        var html = '<ul class="hakuvahti-criteria-list">';
+        criteria.forEach(function(c) {
+            html += '<li><strong>' + c.name + ':</strong> ' + c.values.join(', ') + '</li>';
+        });
+        html += '</ul>';
+        return html;
+    }
+
+    // Open modal handler
+    $(document).on('click', '.acf-hakuvahti-save', function(e) {
+        e.preventDefault();
+
+        var $btn = $(this);
+        var target = $btn.attr('data-target') || '';
+        var useApiAttr = $('.acf-wpgb-facet-logger').attr('data-use-api');
+        var useApi = (typeof useApiAttr !== 'undefined') ? (useApiAttr === '1' || useApiAttr === 'true') : (window.acfWpgbLogger && window.acfWpgbLogger.use_api_default);
+
+        // Get current criteria
+        var result = getCurrentCriteria(target, useApi);
+        lastCollectedCriteria = result.criteria;
+        lastCollectedCategory = result.category;
+
+        // Show criteria preview
+        $('#hakuvahti-criteria-preview').html(formatCriteriaPreview(lastCollectedCriteria));
+
+        // Clear previous messages and input
+        $('#hakuvahti-save-message').html('');
+        $('#hakuvahti-name').val('');
+
+        // Show modal
+        $('#hakuvahti-save-modal').show();
+    });
+
+    // Close modal
+    $(document).on('click', '.hakuvahti-modal-close', function() {
+        $('#hakuvahti-save-modal').hide();
+    });
+
+    // Close modal on outside click
+    $(document).on('click', '.hakuvahti-modal', function(e) {
+        if ($(e.target).hasClass('hakuvahti-modal')) {
+            $('#hakuvahti-save-modal').hide();
+        }
+    });
+
+    // Save form submit
+    $(document).on('submit', '#hakuvahti-save-form', function(e) {
+        e.preventDefault();
+
+        var name = $('#hakuvahti-name').val().trim();
+        if (!name) {
+            $('#hakuvahti-save-message').html('<p class="error">Anna hakuvahdille nimi.</p>');
+            return;
+        }
+
+        if (!lastCollectedCategory) {
+            $('#hakuvahti-save-message').html('<p class="error">Kategoriaa ei voitu tunnistaa.</p>');
+            return;
+        }
+
+        var $submitBtn = $(this).find('.hakuvahti-submit');
+        $submitBtn.prop('disabled', true).text('Tallennetaan...');
+
+        $.post(window.acfWpgbLogger.ajaxUrl, {
+            action: 'hakuvahti_save',
+            nonce: window.acfWpgbLogger.hakuvahtiNonce,
+            name: name,
+            category: lastCollectedCategory,
+            criteria: lastCollectedCriteria
+        }).done(function(resp) {
+            if (resp && resp.success) {
+                $('#hakuvahti-save-message').html('<p class="success">' + (resp.data.message || 'Hakuvahti tallennettu!') + '</p>');
+                setTimeout(function() {
+                    $('#hakuvahti-save-modal').hide();
+                }, 1500);
+            } else {
+                $('#hakuvahti-save-message').html('<p class="error">' + (resp.data && resp.data.message ? resp.data.message : 'Tallennus epäonnistui.') + '</p>');
+            }
+        }).fail(function() {
+            $('#hakuvahti-save-message').html('<p class="error">Verkkovirhe. Yritä uudelleen.</p>');
+        }).always(function() {
+            $submitBtn.prop('disabled', false).text('Tallenna');
+        });
+    });
+
 })(jQuery);

@@ -36,7 +36,13 @@ class ACF_Analyzer_Shortcode {
         // AJAX handlers for field retrieval (logged-in and public)
         add_action( 'wp_ajax_acf_popup_get_fields', array( $this, 'ajax_get_fields' ) );
         add_action( 'wp_ajax_nopriv_acf_popup_get_fields', array( $this, 'ajax_get_fields' ) );
-        
+
+        // Hakuvahti AJAX handlers (logged-in users only)
+        add_action( 'wp_ajax_hakuvahti_save', array( $this, 'ajax_hakuvahti_save' ) );
+        add_action( 'wp_ajax_hakuvahti_list', array( $this, 'ajax_hakuvahti_list' ) );
+        add_action( 'wp_ajax_hakuvahti_run', array( $this, 'ajax_hakuvahti_run' ) );
+        add_action( 'wp_ajax_hakuvahti_delete', array( $this, 'ajax_hakuvahti_delete' ) );
+
         // Track if shortcode is used
         $this->shortcode_used = false;
     }
@@ -80,6 +86,14 @@ class ACF_Analyzer_Shortcode {
         // Enqueue and localize logger script if needed
         if ( $should_enqueue_logger ) {
             wp_enqueue_script( 'acf-analyzer-wpgb-logger' );
+
+            // Enqueue hakuvahti CSS for the save modal
+            wp_enqueue_style(
+                'hakuvahti-modal',
+                ACF_ANALYZER_PLUGIN_URL . 'assets/css/hakuvahti.css',
+                array(),
+                ACF_ANALYZER_VERSION
+            );
             wp_localize_script( 'acf-analyzer-wpgb-logger', 'acfWpgbLogger', array(
                 'use_api_default' => true,
             ) );
@@ -139,6 +153,8 @@ class ACF_Analyzer_Shortcode {
                     'use_api_default' => $use_api_bool,
                     'ajaxUrl' => admin_url( 'admin-ajax.php' ),
                     'nonce' => wp_create_nonce( 'acf_popup_search' ),
+                    'hakuvahtiNonce' => wp_create_nonce( 'hakuvahti_nonce' ),
+                    'isLoggedIn' => is_user_logged_in(),
                 ) );
 
                 // Load admin-defined mapping from database option
@@ -388,5 +404,169 @@ class ACF_Analyzer_Shortcode {
                 $results['total_found']
             ),
         ) );
+    }
+
+    /**
+     * AJAX handler: Save a new hakuvahti
+     *
+     * Expected POST parameters:
+     * - nonce: Security nonce
+     * - name: Name for the hakuvahti
+     * - category: Category to search
+     * - criteria: Array of search criteria
+     *
+     * @since 1.1.0
+     * @return void
+     */
+    public function ajax_hakuvahti_save() {
+        // Verify nonce
+        check_ajax_referer( 'hakuvahti_nonce', 'nonce' );
+
+        // Must be logged in
+        if ( ! is_user_logged_in() ) {
+            wp_send_json_error( array( 'message' => __( 'Sinun täytyy olla kirjautunut sisään.', 'acf-analyzer' ) ) );
+        }
+
+        $user_id = get_current_user_id();
+        $name = isset( $_POST['name'] ) ? sanitize_text_field( $_POST['name'] ) : '';
+        $category = isset( $_POST['category'] ) ? sanitize_text_field( $_POST['category'] ) : '';
+        $criteria = isset( $_POST['criteria'] ) ? $_POST['criteria'] : array();
+
+        // Validate inputs
+        if ( empty( $name ) ) {
+            wp_send_json_error( array( 'message' => __( 'Nimi on pakollinen.', 'acf-analyzer' ) ) );
+        }
+
+        if ( empty( $category ) ) {
+            wp_send_json_error( array( 'message' => __( 'Kategoria on pakollinen.', 'acf-analyzer' ) ) );
+        }
+
+        // Sanitize criteria array
+        $sanitized_criteria = array();
+        if ( is_array( $criteria ) ) {
+            foreach ( $criteria as $item ) {
+                if ( isset( $item['name'] ) && isset( $item['values'] ) ) {
+                    $sanitized_criteria[] = array(
+                        'name'   => sanitize_text_field( $item['name'] ),
+                        'label'  => isset( $item['label'] ) ? sanitize_text_field( $item['label'] ) : 'multiple_choice',
+                        'values' => is_array( $item['values'] ) ? array_map( 'sanitize_text_field', $item['values'] ) : array( sanitize_text_field( $item['values'] ) ),
+                    );
+                }
+            }
+        }
+
+        // Create hakuvahti
+        $id = Hakuvahti::create( $user_id, $name, $category, $sanitized_criteria );
+
+        if ( $id ) {
+            wp_send_json_success( array(
+                'message' => __( 'Hakuvahti tallennettu!', 'acf-analyzer' ),
+                'id'      => $id,
+            ) );
+        } else {
+            wp_send_json_error( array( 'message' => __( 'Hakuvahdin tallennus epäonnistui.', 'acf-analyzer' ) ) );
+        }
+    }
+
+    /**
+     * AJAX handler: List user's hakuvahdits
+     *
+     * @since 1.1.0
+     * @return void
+     */
+    public function ajax_hakuvahti_list() {
+        // Verify nonce
+        check_ajax_referer( 'hakuvahti_nonce', 'nonce' );
+
+        if ( ! is_user_logged_in() ) {
+            wp_send_json_error( array( 'message' => __( 'Sinun täytyy olla kirjautunut sisään.', 'acf-analyzer' ) ) );
+        }
+
+        $user_id = get_current_user_id();
+        $hakuvahdits = Hakuvahti::get_by_user( $user_id );
+
+        // Format for frontend
+        $formatted = array();
+        foreach ( $hakuvahdits as $hv ) {
+            $formatted[] = array(
+                'id'               => $hv->id,
+                'name'             => $hv->name,
+                'category'         => $hv->category,
+                'criteria'         => $hv->criteria,
+                'criteria_summary' => Hakuvahti::format_criteria_summary( $hv->criteria ),
+                'created_at'       => $hv->created_at,
+                'updated_at'       => $hv->updated_at,
+            );
+        }
+
+        wp_send_json_success( array( 'hakuvahdits' => $formatted ) );
+    }
+
+    /**
+     * AJAX handler: Run a hakuvahti search
+     *
+     * Expected POST parameters:
+     * - nonce: Security nonce
+     * - id: Hakuvahti ID
+     *
+     * @since 1.1.0
+     * @return void
+     */
+    public function ajax_hakuvahti_run() {
+        // Verify nonce
+        check_ajax_referer( 'hakuvahti_nonce', 'nonce' );
+
+        if ( ! is_user_logged_in() ) {
+            wp_send_json_error( array( 'message' => __( 'Sinun täytyy olla kirjautunut sisään.', 'acf-analyzer' ) ) );
+        }
+
+        $user_id = get_current_user_id();
+        $id = isset( $_POST['id'] ) ? absint( $_POST['id'] ) : 0;
+
+        if ( ! $id ) {
+            wp_send_json_error( array( 'message' => __( 'Hakuvahti ID puuttuu.', 'acf-analyzer' ) ) );
+        }
+
+        $results = Hakuvahti::run_search( $id, $user_id );
+
+        if ( false === $results ) {
+            wp_send_json_error( array( 'message' => __( 'Hakuvahtia ei löytynyt tai sinulla ei ole oikeutta siihen.', 'acf-analyzer' ) ) );
+        }
+
+        wp_send_json_success( $results );
+    }
+
+    /**
+     * AJAX handler: Delete a hakuvahti
+     *
+     * Expected POST parameters:
+     * - nonce: Security nonce
+     * - id: Hakuvahti ID
+     *
+     * @since 1.1.0
+     * @return void
+     */
+    public function ajax_hakuvahti_delete() {
+        // Verify nonce
+        check_ajax_referer( 'hakuvahti_nonce', 'nonce' );
+
+        if ( ! is_user_logged_in() ) {
+            wp_send_json_error( array( 'message' => __( 'Sinun täytyy olla kirjautunut sisään.', 'acf-analyzer' ) ) );
+        }
+
+        $user_id = get_current_user_id();
+        $id = isset( $_POST['id'] ) ? absint( $_POST['id'] ) : 0;
+
+        if ( ! $id ) {
+            wp_send_json_error( array( 'message' => __( 'Hakuvahti ID puuttuu.', 'acf-analyzer' ) ) );
+        }
+
+        $deleted = Hakuvahti::delete( $id, $user_id );
+
+        if ( $deleted ) {
+            wp_send_json_success( array( 'message' => __( 'Hakuvahti poistettu.', 'acf-analyzer' ) ) );
+        } else {
+            wp_send_json_error( array( 'message' => __( 'Hakuvahdin poisto epäonnistui.', 'acf-analyzer' ) ) );
+        }
     }
 }

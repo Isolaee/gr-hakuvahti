@@ -40,6 +40,52 @@ define( 'ACF_ANALYZER_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 require_once ACF_ANALYZER_PLUGIN_DIR . 'includes/class-acf-analyzer.php';
 require_once ACF_ANALYZER_PLUGIN_DIR . 'includes/class-acf-analyzer-admin.php';
 require_once ACF_ANALYZER_PLUGIN_DIR . 'includes/class-acf-analyzer-shortcode.php';
+require_once ACF_ANALYZER_PLUGIN_DIR . 'includes/class-hakuvahti.php';
+require_once ACF_ANALYZER_PLUGIN_DIR . 'includes/class-hakuvahti-woocommerce.php';
+
+/**
+ * Create database table on plugin activation
+ *
+ * @since 1.1.0
+ * @return void
+ */
+function acf_analyzer_activate() {
+    global $wpdb;
+
+    $table_name = $wpdb->prefix . 'hakuvahdit';
+    $charset_collate = $wpdb->get_charset_collate();
+
+    $sql = "CREATE TABLE $table_name (
+        id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+        user_id bigint(20) unsigned NOT NULL,
+        name varchar(255) NOT NULL,
+        category varchar(100) NOT NULL,
+        criteria longtext NOT NULL,
+        seen_post_ids longtext,
+        created_at datetime NOT NULL,
+        updated_at datetime,
+        PRIMARY KEY (id),
+        KEY user_id (user_id)
+    ) $charset_collate;";
+
+    require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+    dbDelta( $sql );
+
+    // Flush rewrite rules for WooCommerce endpoint
+    flush_rewrite_rules();
+}
+register_activation_hook( __FILE__, 'acf_analyzer_activate' );
+
+/**
+ * Flush rewrite rules on deactivation
+ *
+ * @since 1.1.0
+ * @return void
+ */
+function acf_analyzer_deactivate() {
+    flush_rewrite_rules();
+}
+register_deactivation_hook( __FILE__, 'acf_analyzer_deactivate' );
 
 /**
  * Initialize the plugin

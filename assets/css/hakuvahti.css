@@ -1,0 +1,344 @@
+/**
+ * Hakuvahti Styles
+ *
+ * Styles for both the save modal on search pages
+ * and the hakuvahdit management page in My Account.
+ */
+
+/* ==========================================================================
+   Save Modal (on search pages)
+   ========================================================================== */
+
+.hakuvahti-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.hakuvahti-modal-content {
+    background: #fff;
+    padding: 30px;
+    border-radius: 8px;
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    position: relative;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.hakuvahti-modal-close {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    font-size: 28px;
+    font-weight: bold;
+    color: #666;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.hakuvahti-modal-close:hover {
+    color: #000;
+}
+
+.hakuvahti-modal h3 {
+    margin: 0 0 20px;
+    padding: 0;
+    font-size: 1.4em;
+}
+
+#hakuvahti-save-form label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+
+#hakuvahti-save-form input[type="text"] {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 16px;
+    margin-bottom: 15px;
+}
+
+#hakuvahti-save-form input[type="text"]:focus {
+    border-color: #007bff;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+#hakuvahti-criteria-preview {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+
+.hakuvahti-criteria-list {
+    margin: 0;
+    padding: 0 0 0 20px;
+    list-style: disc;
+}
+
+.hakuvahti-criteria-list li {
+    margin-bottom: 5px;
+}
+
+.hakuvahti-submit {
+    background: #007bff;
+    color: #fff;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    width: 100%;
+}
+
+.hakuvahti-submit:hover {
+    background: #0056b3;
+}
+
+.hakuvahti-submit:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
+#hakuvahti-save-message {
+    margin-top: 15px;
+}
+
+#hakuvahti-save-message p {
+    margin: 0;
+    padding: 10px;
+    border-radius: 4px;
+}
+
+#hakuvahti-save-message .success {
+    background: #d4edda;
+    color: #155724;
+}
+
+#hakuvahti-save-message .error {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+/* Button container */
+.acf-analyzer-buttons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.acf-hakuvahti-save {
+    background: #28a745;
+    color: #fff;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.acf-hakuvahti-save:hover {
+    background: #218838;
+}
+
+/* ==========================================================================
+   My Account Page (hakuvahdit management)
+   ========================================================================== */
+
+.hakuvahti-page {
+    max-width: 800px;
+}
+
+.hakuvahti-page h2 {
+    margin-bottom: 10px;
+}
+
+.hakuvahti-description {
+    color: #666;
+    margin-bottom: 25px;
+}
+
+.hakuvahti-empty {
+    background: #f8f9fa;
+    padding: 30px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.hakuvahti-empty p {
+    margin: 0 0 10px;
+}
+
+.hakuvahti-empty a {
+    color: #007bff;
+}
+
+/* Hakuvahti Cards */
+.hakuvahti-list {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.hakuvahti-card {
+    background: #fff;
+    border: 1px solid #e1e1e1;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.hakuvahti-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e1e1e1;
+}
+
+.hakuvahti-name {
+    margin: 0;
+    font-size: 1.1em;
+    font-weight: 600;
+}
+
+.hakuvahti-category {
+    background: #007bff;
+    color: #fff;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.85em;
+}
+
+.hakuvahti-card-body {
+    padding: 15px 20px;
+}
+
+.hakuvahti-criteria {
+    margin: 0 0 10px;
+    color: #555;
+    font-size: 0.95em;
+}
+
+.hakuvahti-meta {
+    margin: 0;
+    color: #888;
+    font-size: 0.85em;
+}
+
+.hakuvahti-card-actions {
+    padding: 15px 20px;
+    border-top: 1px solid #e1e1e1;
+    display: flex;
+    gap: 10px;
+}
+
+.hakuvahti-run-btn {
+    background: #007bff;
+    color: #fff;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.hakuvahti-run-btn:hover {
+    background: #0056b3;
+}
+
+.hakuvahti-run-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
+.hakuvahti-delete-btn {
+    background: #dc3545;
+    color: #fff;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.hakuvahti-delete-btn:hover {
+    background: #c82333;
+}
+
+.hakuvahti-delete-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
+/* Results Section */
+.hakuvahti-results {
+    padding: 15px 20px;
+    background: #f8f9fa;
+    border-top: 1px solid #e1e1e1;
+}
+
+.hakuvahti-no-results {
+    margin: 0;
+    color: #666;
+    font-style: italic;
+}
+
+.hakuvahti-results-count {
+    margin: 0 0 10px;
+    color: #28a745;
+}
+
+.hakuvahti-results-list {
+    margin: 0;
+    padding: 0 0 0 20px;
+    list-style: disc;
+}
+
+.hakuvahti-results-list li {
+    margin-bottom: 5px;
+}
+
+.hakuvahti-results-list a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+.hakuvahti-results-list a:hover {
+    text-decoration: underline;
+}
+
+.hakuvahti-error {
+    margin: 0;
+    color: #dc3545;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+    .hakuvahti-card-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .hakuvahti-card-actions {
+        flex-direction: column;
+    }
+
+    .hakuvahti-run-btn,
+    .hakuvahti-delete-btn {
+        width: 100%;
+        text-align: center;
+    }
+}
