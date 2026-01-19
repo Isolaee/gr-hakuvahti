@@ -217,11 +217,6 @@
                         }
                     });
 
-                        // Log all collected facets (including unmapped ones)
-                        console.group('Collected Facets from WPGB');
-                        console.table(rows);
-                        console.groupEnd();
-
                         if (rows.length) {
                             // Build search criteria from mapped rows
                             var criteriaMap = {}; // field -> array of values
@@ -235,11 +230,6 @@
                                 criteriaMap[r.acf_field].push(r.value);
                             });
 
-                            // Warn about unmapped facets
-                            if (skippedUnmapped.length > 0) {
-                                console.warn('Skipped unmapped facets:', Array.from(new Set(skippedUnmapped)).join(', '));
-                                console.log('Please map these facets in the admin panel to include them in the search.');
-                            }
 
                             // Helper: parse numeric-ish strings
                             function parseNumber(v){
@@ -301,21 +291,6 @@
                                 });
                             });
 
-                            // Display search criteria
-                            console.group('Search Criteria (' + (criteriaArray.length || 'none') + ')');
-                            if (criteriaArray.length > 0) {
-                                console.table(criteriaArray.map(function(c) {
-                                    return {
-                                        name: c.name,
-                                        label: c.label,
-                                        values: c.values.join(', ')
-                                    };
-                                }));
-                            } else {
-                                console.log('No criteria - fetching all Osakeanti posts');
-                            }
-                            console.groupEnd();
-
                             // Determine category based on current page URL
                             var category = '';
                             var path = window.location.pathname.toLowerCase();
@@ -339,23 +314,11 @@
                                 };
                                 $.post(window.acfWpgbLogger.ajaxUrl, searchPayload)
                                     .done(function(resp){
-                                        if (resp && resp.success) {
-                                            if (resp.data && resp.data.posts) {
-                                                console.group('Matched Posts (' + (resp.data.total||0) + ')');
-                                                console.table(resp.data.posts);
-                                                console.groupEnd();
-                                            }
-                                        } else {
-                                            console.error('Search failed:', resp && resp.data);
-                                        }
+                                        // Search completed
                                     }).fail(function(xhr){
-                                        console.error('Search request failed:', xhr && xhr.responseText);
+                                        // Search request failed
                                     });
-                            } else {
-                                console.warn('wpgb-facet-logger: ajaxUrl not available; cannot perform search');
                             }
-
-                            console.groupEnd();
                         }
                 });
 

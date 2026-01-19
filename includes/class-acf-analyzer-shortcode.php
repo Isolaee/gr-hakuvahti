@@ -24,7 +24,7 @@ class ACF_Analyzer_Shortcode {
      */
     public function __construct() {
         // Register shortcodes
-        add_shortcode( 'wpgb_facet_logger', array( $this, 'render_wpgb_facet_logger' ) );
+        add_shortcode( 'hakuvahti', array( $this, 'render_hakuvahti' ) );
         
         // Enqueue frontend assets
         add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_frontend_assets' ) );
@@ -56,7 +56,7 @@ class ACF_Analyzer_Shortcode {
      * - WP Grid Builder facet logger (conditionally, only if shortcode is present)
      * 
      * The logger script is only enqueued on singular pages that contain
-     * the wpgb_facet_logger or acf_search_popup shortcode.
+     * the hakuvahti or acf_search_popup shortcode.
      * 
      * @since 1.0.0
      * @return void
@@ -77,7 +77,7 @@ class ACF_Analyzer_Shortcode {
             $post = get_post();
             if ( $post ) {
                 $content = $post->post_content;
-                if ( has_shortcode( $content, 'wpgb_facet_logger' ) ) {
+                if ( has_shortcode( $content, 'hakuvahti' ) ) {
                     $should_enqueue_logger = true;
                 }
             }
@@ -117,7 +117,7 @@ class ACF_Analyzer_Shortcode {
      * @param array $atts Shortcode attributes
      * @return string HTML output for the logger button
      */
-    public function render_wpgb_facet_logger( $atts ) {
+    public function render_hakuvahti( $atts ) {
         // Parse shortcode attributes with defaults
         $atts = shortcode_atts(
             array(
@@ -126,7 +126,7 @@ class ACF_Analyzer_Shortcode {
                 'use_api' => 'true',
             ),
             $atts,
-            'wpgb_facet_logger'
+            'hakuvahti'
         );
 
         // Ensure the logger script is enqueued when the shortcode is rendered
