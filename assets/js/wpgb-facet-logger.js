@@ -173,12 +173,14 @@
         return Object.keys(result).length ? [{ grid: null, facets: result }] : null;
     }
 
-    // Simplified: only collect via WP Grid Builder API. Return null if not available.
-    function collectAll(target) {
-        if (window.WP_Grid_Builder) {
+    // Collect via API when available and desired, otherwise fallback to DOM collection.
+    function collectAll(target, useApi) {
+        if (typeof useApi === 'undefined') useApi = true;
+        if (useApi && window.WP_Grid_Builder) {
             return collectViaAPI(target);
         }
-        return null;
+        // Fallback to DOM-based collection to support pages without the WP Grid Builder JS API
+        return collectViaDOM(target);
     }
 
     // Simplified logger: only collect via WP Grid Builder API and map facets
@@ -360,8 +362,9 @@
 
         var $btn = $(this);
         var target = $btn.attr('data-target') || '';
-        var useApiAttr = $('.acf-wpgb-facet-logger').attr('data-use-api');
-        var useApi = (typeof useApiAttr !== 'undefined') ? (useApiAttr === '1' || useApiAttr === 'true') : (window.acfWpgbLogger && window.acfWpgbLogger.use_api_default);
+        // Read the per-button `data-use-api` attribute; fall back to localized default
+        var useApiAttr = $btn.attr('data-use-api');
+        var useApi = (typeof useApiAttr !== 'undefined' && useApiAttr !== null) ? (useApiAttr === '1' || useApiAttr === 'true') : (window.acfWpgbLogger && window.acfWpgbLogger.use_api_default);
 
         // Get current criteria
         var result = getCurrentCriteria(target, useApi);
