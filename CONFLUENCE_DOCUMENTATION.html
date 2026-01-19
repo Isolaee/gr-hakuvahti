@@ -1,0 +1,586 @@
+<!--
+  ACF Field Analyzer (Hakuvahti) - Confluence Documentation
+
+  HOW TO USE:
+  1. Open this file in a browser
+  2. Select All (Ctrl+A) and Copy (Ctrl+C)
+  3. In Confluence, create a new page
+  4. Paste (Ctrl+V) into the editor
+
+  OR: Use Confluence Import:
+  1. Go to Space Settings → Content Tools → Import
+  2. Import this HTML file
+-->
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>ACF Field Analyzer (Hakuvahti) - Technical Documentation</title>
+</head>
+<body>
+
+<h1>ACF Field Analyzer (Hakuvahti)</h1>
+
+<blockquote style="background:#e3f2fd;padding:16px;border-left:4px solid #2196f3;margin:16px 0;">
+<strong>Plugin Overview:</strong> A WordPress plugin for searching posts by Advanced Custom Fields (ACF) criteria and creating saved search "watches" (hakuvahdits) that automatically notify users when new matching posts are published.
+</blockquote>
+
+<table border="1" cellpadding="8" cellspacing="0">
+<tr><th>Property</th><th>Value</th></tr>
+<tr><td>Version</td><td>1.0.0</td></tr>
+<tr><td>Text Domain</td><td>acf-analyzer</td></tr>
+<tr><td>Primary Language</td><td>Finnish with English fallbacks</td></tr>
+<tr><td>Repository</td><td>https://github.com/Isolaee/gr-hakuvahti.git</td></tr>
+</table>
+
+<hr>
+
+<h2>Features</h2>
+
+<h3>Core Search Capabilities</h3>
+<ul>
+<li><strong>ACF Field Search</strong> - Search posts by multiple ACF field criteria with AND/OR logic</li>
+<li><strong>Range Comparisons</strong> - Support for numeric min/max field searches (e.g., price range)</li>
+<li><strong>Nested Field Support</strong> - Access nested ACF fields using dot notation (<code>parent.child</code>)</li>
+<li><strong>Value Normalization</strong> - Handles special characters (Finnish/Swedish diacritics) for accurate matching</li>
+</ul>
+
+<h3>Saved Searches (Hakuvahdits)</h3>
+<ul>
+<li><strong>Save Search Criteria</strong> - Users can save search configurations for repeated monitoring</li>
+<li><strong>New Post Detection</strong> - Automatically tracks which posts have been seen vs. new</li>
+<li><strong>Email Notifications</strong> - Sends formatted HTML emails when new posts match saved searches</li>
+<li><strong>Daily Runner</strong> - Scheduled WP-Cron executes all saved searches and sends consolidated emails</li>
+</ul>
+
+<h3>Integrations</h3>
+<table border="1" cellpadding="8" cellspacing="0">
+<tr><th>Integration</th><th>Description</th><th>Required</th></tr>
+<tr><td>WP Grid Builder</td><td>Map WPGB facets to ACF fields for seamless filtering</td><td>Optional</td></tr>
+<tr><td>WooCommerce</td><td>User management interface in My Account page</td><td>Optional</td></tr>
+<tr><td>True-Cron</td><td>External HTTP ping endpoint for shared hosting</td><td>Optional</td></tr>
+</table>
+
+<h3>Admin Tools</h3>
+<ul>
+<li><strong>Mapping Editor</strong> - Configure WPGB facet-to-ACF field mappings</li>
+<li><strong>Debug Logs</strong> - View execution logs from the daily runner</li>
+<li><strong>Recent Matches</strong> - Monitor recent search matches</li>
+<li><strong>Field Discovery</strong> - Automatic ACF field name detection</li>
+</ul>
+
+<hr>
+
+<h2>Requirements</h2>
+
+<table border="1" cellpadding="8" cellspacing="0">
+<tr><th>Requirement</th><th>Version</th><th>Status</th></tr>
+<tr><td>WordPress</td><td>5.8+</td><td>Required</td></tr>
+<tr><td>PHP</td><td>7.4+</td><td>Required</td></tr>
+<tr><td>Advanced Custom Fields (ACF)</td><td>Latest</td><td>Required</td></tr>
+<tr><td>WooCommerce</td><td>Latest</td><td>Optional</td></tr>
+<tr><td>WP Grid Builder</td><td>Latest</td><td>Optional</td></tr>
+</table>
+
+<blockquote style="background:#fff3e0;padding:16px;border-left:4px solid #ff9800;margin:16px 0;">
+<strong>⚠️ Important:</strong> The plugin will not function without ACF installed and activated. An admin notice will be displayed if ACF is missing.
+</blockquote>
+
+<hr>
+
+<h2>Installation</h2>
+
+<h3>Via cPanel Git Deployment (Recommended)</h3>
+
+<div style="background:#f5f5f5;padding:16px;border:1px solid #ddd;margin:16px 0;">
+<strong>Step-by-Step Installation</strong>
+<ol>
+<li>Login to <strong>cPanel</strong> → <strong>Git Version Control</strong></li>
+<li>Click <strong>Create</strong> and enter:
+  <ul>
+  <li>Clone URL: <code>https://github.com/Isolaee/gr-hakuvahti.git</code></li>
+  <li>Repository Path: <code>public_html/wp-content/plugins/acf-analyzer</code></li>
+  <li>Repository Name: <code>acf-analyzer</code></li>
+  </ul>
+</li>
+<li>Click <strong>Manage</strong> → <strong>Pull or Deploy</strong> → <strong>Deploy HEAD Commit</strong></li>
+<li>Activate in WordPress Admin → Plugins</li>
+</ol>
+</div>
+
+<h3>Via ZIP Upload</h3>
+<ol>
+<li>Download or clone the repository</li>
+<li>Create a ZIP file of the entire repository</li>
+<li>In WordPress admin, go to <strong>Plugins</strong> → <strong>Add New</strong></li>
+<li>Click <strong>Upload Plugin</strong></li>
+<li>Choose the ZIP file and click <strong>Install Now</strong></li>
+<li>Click <strong>Activate Plugin</strong></li>
+</ol>
+
+<h3>Manual Installation</h3>
+<ol>
+<li>Clone or download the repository</li>
+<li>Copy the entire folder to <code>wp-content/plugins/acf-analyzer/</code></li>
+<li>Activate in WordPress Admin → Plugins</li>
+</ol>
+
+<hr>
+
+<h2>Configuration</h2>
+
+<h3>WPGB Facet Mapping</h3>
+
+<p>Navigate to <strong>Tools</strong> → <strong>ACF Analyzer</strong> and use the mapping editor to connect WP Grid Builder facets to ACF fields:</p>
+
+<pre style="background:#263238;color:#aed581;padding:16px;overflow-x:auto;">
+Facet Slug          ACF Field Name
+─────────────────────────────────────
+sijainti       →    sijainti_field
+hinta          →    hinta_field
+tyyppi         →    tyyppi_field
+</pre>
+
+<h3>Daily Runner Schedule</h3>
+<p>The plugin automatically schedules a daily WP-Cron event on activation. View status in the admin panel under "Scheduled Runner Status".</p>
+
+<h3>True-Cron Setup (Optional)</h3>
+
+<blockquote style="background:#e8f5e9;padding:16px;border-left:4px solid #4caf50;margin:16px 0;">
+<strong>💡 For Shared Hosting:</strong> Use this if your hosting provider doesn't have reliable WP-Cron support.
+</blockquote>
+
+<ol>
+<li>Find your secret key in the admin panel</li>
+<li>Set up an external cron job to ping:</li>
+</ol>
+
+<pre style="background:#263238;color:#aed581;padding:16px;overflow-x:auto;">
+GET https://yoursite.com/?acf_analyzer_cron=1&secret=YOUR_SECRET_KEY
+</pre>
+
+<hr>
+
+<h2>Usage</h2>
+
+<h3>Frontend: Saving a Hakuvahti</h3>
+
+<div style="background:#f5f5f5;padding:16px;border:1px dashed #999;margin:16px 0;">
+<strong>User Workflow</strong>
+<ol>
+<li>Visit a page with WP Grid Builder facets (e.g., Osakeannit, Osaketori, Velkakirjat)</li>
+<li>Use facets to filter results</li>
+<li>Click the "Tallenna hakuvahti" button</li>
+<li>Enter a name for your search and save</li>
+<li>Initial matching posts are marked as "seen"</li>
+</ol>
+</div>
+
+<p><strong>Shortcode:</strong></p>
+<pre style="background:#263238;color:#aed581;padding:16px;overflow-x:auto;">
+[acf_hakuvahti category="osakeanti" button_text="Tallenna hakuvahti"]
+</pre>
+
+<h3>WooCommerce: Managing Hakuvahdits</h3>
+<ol>
+<li>Go to My Account → Hakuvahdit</li>
+<li>View all saved searches with criteria summaries</li>
+<li>Run searches manually to check for new matches</li>
+<li>Edit names or delete searches</li>
+</ol>
+
+<h3>Admin: Running Searches</h3>
+<ol>
+<li>Navigate to <strong>Tools</strong> → <strong>ACF Analyzer</strong></li>
+<li>Select category and add search criteria</li>
+<li>Choose match logic (AND/OR)</li>
+<li>Click "Run Search" to view results</li>
+</ol>
+
+<h3>Email Notifications</h3>
+<p>When the daily runner finds new matches:</p>
+<ul>
+<li>Users receive one consolidated email per day</li>
+<li>Email contains all new matches grouped by hakuvahti</li>
+<li>HTML-formatted with post titles, excerpts, and links</li>
+</ul>
+
+<hr>
+
+<h2>Architecture</h2>
+
+<h3>File Structure</h3>
+
+<pre style="background:#263238;color:#aed581;padding:16px;overflow-x:auto;">
+hakuvahti/
+├── acf-analyzer.php                    # Main plugin bootstrap
+├── includes/
+│   ├── class-acf-analyzer.php          # Core search engine
+│   ├── class-acf-analyzer-admin.php    # Admin interface & AJAX
+│   ├── class-acf-analyzer-shortcode.php # Frontend shortcodes & AJAX
+│   ├── class-hakuvahti.php             # Saved searches model
+│   └── class-hakuvahti-woocommerce.php # WooCommerce integration
+├── templates/
+│   ├── admin-page.php                  # Admin dashboard
+│   ├── hakuvahti-page.php              # WooCommerce account page
+│   └── logger-button.php               # Shortcode button output
+├── assets/
+│   ├── css/
+│   │   ├── admin.css                   # Admin styling
+│   │   └── hakuvahti.css               # Frontend modal & page styling
+│   └── js/
+│       ├── admin-mapping.js            # Admin facet mapping editor
+│       ├── wpgb-facet-logger.js        # Frontend facet collection
+│       └── hakuvahti-page.js           # My Account page functionality
+├── uninstall.php                       # Cleanup on uninstall
+├── CPANEL_DEPLOYMENT.md                # Deployment guide
+└── README.md                           # Documentation
+</pre>
+
+<h3>Core Classes</h3>
+
+<table border="1" cellpadding="8" cellspacing="0">
+<tr><th>Class</th><th>Responsibility</th></tr>
+<tr><td><code>ACF_Analyzer</code></td><td>Core search engine with batch processing and field matching</td></tr>
+<tr><td><code>ACF_Analyzer_Admin</code></td><td>Admin interface, AJAX handlers, mapping editor</td></tr>
+<tr><td><code>ACF_Analyzer_Shortcode</code></td><td>Frontend shortcodes and public AJAX endpoints</td></tr>
+<tr><td><code>Hakuvahti</code></td><td>Saved searches CRUD, daily runner, email notifications</td></tr>
+<tr><td><code>Hakuvahti_WooCommerce</code></td><td>WooCommerce My Account endpoint integration</td></tr>
+</table>
+
+<h3>Search Algorithm</h3>
+
+<div style="background:#f5f5f5;padding:16px;border:1px solid #ddd;margin:16px 0;">
+<strong>How Search Works</strong>
+<ol>
+<li>Query posts in batches of 200 (memory management)</li>
+<li>Retrieve ACF fields via <code>get_fields()</code> for each post</li>
+<li>For each criterion, compare normalized values:
+  <ul>
+  <li><strong>Range</strong>: <code>field_min</code>/<code>field_max</code> with >= / <= operators</li>
+  <li><strong>Array OR</strong>: Match if any value equals actual</li>
+  <li><strong>Scalar</strong>: Exact normalized match</li>
+  </ul>
+</li>
+<li>Apply match logic (AND requires all criteria, OR requires at least one)</li>
+<li>Return matched posts with metadata</li>
+</ol>
+</div>
+
+<h3>Deduplication Strategy</h3>
+<ul>
+<li>SHA1 hash: <code>sha1($post_id . '|' . $hakuvahti_id)</code></li>
+<li>MySQL UNIQUE constraint on <code>(search_id, match_hash)</code></li>
+<li>Prevents duplicate notifications for same post/search combination</li>
+</ul>
+
+<hr>
+
+<h2>Database Schema</h2>
+
+<h3>Table: wp_hakuvahdit</h3>
+<p>Stores saved search configurations.</p>
+
+<pre style="background:#263238;color:#aed581;padding:16px;overflow-x:auto;">
+CREATE TABLE wp_hakuvahdit (
+    id BIGINT(20) UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+    user_id BIGINT(20) UNSIGNED NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    category VARCHAR(100) NOT NULL,
+    criteria LONGTEXT NOT NULL,         -- JSON-encoded search criteria
+    seen_post_ids LONGTEXT,             -- JSON-encoded array of seen post IDs
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME,
+    KEY user_id (user_id)
+);
+</pre>
+
+<h3>Table: wp_hakuvahti_matches</h3>
+<p>Stores deduplicated match results from daily runs.</p>
+
+<pre style="background:#263238;color:#aed581;padding:16px;overflow-x:auto;">
+CREATE TABLE wp_hakuvahti_matches (
+    id BIGINT(20) UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+    search_id BIGINT(20) UNSIGNED NOT NULL,
+    match_id BIGINT(20) UNSIGNED NOT NULL,
+    match_hash VARCHAR(64) NOT NULL,
+    meta LONGTEXT,                       -- JSON post data
+    created_at DATETIME NOT NULL,
+    UNIQUE KEY search_match (search_id, match_hash),
+    KEY search_id (search_id),
+    KEY match_id (match_id)
+);
+</pre>
+
+<h3>WordPress Options</h3>
+
+<table border="1" cellpadding="8" cellspacing="0">
+<tr><th>Option Key</th><th>Description</th></tr>
+<tr><td><code>acf_wpgb_facet_map</code></td><td>WPGB facet → ACF field mappings</td></tr>
+<tr><td><code>acf_analyzer_last_run</code></td><td>Timestamp of last daily runner execution</td></tr>
+<tr><td><code>acf_analyzer_last_run_debug</code></td><td>Debug log from last run</td></tr>
+<tr><td><code>acf_analyzer_secret_key</code></td><td>32-char secret for true-cron</td></tr>
+<tr><td><code>acf_analyzer_ignore_seen</code></td><td>Flag for showing all vs. new posts only</td></tr>
+</table>
+
+<h3>Transients</h3>
+
+<table border="1" cellpadding="8" cellspacing="0">
+<tr><th>Transient Key</th><th>TTL</th><th>Description</th></tr>
+<tr><td><code>acf_analyzer_field_names</code></td><td>1 hour</td><td>Cached ACF field list</td></tr>
+<tr><td><code>acf_analyzer_search_results</code></td><td>1 hour</td><td>Cached search results</td></tr>
+</table>
+
+<hr>
+
+<h2>API Reference</h2>
+
+<h3>AJAX Endpoints</h3>
+
+<h4>Public Endpoints (no login required)</h4>
+<table border="1" cellpadding="8" cellspacing="0">
+<tr><th>Action</th><th>Description</th><th>Parameters</th></tr>
+<tr><td><code>acf_popup_search</code></td><td>Search posts by criteria</td><td>nonce, category, criteria, match_logic</td></tr>
+<tr><td><code>acf_popup_get_fields</code></td><td>Get ACF fields for category</td><td>nonce, category</td></tr>
+</table>
+
+<h4>Authenticated Endpoints (login required)</h4>
+<table border="1" cellpadding="8" cellspacing="0">
+<tr><th>Action</th><th>Description</th><th>Parameters</th></tr>
+<tr><td><code>hakuvahti_save</code></td><td>Create/update saved search</td><td>nonce, name, category, criteria</td></tr>
+<tr><td><code>hakuvahti_list</code></td><td>List user's saved searches</td><td>nonce</td></tr>
+<tr><td><code>hakuvahti_run</code></td><td>Execute saved search</td><td>nonce, id</td></tr>
+<tr><td><code>hakuvahti_delete</code></td><td>Delete saved search</td><td>nonce, id</td></tr>
+</table>
+
+<h4>Admin Endpoints (manage_options required)</h4>
+<table border="1" cellpadding="8" cellspacing="0">
+<tr><th>Action</th><th>Description</th><th>Parameters</th></tr>
+<tr><td><code>acf_analyzer_save_mapping</code></td><td>Save WPGB facet mappings</td><td>nonce, mapping</td></tr>
+<tr><td><code>acf_analyzer_get_fields</code></td><td>Refresh field names cache</td><td>nonce</td></tr>
+</table>
+
+<h3>PHP Hooks</h3>
+
+<p><strong>Actions:</strong></p>
+<pre style="background:#263238;color:#aed581;padding:16px;overflow-x:auto;">
+// Scheduled daily runner
+do_action('acf_analyzer_daily_runner');
+</pre>
+
+<h3>JavaScript API</h3>
+
+<p><strong>Facet Logger (wpgb-facet-logger.js):</strong></p>
+<pre style="background:#263238;color:#aed581;padding:16px;overflow-x:auto;">
+// Collect current facet values
+const criteria = getCurrentCriteria(targetGrid, useApi);
+
+// Format criteria for display
+const html = formatCriteriaPreview(criteria);
+
+// Get WPGB instances
+const instances = getWpgbInstances();
+</pre>
+
+<hr>
+
+<h2>Security</h2>
+
+<h3>Nonce Verification</h3>
+
+<table border="1" cellpadding="8" cellspacing="0">
+<tr><th>Nonce Action</th><th>Usage</th></tr>
+<tr><td><code>acf_analyzer_save_mapping</code></td><td>Admin mapping saves</td></tr>
+<tr><td><code>acf_analyzer_search</code></td><td>Admin search form</td></tr>
+<tr><td><code>acf_popup_search</code></td><td>Frontend search</td></tr>
+<tr><td><code>hakuvahti_nonce</code></td><td>Hakuvahti CRUD operations</td></tr>
+</table>
+
+<h3>Access Control</h3>
+<ul>
+<li><strong>Admin functions</strong>: <code>current_user_can('manage_options')</code> check</li>
+<li><strong>User operations</strong>: Ownership verification (<code>user_id</code> match)</li>
+<li><strong>True-cron</strong>: <code>hash_equals()</code> constant-time comparison</li>
+</ul>
+
+<h3>Data Sanitization</h3>
+
+<table border="1" cellpadding="8" cellspacing="0">
+<tr><th>Input Type</th><th>Method</th></tr>
+<tr><td>POST input</td><td><code>sanitize_text_field()</code></td></tr>
+<tr><td>JSON data</td><td><code>wp_json_encode()</code> / <code>json_decode()</code> with validation</td></tr>
+<tr><td>SQL queries</td><td><code>$wpdb->prepare()</code> with placeholders</td></tr>
+<tr><td>Output</td><td><code>esc_html()</code>, <code>esc_attr()</code>, <code>esc_url()</code></td></tr>
+</table>
+
+<hr>
+
+<h2>Troubleshooting</h2>
+
+<h3>Common Issues</h3>
+
+<h4>"This plugin requires ACF" error</h4>
+<p><strong>Solution:</strong> Install and activate the Advanced Custom Fields plugin first.</p>
+
+<h4>No fields found in search</h4>
+<p><strong>Solutions:</strong></p>
+<ul>
+<li>Ensure posts with ACF data exist in the selected categories</li>
+<li>Click "Refresh Fields" in admin to clear the cache</li>
+</ul>
+
+<h4>Search results disappeared</h4>
+<p><strong>Solution:</strong> Results are cached for 1 hour via transients. Run a new search or wait for cache expiration.</p>
+
+<h4>Emails not sending</h4>
+<p><strong>Solutions:</strong></p>
+<ul>
+<li>Check server mail configuration</li>
+<li>Verify WordPress email settings</li>
+<li>Check spam folder</li>
+</ul>
+
+<h4>Facet logger shows no data</h4>
+<p><strong>Solutions:</strong></p>
+<ul>
+<li>Ensure WP Grid Builder is active</li>
+<li>Verify facets have selected values</li>
+<li>Check browser console for JavaScript errors</li>
+</ul>
+
+<h4>True-cron returns 403</h4>
+<p><strong>Solutions:</strong></p>
+<ul>
+<li>Verify the secret key matches</li>
+<li>Ensure the key is not empty</li>
+</ul>
+
+<h3>Debug Mode</h3>
+
+<p>Enable debug logging by adding criteria with <code>debug: true</code>:</p>
+
+<pre style="background:#263238;color:#aed581;padding:16px;overflow-x:auto;">
+$criteria = [
+    'field_name' => 'value',
+    'debug' => true
+];
+</pre>
+
+<p>Debug output is written to PHP error log and stored in <code>acf_analyzer_last_run_debug</code> option.</p>
+
+<h3>Viewing Debug Logs</h3>
+<ol>
+<li>Go to <strong>Tools</strong> → <strong>ACF Analyzer</strong></li>
+<li>Scroll to "Debug Log from Last Run" section</li>
+<li>View line-by-line execution trace</li>
+</ol>
+
+<hr>
+
+<h2>Development</h2>
+
+<h3>Constants</h3>
+
+<pre style="background:#263238;color:#aed581;padding:16px;overflow-x:auto;">
+define('ACF_ANALYZER_VERSION', '1.0.0');
+define('ACF_ANALYZER_PLUGIN_DIR', plugin_dir_path(__FILE__));
+define('ACF_ANALYZER_PLUGIN_URL', plugin_dir_url(__FILE__));
+</pre>
+
+<h3>Adding New Search Criteria Types</h3>
+
+<p>Extend the <code>search_by_criteria()</code> method in <code>class-acf-analyzer.php</code>:</p>
+
+<pre style="background:#263238;color:#aed581;padding:16px;overflow-x:auto;">
+// In the comparison loop, add new comparison type
+if ($your_condition) {
+    // Custom matching logic
+    $match = your_comparison($actual_value, $criteria_value);
+}
+</pre>
+
+<h3>Customizing Email Templates</h3>
+
+<p>Modify <code>build_email_html()</code> in <code>class-hakuvahti.php</code>:</p>
+
+<pre style="background:#263238;color:#aed581;padding:16px;overflow-x:auto;">
+public function build_email_html($user, $grouped) {
+    // Custom HTML template
+}
+</pre>
+
+<h3>Supported Categories</h3>
+
+<p>Default categories (configurable in class constructors):</p>
+
+<table border="1" cellpadding="8" cellspacing="0">
+<tr><th>Category Slug</th><th>Description</th></tr>
+<tr><td><code>osakeanti</code></td><td>Share offerings</td></tr>
+<tr><td><code>osaketori</code></td><td>Stock market</td></tr>
+<tr><td><code>velkakirja</code></td><td>Debt instruments</td></tr>
+</table>
+
+<h3>Testing Workflow</h3>
+
+<div style="background:#f5f5f5;padding:16px;border:1px dashed #999;margin:16px 0;">
+<strong>Manual Testing Steps</strong>
+<ol>
+<li>Create test posts with ACF data</li>
+<li>Set up WPGB facets pointing to ACF fields</li>
+<li>Configure facet mappings in admin</li>
+<li>Save a hakuvahti from the frontend</li>
+<li>Manually trigger the daily runner</li>
+<li>Verify email delivery and match recording</li>
+</ol>
+</div>
+
+<hr>
+
+<h2>Deployment & Updates</h2>
+
+<h3>Updating via cPanel</h3>
+<ol>
+<li>Push changes to the GitHub repository</li>
+<li>In cPanel → Git Version Control</li>
+<li>Click <strong>Manage</strong> on the repository</li>
+<li>Click <strong>Pull or Deploy</strong> → <strong>Deploy HEAD Commit</strong></li>
+</ol>
+
+<h3>Backup Considerations</h3>
+
+<table border="1" cellpadding="8" cellspacing="0">
+<tr><th>Item</th><th>Location</th></tr>
+<tr><td>Database tables</td><td><code>wp_hakuvahdit</code>, <code>wp_hakuvahti_matches</code></td></tr>
+<tr><td>Options</td><td>All <code>acf_analyzer_*</code> in <code>wp_options</code></td></tr>
+<tr><td>Mappings</td><td><code>acf_wpgb_facet_map</code> option</td></tr>
+</table>
+
+<blockquote style="background:#e8f5e9;padding:16px;border-left:4px solid #4caf50;margin:16px 0;">
+<strong>💡 Tip:</strong> All user data is stored in the database. No file backups needed beyond the plugin code.
+</blockquote>
+
+<hr>
+
+<h2>Support</h2>
+
+<blockquote style="background:#e3f2fd;padding:16px;border-left:4px solid #2196f3;margin:16px 0;">
+For issues and feature requests, contact the development team or create an issue in the repository.
+</blockquote>
+
+<table border="1" cellpadding="8" cellspacing="0">
+<tr><th>Contact</th><th>Details</th></tr>
+<tr><td>Repository</td><td>https://github.com/Isolaee/gr-hakuvahti</td></tr>
+<tr><td>Documentation</td><td>This page</td></tr>
+</table>
+
+<hr>
+
+<div style="background:#f5f5f5;padding:16px;border:1px solid #ccc;margin:16px 0;">
+<strong>Document Information</strong><br>
+<strong>Last Updated:</strong> January 2026<br>
+<strong>Version:</strong> 1.0.0<br>
+<strong>Author:</strong> GR Development Team
+</div>
+
+</body>
+</html>
