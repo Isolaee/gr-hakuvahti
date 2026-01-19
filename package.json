@@ -1,0 +1,35 @@
+{
+    "name": "acf-field-analyzer",
+    "version": "1.0.0",
+    "description": "ACF Field Analyzer WordPress Plugin - Search ACF fields with saved watches and notifications",
+    "private": true,
+    "scripts": {
+        "test": "jest",
+        "test:unit": "jest --testPathPattern=unit",
+        "test:integration": "jest --testPathPattern=integration",
+        "test:watch": "jest --watch",
+        "test:coverage": "jest --coverage"
+    },
+    "devDependencies": {
+        "jest": "^29.7.0",
+        "jest-environment-jsdom": "^29.7.0",
+        "@testing-library/jest-dom": "^6.4.0"
+    },
+    "jest": {
+        "testEnvironment": "jsdom",
+        "roots": [
+            "<rootDir>/tests/js"
+        ],
+        "setupFilesAfterEnv": [
+            "<rootDir>/tests/js/setup.js"
+        ],
+        "moduleNameMapper": {
+            "^@/(.*)$": "<rootDir>/assets/js/$1"
+        },
+        "collectCoverageFrom": [
+            "assets/js/**/*.js",
+            "!assets/js/**/*.min.js"
+        ],
+        "coverageDirectory": "coverage/js"
+    }
+}

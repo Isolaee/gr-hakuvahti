@@ -1,0 +1,36 @@
+{
+    "name": "gr/acf-field-analyzer",
+    "description": "ACF Field Analyzer WordPress Plugin - Search ACF fields with saved watches and notifications",
+    "type": "wordpress-plugin",
+    "license": "GPL-2.0-or-later",
+    "require": {
+        "php": ">=7.4"
+    },
+    "require-dev": {
+        "pestphp/pest": "^2.0",
+        "mockery/mockery": "^1.6",
+        "brain/monkey": "^2.6",
+        "yoast/phpunit-polyfills": "^2.0"
+    },
+    "autoload": {
+        "classmap": [
+            "includes/"
+        ]
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/php/"
+        }
+    },
+    "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "scripts": {
+        "test": "pest",
+        "test:unit": "pest --group=unit",
+        "test:integration": "pest --group=integration",
+        "test:coverage": "pest --coverage"
+    }
+}
