@@ -7,7 +7,7 @@ $use_api_attr = in_array( strtolower( $use_api ), array( '1', 'true', 'yes' ), t
 <?php if ( is_user_logged_in() ) : ?>
 <div class="acf-analyzer-buttons">
     <button class="acf-hakuvahti-save" data-target="<?php echo esc_attr( $target ); ?>" data-use-api="<?php echo esc_attr( $use_api_attr ); ?>">
-        <?php esc_html_e( 'Tallenna hakuvahti', 'acf-analyzer' ); ?>
+        <?php esc_html_e( 'Hakuvahti', 'acf-analyzer' ); ?>
     </button>
 </div>
 
@@ -16,6 +16,7 @@ $use_api_attr = in_array( strtolower( $use_api ), array( '1', 'true', 'yes' ), t
     <div class="hakuvahti-modal-content">
         <span class="hakuvahti-modal-close">&times;</span>
         <form id="hakuvahti-save-form">
+            <div id="hakuvahti-criteria-preview" aria-live="polite"></div>
             <p><?php esc_html_e( 'Anna nimi Hakuvahdille.', 'acf-analyzer' ); ?></p>
             <input type="text" id="hakuvahti-name" name="name" required>
             <button type="submit" class="hakuvahti-submit"><?php esc_html_e( 'Tallenna', 'acf-analyzer' ); ?></button>
