@@ -472,19 +472,26 @@
         $('#hakuvahti-save-message').html('');
         $('#hakuvahti-name').val('');
 
-        // Show modal
-        $('#hakuvahti-save-modal').show();
+        // Show modal (use css to set flex display for proper centering)
+        $('#hakuvahti-save-modal').css('display', 'flex');
     });
 
     // Close modal
     $(document).on('click', '.hakuvahti-modal-close', function() {
-        $('#hakuvahti-save-modal').hide();
+        $('#hakuvahti-save-modal').css('display', 'none');
     });
 
     // Close modal on outside click
     $(document).on('click', '.hakuvahti-modal', function(e) {
         if ($(e.target).hasClass('hakuvahti-modal')) {
-            $('#hakuvahti-save-modal').hide();
+            $('#hakuvahti-save-modal').css('display', 'none');
+        }
+    });
+
+    // Close modal on Escape key
+    $(document).on('keydown', function(e) {
+        if (e.key === 'Escape' && $('#hakuvahti-save-modal').is(':visible')) {
+            $('#hakuvahti-save-modal').css('display', 'none');
         }
     });
 
@@ -516,7 +523,7 @@
             if (resp && resp.success) {
                 $('#hakuvahti-save-message').html('<p class="success">' + (resp.data.message || 'Hakuvahti tallennettu!') + '</p>');
                 setTimeout(function() {
-                    $('#hakuvahti-save-modal').hide();
+                    $('#hakuvahti-save-modal').css('display', 'none');
                 }, 1500);
             } else {
                 $('#hakuvahti-save-message').html('<p class="error">' + (resp.data && resp.data.message ? resp.data.message : 'Tallennus epäonnistui.') + '</p>');
