@@ -12,7 +12,7 @@ $use_api_attr = in_array( strtolower( $use_api ), array( '1', 'true', 'yes' ), t
 </div>
 
 <!-- Hakuvahti Save Modal -->
-<div id="hakuvahti-save-modal" class="hakuvahti-modal" aria-hidden="true" hidden style="display:none!important;">
+<div id="hakuvahti-save-modal" class="hakuvahti-modal" aria-hidden="true">
     <div class="hakuvahti-modal-content">
         <button type="button" class="hakuvahti-modal-close" onclick="if(window.closeHakuvahtiModal){window.closeHakuvahtiModal();}return false;" aria-label="Sulje">&times;</button>
         <form id="hakuvahti-save-form">
@@ -26,4 +26,3 @@ $use_api_attr = in_array( strtolower( $use_api ), array( '1', 'true', 'yes' ), t
     </div>
 </div>
 <?php endif; ?>
-<script>(function(){var m=document.getElementById('hakuvahti-save-modal'); if(m){ try{ m.style.setProperty('display','none','important'); m.setAttribute('hidden',''); }catch(e){} }} )();</script>

@@ -451,26 +451,14 @@
         return html;
     }
 
-    // Ensure modal is attached to body and hidden on load
+    // Minimal modal setup: keep modal hidden and attach to body
     $(function() {
         var $modalInit = $('#hakuvahti-save-modal');
         if ($modalInit.length && !$modalInit.parent().is('body')) {
             $modalInit.appendTo('body');
         }
-        $modalInit.removeClass('is-open').attr('aria-hidden', 'true').attr('hidden', '');
-
-        // Expose a global close function as a reliable fallback
-        window.closeHakuvahtiModal = function() {
-            var modalEl = document.getElementById('hakuvahti-save-modal');
-            if ( modalEl ) {
-                try {
-                    modalEl.setAttribute('hidden', '');
-                    modalEl.classList.remove('is-open');
-                    modalEl.setAttribute('aria-hidden', 'true');
-                    modalEl.style.display = 'none';
-                } catch (err) {}
-            }
-        };
+        // Hide with jQuery to avoid flicker
+        $modalInit.hide();
     });
 
     // Open modal handler
@@ -490,44 +478,31 @@
         // Show criteria preview
         $('#hakuvahti-criteria-preview').html(formatCriteriaPreview(lastCollectedCriteria));
 
-        // Ensure modal is attached to body to prevent container clipping
+        // Show the modal: clear previous messages, populate preview, and show
         var $modal = $('#hakuvahti-save-modal');
-        if ($modal.length && !$modal.parent().is('body')) {
-            $modal.appendTo('body');
-        }
-
-        // Clear previous messages and input
         $('#hakuvahti-save-message').html('');
         $('#hakuvahti-name').val('');
 
-        // Show modal using class toggle so it's only visible when opened
-        $modal.removeAttr('hidden');
-        // Remove any inline style that might force visibility/position
-        $modal.removeAttr('style');
-        $modal.addClass('is-open').attr('aria-hidden', 'false');
-
-        // Focus on input field
-        setTimeout(function() {
-            $('#hakuvahti-name').focus();
-        }, 100);
+        $modal.stop(true,true).fadeIn(150);
+        setTimeout(function() { $('#hakuvahti-name').focus(); }, 120);
     });
-
-    // Close modal
+    // Close modal handlers
     $(document).on('click', '.hakuvahti-modal-close', function() {
-        $('#hakuvahti-save-modal').addBack().attr('hidden', '').removeAttr('style').removeClass('is-open').attr('aria-hidden', 'true').css('display', 'none');
+        $('#hakuvahti-save-modal').stop(true,true).fadeOut(120);
     });
 
     // Close modal on outside click
     $(document).on('click', '.hakuvahti-modal', function(e) {
-        if ($(e.target).hasClass('hakuvahti-modal')) {
-            $('#hakuvahti-save-modal').addBack().attr('hidden', '').removeClass('is-open').attr('aria-hidden', 'true');
+        var $modal = $('#hakuvahti-save-modal');
+        if (e.target === $modal[0]) {
+            $modal.stop(true,true).fadeOut(120);
         }
     });
 
     // Close modal on Escape key
     $(document).on('keydown', function(e) {
-        if (e.key === 'Escape' && $('#hakuvahti-save-modal').hasClass('is-open')) {
-            $('#hakuvahti-save-modal').addBack().attr('hidden', '').removeClass('is-open').attr('aria-hidden', 'true');
+        if (e.key === 'Escape' && $('#hakuvahti-save-modal').is(':visible')) {
+            $('#hakuvahti-save-modal').stop(true,true).fadeOut(120);
         }
     });
 
