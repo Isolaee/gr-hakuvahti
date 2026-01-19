@@ -12,10 +12,11 @@ $use_api_attr = in_array( strtolower( $use_api ), array( '1', 'true', 'yes' ), t
 </div>
 
 <!-- Hakuvahti Save Modal -->
-<div id="hakuvahti-save-modal" class="hakuvahti-modal" style="display:none;">
+<div id="hakuvahti-save-modal" class="hakuvahti-modal" aria-hidden="true">
     <div class="hakuvahti-modal-content">
         <span class="hakuvahti-modal-close">&times;</span>
         <form id="hakuvahti-save-form">
+            <p class="hakuvahti-info"><?php esc_html_e( 'Hakuvahti tallentaa aktiivisen haun', 'acf-analyzer' ); ?></p>
             <div id="hakuvahti-criteria-preview" aria-live="polite"></div>
             <p><?php esc_html_e( 'Anna nimi Hakuvahdille.', 'acf-analyzer' ); ?></p>
             <input type="text" id="hakuvahti-name" name="name" required>

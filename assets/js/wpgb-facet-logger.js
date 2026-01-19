@@ -451,6 +451,15 @@
         return html;
     }
 
+    // Ensure modal is attached to body and hidden on load
+    $(function() {
+        var $modalInit = $('#hakuvahti-save-modal');
+        if ($modalInit.length && !$modalInit.parent().is('body')) {
+            $modalInit.appendTo('body');
+        }
+        $modalInit.removeClass('is-open').attr('aria-hidden', 'true');
+    });
+
     // Open modal handler
     $(document).on('click', '.acf-hakuvahti-save', function(e) {
         e.preventDefault();
@@ -478,8 +487,8 @@
         $('#hakuvahti-save-message').html('');
         $('#hakuvahti-name').val('');
 
-        // Show modal (use css to set flex display for proper centering)
-        $modal.css('display', 'flex');
+        // Show modal using class toggle so it's only visible when opened
+        $modal.addClass('is-open').attr('aria-hidden', 'false');
 
         // Focus on input field
         setTimeout(function() {
@@ -489,20 +498,20 @@
 
     // Close modal
     $(document).on('click', '.hakuvahti-modal-close', function() {
-        $('#hakuvahti-save-modal').css('display', 'none');
+        $('#hakuvahti-save-modal').removeClass('is-open').attr('aria-hidden', 'true');
     });
 
     // Close modal on outside click
     $(document).on('click', '.hakuvahti-modal', function(e) {
         if ($(e.target).hasClass('hakuvahti-modal')) {
-            $('#hakuvahti-save-modal').css('display', 'none');
+            $('#hakuvahti-save-modal').removeClass('is-open').attr('aria-hidden', 'true');
         }
     });
 
     // Close modal on Escape key
     $(document).on('keydown', function(e) {
-        if (e.key === 'Escape' && $('#hakuvahti-save-modal').is(':visible')) {
-            $('#hakuvahti-save-modal').css('display', 'none');
+        if (e.key === 'Escape' && $('#hakuvahti-save-modal').hasClass('is-open')) {
+            $('#hakuvahti-save-modal').removeClass('is-open').attr('aria-hidden', 'true');
         }
     });
 
@@ -534,7 +543,7 @@
             if (resp && resp.success) {
                 $('#hakuvahti-save-message').html('<p class="success">' + (resp.data.message || 'Hakuvahti tallennettu!') + '</p>');
                 setTimeout(function() {
-                    $('#hakuvahti-save-modal').css('display', 'none');
+                    $('#hakuvahti-save-modal').removeClass('is-open').attr('aria-hidden', 'true');
                 }, 1500);
             } else {
                 $('#hakuvahti-save-message').html('<p class="error">' + (resp.data && resp.data.message ? resp.data.message : 'Tallennus epäonnistui.') + '</p>');
