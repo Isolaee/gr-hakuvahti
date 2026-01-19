@@ -173,6 +173,7 @@
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
+    color: #032e5b;
 }
 
 .acf-hakuvahti-save {
