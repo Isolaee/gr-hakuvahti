@@ -61,6 +61,8 @@
     color: #666;
     cursor: pointer;
     line-height: 1;
+    z-index: 1000001; /* ensure clickable above other content */
+    pointer-events: auto;
 }
 
 .hakuvahti-modal-close:hover {
