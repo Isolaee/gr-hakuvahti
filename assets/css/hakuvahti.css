@@ -58,7 +58,7 @@
     right: 15px;
     font-size: 28px;
     font-weight: bold;
-    color: #666;
+    color: #032e5b;
     cursor: pointer;
     line-height: 1;
     z-index: 1000001; /* ensure clickable above other content */
@@ -66,7 +66,7 @@
 }
 
 .hakuvahti-modal-close:hover {
-    color: #000;
+    color: #021d3f;
 }
 
 .hakuvahti-modal h3 {
@@ -100,17 +100,20 @@
 }
 
 #hakuvahti-save-form input[type="text"]:focus {
-    border-color: #007bff;
+    border-color: #032e5b;
     outline: none;
-    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+    box-shadow: 0 0 0 3px rgba(3,46,91,0.08);
 }
 
 #hakuvahti-criteria-preview {
-    background: #f8f9fa;
+    background: #032e5b;
+    color: #fff;
     padding: 15px;
     border-radius: 4px;
     margin-bottom: 20px;
 }
+.hakuvahti-criteria-list, #hakuvahti-criteria-preview { color: #fff; }
+.hakuvahti-criteria-list li { color: #fff; }
 
 .hakuvahti-criteria-list {
     margin: 0;
@@ -123,7 +126,7 @@
 }
 
 .hakuvahti-submit {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #032e5b;
     color: #fff;
     border: none;
     padding: 14px 32px;
@@ -137,7 +140,7 @@
 
 .hakuvahti-submit:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 6px 20px rgba(3,46,91,0.28);
 }
 
 .hakuvahti-submit:disabled {
@@ -173,7 +176,7 @@
 }
 
 .acf-hakuvahti-save {
-    background: #0000a0;
+    background: #032e5b;
     color: #fff;
     border: none;
     padding: 14px 28px;
@@ -182,19 +185,19 @@
     font-size: 15px;
     font-weight: 600;
     letter-spacing: 0.3px;
-    box-shadow: 0 4px 12px rgba(0, 0, 160, 0.3);
+    box-shadow: 0 4px 12px rgba(3, 46, 91, 0.3);
     transition: all 0.2s ease;
 }
 
 .acf-hakuvahti-save:hover {
-    background: #00005e;
-    box-shadow: 0 6px 16px rgba(0, 0, 160, 0.4);
+    background: #021d3f;
+    box-shadow: 0 6px 16px rgba(3, 46, 91, 0.4);
     transform: translateY(-2px);
 }
 
 .acf-hakuvahti-save:active {
     transform: translateY(0);
-    box-shadow: 0 2px 8px rgba(0, 0, 160, 0.3);
+    box-shadow: 0 2px 8px rgba(3, 46, 91, 0.3);
 }
 
 /* ==========================================================================
@@ -226,7 +229,7 @@
 }
 
 .hakuvahti-empty a {
-    color: #007bff;
+    color: #032e5b;
 }
 
 /* Hakuvahti Cards */
@@ -259,7 +262,7 @@
 }
 
 .hakuvahti-category {
-    background: #007bff;
+    background: #032e5b;
     color: #fff;
     padding: 4px 10px;
     border-radius: 12px;
@@ -290,7 +293,7 @@
 }
 
 .hakuvahti-run-btn {
-    background: #007bff;
+    background: #032e5b;
     color: #fff;
     border: none;
     padding: 8px 16px;
@@ -299,7 +302,7 @@
 }
 
 .hakuvahti-run-btn:hover {
-    background: #0056b3;
+    background: #021d3f;
 }
 
 .hakuvahti-run-btn:disabled {
@@ -340,7 +343,7 @@
 
 .hakuvahti-results-count {
     margin: 0 0 10px;
-    color: #28a745;
+    color: #032e5b;
 }
 
 .hakuvahti-results-list {
@@ -354,7 +357,7 @@
 }
 
 .hakuvahti-results-list a {
-    color: #007bff;
+    color: #032e5b;
     text-decoration: none;
 }
 
