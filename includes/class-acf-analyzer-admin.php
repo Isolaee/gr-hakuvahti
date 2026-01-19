@@ -174,6 +174,9 @@ class ACF_Analyzer_Admin {
         $last_run = get_option( 'acf_analyzer_last_run', '' );
         $secret_key = get_option( 'acf_analyzer_secret_key', '' );
 
+        // Get recent matches for display
+        $recent_matches = Hakuvahti::get_recent_matches( 3 );
+
         // Load and display the admin template
         include ACF_ANALYZER_PLUGIN_DIR . 'templates/admin-page.php';
     }
