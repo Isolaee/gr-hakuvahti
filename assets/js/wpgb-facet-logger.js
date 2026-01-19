@@ -173,157 +173,50 @@
         return Object.keys(result).length ? [{ grid: null, facets: result }] : null;
     }
 
-    function collectAll(target, useApiPref) {
-        var useApi = (typeof useApiPref !== 'undefined') ? !!useApiPref : false;
-        var apiData = null;
-        if ( useApi && window.WP_Grid_Builder ) {
-            apiData = collectViaAPI(target);
+    // Simplified: only collect via WP Grid Builder API. Return null if not available.
+    function collectAll(target) {
+        if (window.WP_Grid_Builder) {
+            return collectViaAPI(target);
         }
-        if (!apiData) {
-            var domData = collectViaDOM(target) || [];
-            return domData;
-        }
-        return apiData;
+        return null;
     }
 
+    // Simplified logger: only collect via WP Grid Builder API and map facets
     $(document).on('click', '.acf-wpgb-facet-logger', function(e){
         e.preventDefault();
         var $btn = $(this);
         var target = $btn.attr('data-target') || '';
-        var useApiAttr = $btn.attr('data-use-api');
-        var useApi = (typeof useApiAttr !== 'undefined') ? (useApiAttr === '1' || useApiAttr === 'true') : (window.acfWpgbLogger && window.acfWpgbLogger.use_api_default);
 
-        var collected = collectAll(target, useApi);
+        var collected = collectAll(target) || [];
+        var map = window.acfWpgbFacetMap || {};
 
-            // Apply mapping if provided by PHP and print compact rows
-            var map = window.acfWpgbFacetMap || {};
-            try {
-                if (!Array.isArray(collected) || !collected.length) {
-                    return;
-                }
+        if (!Array.isArray(collected) || !collected.length) {
+            console.log('acfWpgbLogger: no WP Grid Builder data available.');
+            return;
+        }
 
-                // Print a neat table per grid
-                collected.forEach(function(item){
-                    var gridId = item.grid || '(no-grid)';
-                    var facets = item.facets || {};
-                    var rows = [];
-                    Object.keys(facets).forEach(function(slug){
-                        var acfField = (map && map[slug]) ? map[slug] : '(no mapping)';
-                        var values = facets[slug] || [];
-                        if (values && values.length) {
-                            values.forEach(function(v){ rows.push({ facet: slug, acf_field: acfField, value: v }); });
-                        } else {
-                            rows.push({ facet: slug, acf_field: acfField, value: '(none)' });
-                        }
-                    });
+        var mapped = [];
+        collected.forEach(function(item){
+            var facets = item.facets || {};
+            Object.keys(facets).forEach(function(slug){
+                var acfField = map[slug] || null;
+                if (!acfField) return; // only keep mapped facets
+                var values = facets[slug] || [];
+                mapped.push({ facet: slug, acf_field: acfField, values: values });
+            });
+        });
 
-                        if (rows.length) {
-                            // Build search criteria from mapped rows
-                            var criteriaMap = {}; // field -> array of values
-                            var skippedUnmapped = [];
-                            rows.forEach(function(r){
-                                if (!r.acf_field || r.acf_field === '(no mapping)') {
-                                    skippedUnmapped.push(r.facet);
-                                    return;
-                                }
-                                if (!criteriaMap[r.acf_field]) criteriaMap[r.acf_field] = [];
-                                criteriaMap[r.acf_field].push(r.value);
-                            });
+        if (!mapped.length) {
+            console.log('acfWpgbLogger: no mapped facets found.');
+            return;
+        }
 
-
-                            // Helper: parse numeric-ish strings
-                            function parseNumber(v){
-                                if (v == null) return null;
-                                if (typeof v === 'number') return v;
-                                var s = String(v).trim();
-                                // remove non digits except dot,comma,minus
-                                var cleaned = s.replace(/[^0-9.,\-]/g, '');
-                                if (cleaned === '') return null;
-                                // normalize comma to dot
-                                cleaned = cleaned.replace(/,/g, '.');
-                                var n = parseFloat(cleaned);
-                                return isNaN(n) ? null : n;
-                            }
-
-                            // Build simplified criteria array: name, label, values
-                            var criteriaArray = [];
-                            Object.keys(criteriaMap).forEach(function(field){
-                                var vals = criteriaMap[field] || [];
-                                // clean values: trim and remove common placeholders
-                                var valsClean = vals.map(function(v){ return v == null ? '' : String(v).trim(); });
-                                valsClean = valsClean.filter(function(v){
-                                    if (!v) return false;
-                                    var lower = v.toLowerCase().trim();
-                                    var placeholders = ['(none)', '(no mapping)', 'none', 'any', 'default', 'valitse', 'valitse...', '-- select --', '-- select field --', 'choose', 'choose one', 'not set'];
-                                    if (placeholders.indexOf(lower) !== -1) return false;
-                                    if (/^[-\s]*--.*--[-\s]*$/.test(v)) return false;
-                                    if (/^[-]+$/.test(v)) return false;
-                                    return true;
-                                });
-                                if (valsClean.length === 0) return; // skip fields with no usable values
-
-                                // Detect if values are numeric
-                                var parsed = valsClean.map(function(v){ var n = parseNumber(v); return { raw: v, num: n }; });
-                                var numericVals = parsed.map(function(p){ return p.num; }).filter(function(x){ return x !== null; });
-
-                                // Detect range format in single value
-                                if (numericVals.length < 2 && valsClean.length === 1) {
-                                    var rangeMatch = String(valsClean[0]).match(/(-?\d+[\.,]?\d*)\D+(-?\d+[\.,]?\d*)/);
-                                    if (rangeMatch) {
-                                        var n1 = parseNumber(rangeMatch[1]);
-                                        var n2 = parseNumber(rangeMatch[2]);
-                                        if (n1 !== null && n2 !== null) {
-                                            numericVals = [n1, n2];
-                                        }
-                                    }
-                                }
-
-                                // Determine label type
-                                var label = 'multiple_choice';
-                                if (numericVals.length >= 2) {
-                                    label = 'range';
-                                }
-
-                                criteriaArray.push({
-                                    name: field,
-                                    label: label,
-                                    values: valsClean
-                                });
-                            });
-
-                            // Determine category based on current page URL
-                            var category = '';
-                            var path = window.location.pathname.toLowerCase();
-                            if (path.indexOf('/osakeannit') !== -1) {
-                                category = 'Osakeannit';
-                            } else if (path.indexOf('/velkakirjat') !== -1) {
-                                category = 'Velkakirjat';
-                            } else if (path.indexOf('/osaketori') !== -1) {
-                                category = 'Osaketori';
-                            }
-
-                            // Always perform search - empty criteria will return all posts in category
-                            if (typeof window.acfWpgbLogger !== 'undefined' && window.acfWpgbLogger.ajaxUrl) {
-                                var searchPayload = {
-                                    action: 'acf_popup_search',
-                                    nonce: window.acfWpgbLogger.nonce || window.acfWpgbLogger.nonce,
-                                    category: category,
-                                    criteria: criteriaArray,
-                                    match_logic: criteriaArray.length > 0 ? 'AND' : 'ALL',
-                                    debug: '1'
-                                };
-                                $.post(window.acfWpgbLogger.ajaxUrl, searchPayload)
-                                    .done(function(resp){
-                                        // Search completed
-                                    }).fail(function(xhr){
-                                        // Search request failed
-                                    });
-                            }
-                        }
-                });
-
-            } catch (e) {
-            }
+        // Emit a browser event and log the mapped criteria for downstream use
+        try {
+            var ev = new CustomEvent('acfWpgbLogger.mapped', { detail: mapped });
+            window.dispatchEvent(ev);
+        } catch (err) {}
+        console.log('acfWpgbLogger mapped:', mapped);
     });
 
     // ============================================
