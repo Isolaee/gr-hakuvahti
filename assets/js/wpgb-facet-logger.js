@@ -457,7 +457,7 @@
         if ($modalInit.length && !$modalInit.parent().is('body')) {
             $modalInit.appendTo('body');
         }
-        $modalInit.removeClass('is-open').attr('aria-hidden', 'true');
+        $modalInit.removeClass('is-open').attr('aria-hidden', 'true').attr('hidden', '');
     });
 
     // Open modal handler
@@ -488,6 +488,7 @@
         $('#hakuvahti-name').val('');
 
         // Show modal using class toggle so it's only visible when opened
+        $modal.removeAttr('hidden');
         $modal.addClass('is-open').attr('aria-hidden', 'false');
 
         // Focus on input field
@@ -498,20 +499,20 @@
 
     // Close modal
     $(document).on('click', '.hakuvahti-modal-close', function() {
-        $('#hakuvahti-save-modal').removeClass('is-open').attr('aria-hidden', 'true');
+        $('#hakuvahti-save-modal').addBack().attr('hidden', '').removeClass('is-open').attr('aria-hidden', 'true');
     });
 
     // Close modal on outside click
     $(document).on('click', '.hakuvahti-modal', function(e) {
         if ($(e.target).hasClass('hakuvahti-modal')) {
-            $('#hakuvahti-save-modal').removeClass('is-open').attr('aria-hidden', 'true');
+            $('#hakuvahti-save-modal').addBack().attr('hidden', '').removeClass('is-open').attr('aria-hidden', 'true');
         }
     });
 
     // Close modal on Escape key
     $(document).on('keydown', function(e) {
         if (e.key === 'Escape' && $('#hakuvahti-save-modal').hasClass('is-open')) {
-            $('#hakuvahti-save-modal').removeClass('is-open').attr('aria-hidden', 'true');
+            $('#hakuvahti-save-modal').addBack().attr('hidden', '').removeClass('is-open').attr('aria-hidden', 'true');
         }
     });
 
@@ -543,7 +544,7 @@
             if (resp && resp.success) {
                 $('#hakuvahti-save-message').html('<p class="success">' + (resp.data.message || 'Hakuvahti tallennettu!') + '</p>');
                 setTimeout(function() {
-                    $('#hakuvahti-save-modal').removeClass('is-open').attr('aria-hidden', 'true');
+                    $('#hakuvahti-save-modal').addBack().attr('hidden', '').removeClass('is-open').attr('aria-hidden', 'true');
                 }, 1500);
             } else {
                 $('#hakuvahti-save-message').html('<p class="error">' + (resp.data && resp.data.message ? resp.data.message : 'Tallennus epäonnistui.') + '</p>');

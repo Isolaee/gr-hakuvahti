@@ -12,7 +12,7 @@ $use_api_attr = in_array( strtolower( $use_api ), array( '1', 'true', 'yes' ), t
 </div>
 
 <!-- Hakuvahti Save Modal -->
-<div id="hakuvahti-save-modal" class="hakuvahti-modal" aria-hidden="true">
+<div id="hakuvahti-save-modal" class="hakuvahti-modal" aria-hidden="true" hidden>
     <div class="hakuvahti-modal-content">
         <span class="hakuvahti-modal-close">&times;</span>
         <form id="hakuvahti-save-form">
