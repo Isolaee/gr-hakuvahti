@@ -177,6 +177,9 @@ class ACF_Analyzer_Admin {
         // Get recent matches for display
         $recent_matches = Hakuvahti::get_recent_matches( 3 );
 
+        // Get debug log from last run
+        $last_run_debug = get_option( 'acf_analyzer_last_run_debug', array() );
+
         // Load and display the admin template
         include ACF_ANALYZER_PLUGIN_DIR . 'templates/admin-page.php';
     }

@@ -42,9 +42,17 @@ class Hakuvahti {
         $table = self::get_table_name();
         $matches_table = self::get_matches_table_name();
 
+        // Debug log array to store in option
+        $debug_log = array();
+        $debug_log[] = '[' . current_time( 'mysql' ) . '] Starting daily search run';
+
         $rows = $wpdb->get_results( "SELECT * FROM $table" );
+        $debug_log[] = 'Found ' . count( $rows ) . ' hakuvahdit in database';
+
         if ( empty( $rows ) ) {
+            $debug_log[] = 'No hakuvahdit found, exiting';
             update_option( 'acf_analyzer_last_run', current_time( 'mysql' ) );
+            update_option( 'acf_analyzer_last_run_debug', $debug_log );
             return;
         }
 
@@ -54,10 +62,26 @@ class Hakuvahti {
             $hakuvahti_id = $row->id;
             $user_id = $row->user_id;
 
-            $result = self::run_search( $hakuvahti_id, $user_id );
-            if ( ! $result || empty( $result['posts'] ) ) {
+            $debug_log[] = '---';
+            $debug_log[] = "Processing hakuvahti ID: {$hakuvahti_id}, Name: {$row->name}, User: {$user_id}";
+            $debug_log[] = "Category: {$row->category}";
+            $debug_log[] = "Criteria (raw): {$row->criteria}";
+
+            $result = self::run_search( $hakuvahti_id, $user_id, $debug_log );
+
+            if ( ! $result ) {
+                $debug_log[] = "run_search returned FALSE";
                 continue;
             }
+
+            $debug_log[] = "run_search returned: total_all={$result['total_all']}, total_found (new)={$result['total_found']}";
+
+            if ( empty( $result['posts'] ) ) {
+                $debug_log[] = "No NEW posts found (all may have been seen already)";
+                continue;
+            }
+
+            $debug_log[] = "Found " . count( $result['posts'] ) . " new posts";
 
             // For each new post, attempt to insert into matches table (deduplicated by unique index)
             foreach ( $result['posts'] as $post_item ) {
@@ -86,10 +110,14 @@ class Hakuvahti {
         }
 
         // Send emails per user
+        $debug_log[] = '---';
+        $debug_log[] = 'Email queue: ' . count( $emails ) . ' users';
+
         if ( ! empty( $emails ) ) {
             foreach ( $emails as $uid => $items ) {
                 $user = get_userdata( $uid );
                 if ( ! $user || empty( $user->user_email ) ) {
+                    $debug_log[] = "User {$uid}: no email found, skipping";
                     continue;
                 }
 
@@ -113,12 +141,17 @@ class Hakuvahti {
                 $message = implode( "\n", $lines );
 
                 // Send email
-                wp_mail( $user->user_email, $subject, $message );
+                $mail_result = wp_mail( $user->user_email, $subject, $message );
+                $debug_log[] = "Email to {$user->user_email}: " . ( $mail_result ? 'sent' : 'FAILED' );
             }
         }
 
-        // Record last run time
+        $debug_log[] = '---';
+        $debug_log[] = 'Daily run completed at ' . current_time( 'mysql' );
+
+        // Record last run time and debug log
         update_option( 'acf_analyzer_last_run', current_time( 'mysql' ) );
+        update_option( 'acf_analyzer_last_run_debug', $debug_log );
     }
 
     /**
@@ -270,29 +303,57 @@ class Hakuvahti {
     /**
      * Run search and return only NEW results (not previously seen)
      *
-     * @param int $id      Hakuvahti ID
-     * @param int $user_id User ID (for ownership verification)
+     * @param int   $id        Hakuvahti ID
+     * @param int   $user_id   User ID (for ownership verification)
+     * @param array &$debug_log Optional reference to debug log array
      * @return array|false Search results array or false on failure
      */
-    public static function run_search( $id, $user_id ) {
+    public static function run_search( $id, $user_id, &$debug_log = null ) {
         $hakuvahti = self::get_by_id( $id );
 
         // Verify hakuvahti exists and belongs to user
         if ( ! $hakuvahti || (int) $hakuvahti->user_id !== (int) $user_id ) {
+            if ( is_array( $debug_log ) ) {
+                $debug_log[] = "  -> Hakuvahti not found or user mismatch (hakuvahti user: " . ( $hakuvahti ? $hakuvahti->user_id : 'null' ) . ", given user: {$user_id})";
+            }
             return false;
         }
 
         // Run search with stored criteria
         $analyzer = new ACF_Analyzer();
         $search_criteria = self::convert_criteria_for_search( $hakuvahti->criteria );
+
+        if ( is_array( $debug_log ) ) {
+            $debug_log[] = "  -> Converted criteria: " . wp_json_encode( $search_criteria );
+        }
+
         $options = array(
             'categories'  => array( $hakuvahti->category ),
             'match_logic' => 'AND',
+            'debug'       => true,
         );
+
+        if ( is_array( $debug_log ) ) {
+            $debug_log[] = "  -> Search options: " . wp_json_encode( $options );
+        }
+
         $results = $analyzer->search_by_criteria( $search_criteria, $options );
+
+        if ( is_array( $debug_log ) ) {
+            $debug_log[] = "  -> search_by_criteria returned: total_found={$results['total_found']}, posts count=" . count( $results['posts'] );
+            if ( ! empty( $results['posts'] ) ) {
+                $post_ids = array_map( function( $p ) { return $p['ID']; }, array_slice( $results['posts'], 0, 5 ) );
+                $debug_log[] = "  -> First 5 post IDs: " . implode( ', ', $post_ids );
+            }
+        }
 
         // Filter out already-seen posts
         $seen_ids = $hakuvahti->seen_post_ids;
+
+        if ( is_array( $debug_log ) ) {
+            $debug_log[] = "  -> Already seen post IDs: " . ( ! empty( $seen_ids ) ? implode( ', ', array_slice( $seen_ids, 0, 10 ) ) . ( count( $seen_ids ) > 10 ? '...' : '' ) : '(none)' );
+        }
+
         $new_posts = array();
         $new_post_ids = array();
 
@@ -303,6 +364,10 @@ class Hakuvahti {
                     $new_post_ids[] = $post['ID'];
                 }
             }
+        }
+
+        if ( is_array( $debug_log ) ) {
+            $debug_log[] = "  -> New (unseen) posts: " . count( $new_posts );
         }
 
         // Update seen_post_ids with newly found posts
