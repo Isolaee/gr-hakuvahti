@@ -48,6 +48,7 @@ $hakuvahdits = Hakuvahti::get_by_user( $user_id );
                     </div>
                     <div class="hakuvahti-card-body">
                         <p class="hakuvahti-criteria">
+                            <strong><?php esc_html_e( 'Hakuehdot:', 'acf-analyzer' ); ?></strong>
                             <?php echo esc_html( Hakuvahti::format_criteria_summary( $hv->criteria ) ); ?>
                         </p>
                         <p class="hakuvahti-meta">
@@ -57,14 +58,6 @@ $hakuvahdits = Hakuvahti::get_by_user( $user_id );
                                 esc_html__( 'Luotu: %s', 'acf-analyzer' ),
                                 date_i18n( get_option( 'date_format' ), strtotime( $hv->created_at ) )
                             );
-                            if ( $hv->updated_at ) {
-                                echo ' | ';
-                                printf(
-                                    /* translators: %s is the last run date */
-                                    esc_html__( 'Viimeksi ajettu: %s', 'acf-analyzer' ),
-                                    date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), strtotime( $hv->updated_at ) )
-                                );
-                            }
                             ?>
                         </p>
                     </div>
