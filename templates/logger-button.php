@@ -14,7 +14,7 @@ $use_api_attr = in_array( strtolower( $use_api ), array( '1', 'true', 'yes' ), t
 <!-- Hakuvahti Save Modal -->
 <div id="hakuvahti-save-modal" class="hakuvahti-modal" aria-hidden="true" style="display: none;">
     <div class="hakuvahti-modal-content">
-        <button type="button" class="hakuvahti-modal-close" aria-label="Sulje">&times;</button>
+        <!-- <button type="button" class="hakuvahti-modal-close" aria-label="Sulje">&times;</button> -->
         <form id="hakuvahti-save-form">
             <p class="hakuvahti-info"><?php esc_html_e( 'Hakuvahti tallentaa aktiiviset hakukriteerit', 'acf-analyzer' ); ?></p>
             <div id="hakuvahti-criteria-preview" aria-live="polite"></div>
