@@ -196,6 +196,10 @@ class ACF_Analyzer_Admin {
 
         check_admin_referer( 'acf_analyzer_run_now' );
 
+        // Save the ignore_seen setting
+        $ignore_seen = isset( $_POST['ignore_seen'] ) && $_POST['ignore_seen'] === '1';
+        update_option( 'acf_analyzer_ignore_seen', $ignore_seen );
+
         // Trigger the same scheduled action immediately
         do_action( 'acf_analyzer_daily_runner' );
 

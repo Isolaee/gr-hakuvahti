@@ -347,7 +347,14 @@ class Hakuvahti {
             }
         }
 
-        // Filter out already-seen posts
+        // Check if we should ignore seen posts (testing mode)
+        $ignore_seen = get_option( 'acf_analyzer_ignore_seen', false );
+
+        if ( is_array( $debug_log ) ) {
+            $debug_log[] = "  -> Ignore seen setting: " . ( $ignore_seen ? 'YES (showing all posts)' : 'NO (only new posts)' );
+        }
+
+        // Filter out already-seen posts (unless ignore_seen is enabled)
         $seen_ids = $hakuvahti->seen_post_ids;
 
         if ( is_array( $debug_log ) ) {
@@ -359,7 +366,8 @@ class Hakuvahti {
 
         if ( ! empty( $results['posts'] ) ) {
             foreach ( $results['posts'] as $post ) {
-                if ( ! in_array( $post['ID'], $seen_ids, true ) ) {
+                // If ignore_seen is enabled, include all posts; otherwise filter out seen ones
+                if ( $ignore_seen || ! in_array( $post['ID'], $seen_ids, true ) ) {
                     $new_posts[] = $post;
                     $new_post_ids[] = $post['ID'];
                 }
@@ -367,11 +375,11 @@ class Hakuvahti {
         }
 
         if ( is_array( $debug_log ) ) {
-            $debug_log[] = "  -> New (unseen) posts: " . count( $new_posts );
+            $debug_log[] = "  -> Posts to return: " . count( $new_posts );
         }
 
-        // Update seen_post_ids with newly found posts
-        if ( ! empty( $new_post_ids ) ) {
+        // Update seen_post_ids with newly found posts (only if not in ignore mode)
+        if ( ! $ignore_seen && ! empty( $new_post_ids ) ) {
             self::mark_posts_seen( $id, $new_post_ids );
         }
 
