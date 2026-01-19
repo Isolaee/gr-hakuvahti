@@ -41,7 +41,7 @@ $hakuvahdits = Hakuvahti::get_by_user( $user_id );
     <?php else : ?>
         <div class="hakuvahti-list" id="hakuvahti-list">
             <?php foreach ( $hakuvahdits as $hv ) : ?>
-                <div class="hakuvahti-card" data-id="<?php echo esc_attr( $hv->id ); ?>">
+                <div class="hakuvahti-card" data-id="<?php echo esc_attr( $hv->id ); ?>" data-criteria="<?php echo esc_attr( wp_json_encode( $hv->criteria ) ); ?>">
                     <div class="hakuvahti-card-header">
                         <h3 class="hakuvahti-name"><?php echo esc_html( $hv->name ); ?></h3>
                         <span class="hakuvahti-category"><?php echo esc_html( $hv->category ); ?></span>
@@ -76,6 +76,7 @@ $hakuvahdits = Hakuvahti::get_by_user( $user_id );
                             <?php esc_html_e( 'Poista', 'acf-analyzer' ); ?>
                         </button>
                     </div>
+                    <div class="hakuvahti-edit-form" style="display:none; margin-top:10px;"></div>
                     <div class="hakuvahti-results" style="display:none;"></div>
                 </div>
             <?php endforeach; ?>

@@ -253,6 +253,14 @@ class ACF_Analyzer_Shortcode {
         // Get and sanitize parameters
         $category = isset( $_POST['category'] ) ? sanitize_text_field( $_POST['category'] ) : '';
         $criteria = isset( $_POST['criteria'] ) ? $_POST['criteria'] : array();
+
+        // If criteria is a JSON-encoded string (sent by JS), decode it
+        if ( ! is_array( $criteria ) && is_string( $criteria ) ) {
+            $decoded = json_decode( stripslashes( $criteria ), true );
+            if ( is_array( $decoded ) ) {
+                $criteria = $decoded;
+            }
+        }
         $match_logic = isset( $_POST['match_logic'] ) ? sanitize_text_field( $_POST['match_logic'] ) : 'AND';
         $debug = isset( $_POST['debug'] ) && ( $_POST['debug'] === '1' || $_POST['debug'] === 'true' || $_POST['debug'] === 1 );
 
