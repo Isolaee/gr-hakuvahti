@@ -123,25 +123,27 @@ class Hakuvahti {
 
                 $subject = sprintf( __( 'Hakuvahti: %d uutta tulosta', 'acf-analyzer' ), count( $items ) );
 
-                $lines = array();
-                $lines[] = sprintf( __( 'Hei %s,', 'acf-analyzer' ), $user->display_name );
-                $lines[] = '';
-                $lines[] = sprintf( __( 'Löytyi %d uutta hakutulosta hakuvahdeillesi:', 'acf-analyzer' ), count( $items ) );
-                $lines[] = '';
-
+                // Group items by hakuvahti
+                $grouped = array();
                 foreach ( $items as $it ) {
-                    $hv = $it['hakuvahti'];
-                    $p = $it['post'];
-                    $lines[] = sprintf( '- %s (ID: %d) — %s — %s', esc_html( $p['title'] ), $p['ID'], esc_html( $hv['name'] ), esc_url( $p['url'] ) );
+                    $hv_id = $it['hakuvahti']['id'];
+                    if ( ! isset( $grouped[ $hv_id ] ) ) {
+                        $grouped[ $hv_id ] = array(
+                            'hakuvahti' => $it['hakuvahti'],
+                            'posts'     => array(),
+                        );
+                    }
+                    $grouped[ $hv_id ]['posts'][] = $it['post'];
                 }
 
-                $lines[] = '';
-                $lines[] = __( 'Kirjaudu sisään nähdäksesi yksityiskohtaiset tulokset.', 'acf-analyzer' );
+                // Build HTML email
+                $message = self::build_email_html( $user, $grouped );
 
-                $message = implode( "\n", $lines );
+                // Set HTML headers
+                $headers = array( 'Content-Type: text/html; charset=UTF-8' );
 
                 // Send email
-                $mail_result = wp_mail( $user->user_email, $subject, $message );
+                $mail_result = wp_mail( $user->user_email, $subject, $message, $headers );
                 $debug_log[] = "Email to {$user->user_email}: " . ( $mail_result ? 'sent' : 'FAILED' );
             }
         }
@@ -577,5 +579,144 @@ class Hakuvahti {
         }
 
         return ! empty( $parts ) ? implode( ' | ', $parts ) : __( 'Ei hakuehtoja', 'acf-analyzer' );
+    }
+
+    /**
+     * Build HTML email content for hakuvahti notifications
+     *
+     * @param WP_User $user    The user receiving the email
+     * @param array   $grouped Posts grouped by hakuvahti
+     * @return string HTML email content
+     */
+    private static function build_email_html( $user, $grouped ) {
+        $site_name = get_bloginfo( 'name' );
+        $total_posts = 0;
+        foreach ( $grouped as $g ) {
+            $total_posts += count( $g['posts'] );
+        }
+
+        ob_start();
+        ?>
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; background-color: #f4f4f4; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f4; padding: 20px 0;">
+        <tr>
+            <td align="center">
+                <table width="600" cellpadding="0" cellspacing="0" style="max-width: 600px; width: 100%;">
+                    <!-- Header -->
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px 40px; border-radius: 8px 8px 0 0;">
+                            <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600;">
+                                <?php echo esc_html( $site_name ); ?>
+                            </h1>
+                            <p style="margin: 10px 0 0; color: rgba(255,255,255,0.9); font-size: 14px;">
+                                <?php esc_html_e( 'Hakuvahti-ilmoitus', 'acf-analyzer' ); ?>
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Main Content -->
+                    <tr>
+                        <td style="background-color: #ffffff; padding: 40px;">
+                            <p style="margin: 0 0 20px; color: #333; font-size: 16px; line-height: 1.5;">
+                                <?php echo sprintf( esc_html__( 'Hei %s,', 'acf-analyzer' ), esc_html( $user->display_name ) ); ?>
+                            </p>
+                            <p style="margin: 0 0 30px; color: #333; font-size: 16px; line-height: 1.5;">
+                                <?php echo sprintf(
+                                    esc_html( _n(
+                                        'Löytyi %d uusi hakutulos hakuvahdeillesi:',
+                                        'Löytyi %d uutta hakutulosta hakuvahdeillesi:',
+                                        $total_posts,
+                                        'acf-analyzer'
+                                    ) ),
+                                    $total_posts
+                                ); ?>
+                            </p>
+
+                            <?php foreach ( $grouped as $group ) :
+                                $hv = $group['hakuvahti'];
+                                $posts = $group['posts'];
+                            ?>
+                            <!-- Hakuvahti Box -->
+                            <div style="margin-bottom: 25px; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+                                <!-- Hakuvahti Header -->
+                                <div style="background-color: #f8f9fa; padding: 15px 20px; border-bottom: 1px solid #e0e0e0;">
+                                    <h2 style="margin: 0; color: #333; font-size: 16px; font-weight: 600;">
+                                        <?php echo esc_html( $hv['name'] ); ?>
+                                    </h2>
+                                    <p style="margin: 5px 0 0; color: #666; font-size: 13px;">
+                                        <?php echo esc_html( $hv['category'] ); ?> &bull;
+                                        <?php echo sprintf(
+                                            esc_html( _n( '%d uusi tulos', '%d uutta tulosta', count( $posts ), 'acf-analyzer' ) ),
+                                            count( $posts )
+                                        ); ?>
+                                    </p>
+                                </div>
+
+                                <!-- Posts List -->
+                                <div style="padding: 0;">
+                                    <?php foreach ( $posts as $index => $post_item ) :
+                                        $post_obj = get_post( $post_item['ID'] );
+                                        $excerpt = '';
+                                        if ( $post_obj ) {
+                                            // Get excerpt or generate from content
+                                            if ( ! empty( $post_obj->post_excerpt ) ) {
+                                                $excerpt = $post_obj->post_excerpt;
+                                            } else {
+                                                $excerpt = wp_trim_words( wp_strip_all_tags( $post_obj->post_content ), 25, '...' );
+                                            }
+                                        }
+                                        $border_style = $index > 0 ? 'border-top: 1px solid #eee;' : '';
+                                    ?>
+                                    <div style="padding: 15px 20px; <?php echo $border_style; ?>">
+                                        <h3 style="margin: 0 0 8px; font-size: 15px; font-weight: 600;">
+                                            <a href="<?php echo esc_url( $post_item['url'] ); ?>" style="color: #667eea; text-decoration: none;">
+                                                <?php echo esc_html( $post_item['title'] ); ?>
+                                            </a>
+                                        </h3>
+                                        <?php if ( $excerpt ) : ?>
+                                        <p style="margin: 0 0 10px; color: #666; font-size: 13px; line-height: 1.5;">
+                                            <?php echo esc_html( $excerpt ); ?>
+                                        </p>
+                                        <?php endif; ?>
+                                        <a href="<?php echo esc_url( $post_item['url'] ); ?>" style="display: inline-block; color: #667eea; font-size: 13px; text-decoration: none; font-weight: 500;">
+                                            <?php esc_html_e( 'Lue lisää →', 'acf-analyzer' ); ?>
+                                        </a>
+                                    </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                            <?php endforeach; ?>
+
+                            <p style="margin: 30px 0 0; color: #666; font-size: 14px; line-height: 1.5;">
+                                <?php esc_html_e( 'Voit hallita hakuvahtejasi kirjautumalla tilillesi.', 'acf-analyzer' ); ?>
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background-color: #f8f9fa; padding: 25px 40px; border-radius: 0 0 8px 8px; border-top: 1px solid #e0e0e0;">
+                            <p style="margin: 0; color: #999; font-size: 12px; text-align: center;">
+                                <?php echo sprintf(
+                                    esc_html__( 'Tämä viesti lähetettiin osoitteesta %s', 'acf-analyzer' ),
+                                    esc_html( $site_name )
+                                ); ?>
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+        <?php
+        return ob_get_clean();
     }
 }
