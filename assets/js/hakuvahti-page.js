@@ -1,6 +1,45 @@
 (function($) {
     'use strict';
 
+    // Cache for available fields per category
+    var fieldsCache = {};
+
+    // Fetch available fields for a category
+    function fetchFieldsForCategory(category, callback) {
+        // Return from cache if available
+        if (fieldsCache[category]) {
+            callback(fieldsCache[category]);
+            return;
+        }
+
+        $.post(hakuvahtiConfig.ajaxUrl, {
+            action: 'acf_popup_get_fields',
+            nonce: hakuvahtiConfig.fieldNonce,
+            category: category
+        }).done(function(resp) {
+            if (resp && resp.success && resp.data && resp.data.fields) {
+                fieldsCache[category] = resp.data.fields;
+                callback(resp.data.fields);
+            } else {
+                callback([]);
+            }
+        }).fail(function() {
+            callback([]);
+        });
+    }
+
+    // Build field name dropdown HTML
+    function buildFieldDropdown(fields, selectedValue) {
+        var html = '<select class="hakuvahti-edit-crit-name" style="width:30%; margin-right:6px;">';
+        html += '<option value="">' + (hakuvahtiConfig.i18n.selectField || 'Valitse kenttä') + '</option>';
+        fields.forEach(function(field) {
+            var selected = (field === selectedValue) ? ' selected' : '';
+            html += '<option value="' + field + '"' + selected + '>' + field + '</option>';
+        });
+        html += '</select>';
+        return html;
+    }
+
     // Run hakuvahti search
     $(document).on('click', '.hakuvahti-run-btn', function(e) {
         e.preventDefault();
@@ -59,6 +98,7 @@
         var $btn = $(this);
         var $card = $btn.closest('.hakuvahti-card');
         var id = $btn.data('id');
+        var category = $card.attr('data-category') || '';
         var criteriaData = [];
 
         try {
@@ -75,41 +115,47 @@
             return;
         }
 
-        // Build form HTML
-        var html = '';
-        html += '<div class="hakuvahti-edit-inner">';
-        html += '<label>' + (hakuvahtiConfig.i18n.nameLabel || 'Nimi') + '</label>';
-        html += '<input type="text" class="hakuvahti-edit-name" value="' + $card.find('.hakuvahti-name').text().trim().replace(/"/g,'&quot;') + '" style="width:100%; margin-bottom:8px;" />';
+        // Show loading state
+        $form.html('<div class="hakuvahti-edit-inner"><p>' + (hakuvahtiConfig.i18n.loadingFields || 'Ladataan kenttiä...') + '</p></div>').slideDown();
 
-        html += '<div class="hakuvahti-edit-criteria-list">';
+        // Fetch available fields for this category, then build the form
+        fetchFieldsForCategory(category, function(fields) {
+            // Build form HTML
+            var html = '';
+            html += '<div class="hakuvahti-edit-inner">';
+            html += '<label>' + (hakuvahtiConfig.i18n.nameLabel || 'Nimi') + '</label>';
+            html += '<input type="text" class="hakuvahti-edit-name" value="' + $card.find('.hakuvahti-name').text().trim().replace(/"/g,'&quot;') + '" style="width:100%; margin-bottom:8px;" />';
 
-        if ( criteriaData && criteriaData.length ) {
-            criteriaData.forEach(function(c, idx) {
-                var vals = Array.isArray(c.values) ? c.values.join(', ') : (c.values || '');
-                html += '<div class="hakuvahti-edit-criterion" data-index="' + idx + '" style="margin-bottom:6px;">';
-                html += '<input type="text" class="hakuvahti-edit-crit-name" placeholder="Kenttä" value="' + (c.name || '') + '" style="width:30%; margin-right:6px;" />';
-                html += '<select class="hakuvahti-edit-crit-label" style="width:20%; margin-right:6px;"><option value="multiple_choice">Multiple</option><option value="range">Range</option></select>';
-                html += '<input type="text" class="hakuvahti-edit-crit-values" placeholder="Arvot (pilkulla eroteltu)" value="' + (vals) + '" style="width:40%; margin-right:6px;" />';
-                html += '<button class="hakuvahti-edit-crit-remove button" type="button">' + (hakuvahtiConfig.i18n.remove || 'Poista') + '</button>';
-                html += '</div>';
+            html += '<div class="hakuvahti-edit-criteria-list" data-fields="' + encodeURIComponent(JSON.stringify(fields)) + '">';
+
+            if ( criteriaData && criteriaData.length ) {
+                criteriaData.forEach(function(c, idx) {
+                    var vals = Array.isArray(c.values) ? c.values.join(', ') : (c.values || '');
+                    html += '<div class="hakuvahti-edit-criterion" data-index="' + idx + '" style="margin-bottom:6px;">';
+                    html += buildFieldDropdown(fields, c.name || '');
+                    html += '<select class="hakuvahti-edit-crit-label" style="width:20%; margin-right:6px;"><option value="multiple_choice">Multiple</option><option value="range">Range</option></select>';
+                    html += '<input type="text" class="hakuvahti-edit-crit-values" placeholder="Arvot (pilkulla eroteltu)" value="' + (vals) + '" style="width:40%; margin-right:6px;" />';
+                    html += '<button class="hakuvahti-edit-crit-remove button" type="button">' + (hakuvahtiConfig.i18n.remove || 'Poista') + '</button>';
+                    html += '</div>';
+                });
+            }
+
+            html += '</div>'; // list
+            html += '<div style="margin-top:8px;">';
+            html += '<button class="hakuvahti-add-criterion button" type="button">' + (hakuvahtiConfig.i18n.addCriterion || 'Lisää ehto') + '</button> ';
+            html += '<button class="hakuvahti-save-edit button button-primary" type="button">' + (hakuvahtiConfig.i18n.save || 'Tallenna') + '</button> ';
+            html += '<button class="hakuvahti-cancel-edit button" type="button">' + (hakuvahtiConfig.i18n.cancel || 'Peruuta') + '</button>';
+            html += '</div>';
+            html += '</div>';
+
+            $form.html(html);
+
+            // set label selects according to data
+            $form.find('.hakuvahti-edit-criterion').each(function() {
+                var idx = $(this).data('index');
+                var c = criteriaData[idx] || {};
+                $(this).find('.hakuvahti-edit-crit-label').val(c.label || 'multiple_choice');
             });
-        }
-
-        html += '</div>'; // list
-        html += '<div style="margin-top:8px;">';
-        html += '<button class="hakuvahti-add-criterion button" type="button">' + (hakuvahtiConfig.i18n.addCriterion || 'Lisää ehto') + '</button> ';
-        html += '<button class="hakuvahti-save-edit button button-primary" type="button">' + (hakuvahtiConfig.i18n.save || 'Tallenna') + '</button> ';
-        html += '<button class="hakuvahti-cancel-edit button" type="button">' + (hakuvahtiConfig.i18n.cancel || 'Peruuta') + '</button>';
-        html += '</div>';
-        html += '</div>';
-
-        $form.html(html).slideDown();
-
-        // set label selects according to data
-        $form.find('.hakuvahti-edit-criterion').each(function() {
-            var idx = $(this).data('index');
-            var c = criteriaData[idx] || {};
-            $(this).find('.hakuvahti-edit-crit-label').val(c.label || 'multiple_choice');
         });
     });
 
@@ -118,8 +164,20 @@
         e.preventDefault();
         var $list = $(this).closest('.hakuvahti-edit-inner').find('.hakuvahti-edit-criteria-list');
         var idx = $list.find('.hakuvahti-edit-criterion').length;
+
+        // Get available fields from data attribute
+        var fields = [];
+        try {
+            var fieldsJson = $list.attr('data-fields');
+            if (fieldsJson) {
+                fields = JSON.parse(decodeURIComponent(fieldsJson));
+            }
+        } catch (err) {
+            fields = [];
+        }
+
         var html = '<div class="hakuvahti-edit-criterion" data-index="' + idx + '" style="margin-bottom:6px;">';
-        html += '<input type="text" class="hakuvahti-edit-crit-name" placeholder="Kenttä" value="" style="width:30%; margin-right:6px;" />';
+        html += buildFieldDropdown(fields, '');
         html += '<select class="hakuvahti-edit-crit-label" style="width:20%; margin-right:6px;"><option value="multiple_choice">Multiple</option><option value="range">Range</option></select>';
         html += '<input type="text" class="hakuvahti-edit-crit-values" placeholder="Arvot (pilkulla eroteltu)" value="" style="width:40%; margin-right:6px;" />';
         html += '<button class="hakuvahti-edit-crit-remove button" type="button">' + (hakuvahtiConfig.i18n.remove || 'Poista') + '</button>';

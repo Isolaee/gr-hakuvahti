@@ -41,7 +41,7 @@ $hakuvahdits = Hakuvahti::get_by_user( $user_id );
     <?php else : ?>
         <div class="hakuvahti-list" id="hakuvahti-list">
             <?php foreach ( $hakuvahdits as $hv ) : ?>
-                <div class="hakuvahti-card" data-id="<?php echo esc_attr( $hv->id ); ?>" data-criteria="<?php echo esc_attr( wp_json_encode( $hv->criteria ) ); ?>">
+                <div class="hakuvahti-card" data-id="<?php echo esc_attr( $hv->id ); ?>" data-category="<?php echo esc_attr( $hv->category ); ?>" data-criteria="<?php echo esc_attr( wp_json_encode( $hv->criteria ) ); ?>">
                     <div class="hakuvahti-card-header">
                         <h3 class="hakuvahti-name"><?php echo esc_html( $hv->name ); ?></h3>
                         <span class="hakuvahti-category"><?php echo esc_html( $hv->category ); ?></span>

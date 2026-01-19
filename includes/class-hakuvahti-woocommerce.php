@@ -128,9 +128,10 @@ class Hakuvahti_WooCommerce {
 
         // Localize script with AJAX data
         wp_localize_script( 'hakuvahti-page', 'hakuvahtiConfig', array(
-            'ajaxUrl' => admin_url( 'admin-ajax.php' ),
-            'nonce'   => wp_create_nonce( 'hakuvahti_nonce' ),
-                'i18n'    => array(
+            'ajaxUrl'    => admin_url( 'admin-ajax.php' ),
+            'nonce'      => wp_create_nonce( 'hakuvahti_nonce' ),
+            'fieldNonce' => wp_create_nonce( 'acf_popup_search' ),
+            'i18n'       => array(
                 'confirmDelete'  => __( 'Haluatko varmasti poistaa tämän hakuvahdin?', 'acf-analyzer' ),
                 'running'        => __( 'Haetaan...', 'acf-analyzer' ),
                 'noNewResults'   => __( 'Ei uusia tuloksia', 'acf-analyzer' ),
@@ -141,6 +142,8 @@ class Hakuvahti_WooCommerce {
                 'enterNewName'   => __( 'Anna uusi nimi hakuvahdille', 'acf-analyzer' ),
                 'saveSuccess'    => __( 'Hakuvahti päivitetty.', 'acf-analyzer' ),
                 'saveFailed'     => __( 'Päivitys epäonnistui.', 'acf-analyzer' ),
+                'selectField'    => __( 'Valitse kenttä', 'acf-analyzer' ),
+                'loadingFields'  => __( 'Ladataan kenttiä...', 'acf-analyzer' ),
             ),
         ) );
     }
