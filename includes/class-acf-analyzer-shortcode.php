@@ -98,6 +98,16 @@ class ACF_Analyzer_Shortcode {
                 'use_api_default' => true,
             ) );
         }
+
+                // Ensure modal stylesheet is also enqueued when rendering shortcode directly
+                if ( ! wp_style_is( 'hakuvahti-modal', 'enqueued' ) ) {
+                    wp_enqueue_style(
+                        'hakuvahti-modal',
+                        ACF_ANALYZER_PLUGIN_URL . 'assets/css/hakuvahti.css',
+                        array(),
+                        ACF_ANALYZER_VERSION
+                    );
+                }
     }
 
     /**
