@@ -169,17 +169,28 @@
 }
 
 .acf-hakuvahti-save {
-    background: #28a745;
+    background: #0000a0;
     color: #fff;
     border: none;
-    padding: 10px 16px;
-    border-radius: 4px;
+    padding: 14px 28px;
+    border-radius: 8px;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    box-shadow: 0 4px 12px rgba(0, 0, 160, 0.3);
+    transition: all 0.2s ease;
 }
 
 .acf-hakuvahti-save:hover {
-    background: #218838;
+    background: #00005e;
+    box-shadow: 0 6px 16px rgba(0, 0, 160, 0.4);
+    transform: translateY(-2px);
+}
+
+.acf-hakuvahti-save:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(0, 0, 160, 0.3);
 }
 
 /* ==========================================================================
