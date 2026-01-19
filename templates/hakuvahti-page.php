@@ -20,7 +20,7 @@ $hakuvahdits = Hakuvahti::get_by_user( $user_id );
 <div class="hakuvahti-page">
     <h2><?php esc_html_e( 'Hakuvahdit', 'acf-analyzer' ); ?></h2>
     <p class="hakuvahti-description">
-        <?php esc_html_e( 'Täällä näet tallennetut hakuvahtisi. Voit suorittaa haun nähdäksesi uudet tulokset tai poistaa hakuvahdin.', 'acf-analyzer' ); ?>
+        <?php esc_html_e( 'Täällä näet tallennetut hakuvahtisi. Voit muokata tai poistaa hakuvahdin.', 'acf-analyzer' ); ?>
     </p>
 
     <?php if ( empty( $hakuvahdits ) ) : ?>
