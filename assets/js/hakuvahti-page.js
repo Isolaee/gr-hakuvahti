@@ -52,6 +52,47 @@
         }
     });
 
+    // Edit hakuvahti name
+    $(document).on('click', '.hakuvahti-edit-btn', function(e) {
+        e.preventDefault();
+
+        var $btn = $(this);
+        var $card = $btn.closest('.hakuvahti-card');
+        var id = $btn.data('id');
+        var currentName = $card.find('.hakuvahti-name').text().trim();
+
+        var newName = prompt(hakuvahtiConfig.i18n.enterNewName || 'Anna uusi nimi hakuvahdille', currentName);
+        if ( newName === null ) {
+            return;
+        }
+
+        newName = newName.trim();
+        if ( newName.length === 0 ) {
+            alert(hakuvahtiConfig.i18n.saveFailed || 'Päivitys epäonnistui. Nimi ei voi olla tyhjä.');
+            return;
+        }
+
+        $btn.prop('disabled', true);
+
+        $.post(hakuvahtiConfig.ajaxUrl, {
+            action: 'hakuvahti_save',
+            nonce: hakuvahtiConfig.nonce,
+            id: id,
+            name: newName
+        }).done(function(resp) {
+            if ( resp && resp.success ) {
+                $card.find('.hakuvahti-name').text(newName);
+            } else {
+                var msg = resp && resp.data && resp.data.message ? resp.data.message : (hakuvahtiConfig.i18n.saveFailed || 'Päivitys epäonnistui.');
+                alert(msg);
+            }
+        }).fail(function() {
+            alert(hakuvahtiConfig.i18n.networkError);
+        }).always(function() {
+            $btn.prop('disabled', false);
+        });
+    });
+
     // Delete hakuvahti
     $(document).on('click', '.hakuvahti-delete-btn', function(e) {
         e.preventDefault();

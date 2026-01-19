@@ -428,6 +428,7 @@ class ACF_Analyzer_Shortcode {
         }
 
         $user_id = get_current_user_id();
+        $id = isset( $_POST['id'] ) ? absint( $_POST['id'] ) : 0;
         $name = isset( $_POST['name'] ) ? sanitize_text_field( $_POST['name'] ) : '';
         $category = isset( $_POST['category'] ) ? sanitize_text_field( $_POST['category'] ) : '';
         $criteria = isset( $_POST['criteria'] ) ? $_POST['criteria'] : array();
@@ -455,13 +456,41 @@ class ACF_Analyzer_Shortcode {
             }
         }
 
-        // Create hakuvahti
-        $id = Hakuvahti::create( $user_id, $name, $category, $sanitized_criteria );
-
+        // If an ID was provided, treat this as an update (rename or update criteria)
         if ( $id ) {
+            // Verify ownership
+            $existing = Hakuvahti::get_by_id( $id );
+            if ( ! $existing || (int) $existing->user_id !== (int) $user_id ) {
+                wp_send_json_error( array( 'message' => __( 'Hakuvahtiä ei löytynyt tai oikeudet puuttuvat.', 'acf-analyzer' ) ) );
+            }
+
+            global $wpdb;
+            $table = $wpdb->prefix . 'hakuvahdit';
+
+            $update_data = array( 'name' => sanitize_text_field( $name ), 'updated_at' => current_time( 'mysql' ) );
+            $update_format = array( '%s', '%s' );
+
+            if ( ! empty( $sanitized_criteria ) ) {
+                $update_data['criteria'] = wp_json_encode( $sanitized_criteria );
+                array_unshift( $update_format, '%s' );
+            }
+
+            $updated = $wpdb->update( $table, $update_data, array( 'id' => $id ), $update_format, array( '%d' ) );
+
+            if ( $updated !== false ) {
+                wp_send_json_success( array( 'message' => __( 'Hakuvahti päivitetty.', 'acf-analyzer' ), 'id' => $id ) );
+            }
+
+            wp_send_json_error( array( 'message' => __( 'Hakuvahdin päivitys epäonnistui.', 'acf-analyzer' ) ) );
+        }
+
+        // Create new hakuvahti
+        $new_id = Hakuvahti::create( $user_id, $name, $category, $sanitized_criteria );
+
+        if ( $new_id ) {
             wp_send_json_success( array(
                 'message' => __( 'Hakuvahti tallennettu!', 'acf-analyzer' ),
-                'id'      => $id,
+                'id'      => $new_id,
             ) );
         } else {
             wp_send_json_error( array( 'message' => __( 'Hakuvahdin tallennus epäonnistui.', 'acf-analyzer' ) ) );

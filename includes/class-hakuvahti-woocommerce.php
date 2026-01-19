@@ -130,7 +130,7 @@ class Hakuvahti_WooCommerce {
         wp_localize_script( 'hakuvahti-page', 'hakuvahtiConfig', array(
             'ajaxUrl' => admin_url( 'admin-ajax.php' ),
             'nonce'   => wp_create_nonce( 'hakuvahti_nonce' ),
-            'i18n'    => array(
+                'i18n'    => array(
                 'confirmDelete'  => __( 'Haluatko varmasti poistaa tämän hakuvahdin?', 'acf-analyzer' ),
                 'running'        => __( 'Haetaan...', 'acf-analyzer' ),
                 'noNewResults'   => __( 'Ei uusia tuloksia', 'acf-analyzer' ),
@@ -138,6 +138,9 @@ class Hakuvahti_WooCommerce {
                 'deleteSuccess'  => __( 'Hakuvahti poistettu.', 'acf-analyzer' ),
                 'deleteFailed'   => __( 'Poisto epäonnistui.', 'acf-analyzer' ),
                 'networkError'   => __( 'Verkkovirhe. Yritä uudelleen.', 'acf-analyzer' ),
+                'enterNewName'   => __( 'Anna uusi nimi hakuvahdille', 'acf-analyzer' ),
+                'saveSuccess'    => __( 'Hakuvahti päivitetty.', 'acf-analyzer' ),
+                'saveFailed'     => __( 'Päivitys epäonnistui.', 'acf-analyzer' ),
             ),
         ) );
     }
