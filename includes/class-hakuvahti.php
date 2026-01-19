@@ -661,29 +661,20 @@ class Hakuvahti {
                                 <!-- Posts List -->
                                 <div style="padding: 0;">
                                     <?php foreach ( $posts as $index => $post_item ) :
-                                        $post_obj = get_post( $post_item['ID'] );
-                                        $excerpt = '';
-                                        if ( $post_obj ) {
-                                            // Get excerpt or generate from content
-                                            if ( ! empty( $post_obj->post_excerpt ) ) {
-                                                $excerpt = $post_obj->post_excerpt;
-                                            } else {
-                                                $excerpt = wp_trim_words( wp_strip_all_tags( $post_obj->post_content ), 25, '...' );
-                                            }
-                                        }
+                                        $thumbnail_url = get_the_post_thumbnail_url( $post_item['ID'], 'medium' );
                                         $border_style = $index > 0 ? 'border-top: 1px solid #eee;' : '';
                                     ?>
                                     <div style="padding: 15px 20px; <?php echo $border_style; ?>">
-                                        <h3 style="margin: 0 0 8px; font-size: 15px; font-weight: 600;">
+                                        <?php if ( $thumbnail_url ) : ?>
+                                        <a href="<?php echo esc_url( $post_item['url'] ); ?>" style="display: block; margin-bottom: 12px;">
+                                            <img src="<?php echo esc_url( $thumbnail_url ); ?>" alt="<?php echo esc_attr( $post_item['title'] ); ?>" style="width: 100%; height: auto; border-radius: 4px; display: block;">
+                                        </a>
+                                        <?php endif; ?>
+                                        <h3 style="margin: 0 0 10px; font-size: 15px; font-weight: 600;">
                                             <a href="<?php echo esc_url( $post_item['url'] ); ?>" style="color: #667eea; text-decoration: none;">
                                                 <?php echo esc_html( $post_item['title'] ); ?>
                                             </a>
                                         </h3>
-                                        <?php if ( $excerpt ) : ?>
-                                        <p style="margin: 0 0 10px; color: #666; font-size: 13px; line-height: 1.5;">
-                                            <?php echo esc_html( $excerpt ); ?>
-                                        </p>
-                                        <?php endif; ?>
                                         <a href="<?php echo esc_url( $post_item['url'] ); ?>" style="display: inline-block; color: #667eea; font-size: 13px; text-decoration: none; font-weight: 500;">
                                             <?php esc_html_e( 'Lue lisää →', 'acf-analyzer' ); ?>
                                         </a>
