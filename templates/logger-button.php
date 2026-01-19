@@ -15,11 +15,9 @@ $use_api_attr = in_array( strtolower( $use_api ), array( '1', 'true', 'yes' ), t
 <div id="hakuvahti-save-modal" class="hakuvahti-modal" style="display:none;">
     <div class="hakuvahti-modal-content">
         <span class="hakuvahti-modal-close">&times;</span>
-        <h3><?php esc_html_e( 'Tallenna hakuvahti', 'acf-analyzer' ); ?></h3>
         <form id="hakuvahti-save-form">
-            <label for="hakuvahti-name"><?php esc_html_e( 'Hakuvahdin nimi:', 'acf-analyzer' ); ?></label>
-            <input type="text" id="hakuvahti-name" name="name" required placeholder="<?php esc_attr_e( 'Anna hakuvahdille nimi', 'acf-analyzer' ); ?>">
-            <div id="hakuvahti-criteria-preview"></div>
+            <p><?php esc_html_e( 'Anna nimi Hakuvahdille.', 'acf-analyzer' ); ?></p>
+            <input type="text" id="hakuvahti-name" name="name" required>
             <button type="submit" class="hakuvahti-submit"><?php esc_html_e( 'Tallenna', 'acf-analyzer' ); ?></button>
         </form>
         <div id="hakuvahti-save-message"></div>
