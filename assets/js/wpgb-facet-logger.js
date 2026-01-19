@@ -472,8 +472,19 @@
         $('#hakuvahti-save-message').html('');
         $('#hakuvahti-name').val('');
 
+        // Move modal to body to avoid parent container issues
+        var $modal = $('#hakuvahti-save-modal');
+        if (!$modal.parent().is('body')) {
+            $modal.appendTo('body');
+        }
+
         // Show modal (use css to set flex display for proper centering)
-        $('#hakuvahti-save-modal').css('display', 'flex');
+        $modal.css('display', 'flex');
+
+        // Focus on input field
+        setTimeout(function() {
+            $('#hakuvahti-name').focus();
+        }, 100);
     });
 
     // Close modal
