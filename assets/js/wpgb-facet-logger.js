@@ -372,6 +372,9 @@
 
         // Get current criteria
         var result = getCurrentCriteria(target, useApi);
+        // Debug: always use console.log so logs show even if info-level is hidden
+        try { console.log('hakuvahti: open modal target=' + target + ' useApi=' + useApi); } catch(e){}
+        try { console.log('hakuvahti: getCurrentCriteria ->', result); } catch(e){}
         lastCollectedCriteria = result.criteria;
         lastCollectedCategory = result.category;
 
