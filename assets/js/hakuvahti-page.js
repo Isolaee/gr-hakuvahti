@@ -55,7 +55,6 @@
     // Edit hakuvahti (name + criteria) - inline form
     $(document).on('click', '.hakuvahti-edit-btn', function(e) {
         e.preventDefault();
-        console.log('hakuvahti-edit-btn clicked', this);
 
         var $btn = $(this);
         var $card = $btn.closest('.hakuvahti-card');

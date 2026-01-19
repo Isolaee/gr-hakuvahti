@@ -465,26 +465,44 @@
         lastCollectedCriteria = result.criteria;
         lastCollectedCategory = result.category;
 
-        // Show criteria preview
+        // Show criteria preview (kept for modal fallback)
         $('#hakuvahti-criteria-preview').html(formatCriteriaPreview(lastCollectedCriteria));
 
-        // Clear previous messages and input
-        $('#hakuvahti-save-message').html('');
-        $('#hakuvahti-name').val('');
-
-        // Move modal to body to avoid parent container issues
-        var $modal = $('#hakuvahti-save-modal');
-        if (!$modal.parent().is('body')) {
-            $modal.appendTo('body');
+        // Prompt user for name (simple popup for shortcode use)
+        var promptText = 'Anna nimi Hakuvahdille.';
+        var name = window.prompt(promptText, '');
+        if (name === null) {
+            // user cancelled prompt
+            return;
+        }
+        name = (name || '').trim();
+        if (!name) {
+            alert('Anna hakuvahdille nimi.');
+            return;
         }
 
-        // Show modal (use css to set flex display for proper centering)
-        $modal.css('display', 'flex');
+        // Submit save via AJAX
+        var saveData = {
+            action: 'hakuvahti_save',
+            nonce: window.acfWpgbLogger.hakuvahtiNonce,
+            name: name,
+            category: lastCollectedCategory,
+            criteria: lastCollectedCriteria
+        };
 
-        // Focus on input field
-        setTimeout(function() {
-            $('#hakuvahti-name').focus();
-        }, 100);
+        $btn.prop('disabled', true).text('Tallennetaan...');
+
+        $.post(window.acfWpgbLogger.ajaxUrl, saveData).done(function(resp) {
+            if (resp && resp.success) {
+                alert(resp.data && resp.data.message ? resp.data.message : 'Hakuvahti tallennettu!');
+            } else {
+                alert(resp.data && resp.data.message ? resp.data.message : 'Tallennus epäonnistui.');
+            }
+        }).fail(function() {
+            alert('Verkkovirhe. Yritä uudelleen.');
+        }).always(function() {
+            $btn.prop('disabled', false).text('Tallenna');
+        });
     });
 
     // Close modal
