@@ -189,8 +189,12 @@
         var $btn = $(this);
         var target = $btn.attr('data-target') || '';
 
-        var collected = collectAll(target) || [];
+        var collected = collectAll(target, useApi) || [];
         var map = window.acfWpgbFacetMap || {};
+
+        // Debug: log what we collected and the current mapping
+        try { console.info('acfWpgbLogger: collected facets ->', collected); } catch(e) {}
+        try { console.info('acfWpgbLogger: acfWpgbFacetMap ->', map); } catch(e) {}
 
         if (!Array.isArray(collected) || !collected.length) {
             console.log('acfWpgbLogger: no WP Grid Builder data available.');
