@@ -200,6 +200,15 @@
     box-shadow: 0 2px 8px rgba(3, 46, 91, 0.3);
 }
 
+/* Stronger selector to override theme/button styles if necessary */
+.acf-analyzer-buttons .acf-hakuvahti-save,
+button.acf-hakuvahti-save,
+.acf-hakuvahti-save.button,
+.acf-hakuvahti-save.button-primary {
+    background: #032e5b !important;
+    color: #fff !important;
+}
+
 /* ==========================================================================
    My Account Page (hakuvahdit management)
    ========================================================================== */
