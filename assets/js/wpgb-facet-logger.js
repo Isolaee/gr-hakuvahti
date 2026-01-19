@@ -459,21 +459,18 @@
         }
         $modalInit.removeClass('is-open').attr('aria-hidden', 'true').attr('hidden', '');
 
-        // Add a direct close handler as a fallback in case delegated handlers fail
-        var modalEl = document.getElementById('hakuvahti-save-modal');
-        if ( modalEl ) {
-            var closeBtn = modalEl.querySelector('.hakuvahti-modal-close');
-            if ( closeBtn && !closeBtn._hakuvahtiCloseBound ) {
-                closeBtn.addEventListener('click', function(e){
-                    e.preventDefault();
+        // Expose a global close function as a reliable fallback
+        window.closeHakuvahtiModal = function() {
+            var modalEl = document.getElementById('hakuvahti-save-modal');
+            if ( modalEl ) {
+                try {
                     modalEl.setAttribute('hidden', '');
                     modalEl.classList.remove('is-open');
                     modalEl.setAttribute('aria-hidden', 'true');
                     modalEl.style.display = 'none';
-                });
-                closeBtn._hakuvahtiCloseBound = true;
+                } catch (err) {}
             }
-        }
+        };
     });
 
     // Open modal handler
