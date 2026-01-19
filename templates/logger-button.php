@@ -26,3 +26,14 @@ $use_api_attr = in_array( strtolower( $use_api ), array( '1', 'true', 'yes' ), t
     </div>
 </div>
 <?php endif; ?>
+
+<script>(function(){
+    if (typeof window === 'undefined') return;
+    function detect() {
+        var hasLogger = !!window.acfWpgbLogger || Array.prototype.slice.call(document.scripts).some(function(s){ return s.src && s.src.indexOf('wpgb-facet-logger.js') !== -1; });
+        var hasCss = Array.prototype.slice.call(document.styleSheets).some(function(ss){ try{ return ss.href && ss.href.indexOf('hakuvahti.css') !== -1; }catch(e){return false;} });
+        var modalPresent = !!document.getElementById('hakuvahti-save-modal');
+        console.info('Hakuvahti debug: loggerLoaded=' + hasLogger + ', cssLoaded=' + hasCss + ', modalPresent=' + modalPresent);
+    }
+    if (document.readyState === 'complete' || document.readyState === 'interactive') setTimeout(detect,10); else document.addEventListener('DOMContentLoaded', detect);
+})();</script>
