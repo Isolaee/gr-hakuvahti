@@ -12,11 +12,11 @@ $use_api_attr = in_array( strtolower( $use_api ), array( '1', 'true', 'yes' ), t
 </div>
 
 <!-- Hakuvahti Save Modal -->
-<div id="hakuvahti-save-modal" class="hakuvahti-modal" aria-hidden="true" hidden>
+<div id="hakuvahti-save-modal" class="hakuvahti-modal" aria-hidden="true" hidden style="display:none!important;">
     <div class="hakuvahti-modal-content">
         <span class="hakuvahti-modal-close">&times;</span>
         <form id="hakuvahti-save-form">
-            <p class="hakuvahti-info"><?php esc_html_e( 'Hakuvahti tallentaa aktiivisen haun', 'acf-analyzer' ); ?></p>
+            <p class="hakuvahti-info"><?php esc_html_e( 'Hakuvahti tallentaa aktiiviset hakukriteerit', 'acf-analyzer' ); ?></p>
             <div id="hakuvahti-criteria-preview" aria-live="polite"></div>
             <p><?php esc_html_e( 'Anna nimi Hakuvahdille.', 'acf-analyzer' ); ?></p>
             <input type="text" id="hakuvahti-name" name="name" required>
@@ -26,3 +26,4 @@ $use_api_attr = in_array( strtolower( $use_api ), array( '1', 'true', 'yes' ), t
     </div>
 </div>
 <?php endif; ?>
+<script>(function(){var m=document.getElementById('hakuvahti-save-modal'); if(m){ try{ m.style.setProperty('display','none','important'); m.setAttribute('hidden',''); }catch(e){} }} )();</script>

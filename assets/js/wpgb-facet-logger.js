@@ -489,6 +489,8 @@
 
         // Show modal using class toggle so it's only visible when opened
         $modal.removeAttr('hidden');
+        // Remove any inline style that might force visibility/position
+        $modal.removeAttr('style');
         $modal.addClass('is-open').attr('aria-hidden', 'false');
 
         // Focus on input field
@@ -499,7 +501,7 @@
 
     // Close modal
     $(document).on('click', '.hakuvahti-modal-close', function() {
-        $('#hakuvahti-save-modal').addBack().attr('hidden', '').removeClass('is-open').attr('aria-hidden', 'true');
+        $('#hakuvahti-save-modal').addBack().attr('hidden', '').removeAttr('style').removeClass('is-open').attr('aria-hidden', 'true').css('display', 'none');
     });
 
     // Close modal on outside click
