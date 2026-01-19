@@ -19,6 +19,7 @@ A WordPress plugin for searching posts by Advanced Custom Fields (ACF) criteria 
 - [Security](#security)
 - [Troubleshooting](#troubleshooting)
 - [Development](#development)
+- [Testing](#testing)
 
 ## Features
 
@@ -429,7 +430,87 @@ Default categories (configurable in class constructors):
 
 ### Testing
 
-Manual testing workflow:
+The plugin includes comprehensive automated test suites for both PHP and JavaScript.
+
+#### Testing Tools
+
+| Language   |                     Framework                                            | Purpose                    |
+|------------|--------------------------------------------------------------------------|----------------------------|
+|   PHP      | [Pest](https://pestphp.com/)                                             | Unit & integration tests   |
+|   PHP      | [Mockery](https://github.com/mockery/mockery)                            | Mocking framework          |
+|   PHP      | [Brain\Monkey](https://github.com/Brain-WP/BrainMonkey)                  | WordPress function mocking |
+| JavaScript | [Jest](https://jestjs.io/) | Unit & integration tests                    |                            |
+| JavaScript | [@testing-library/jest-dom](https://github.com/testing-library/jest-dom) | DOM testing utilities      |
+
+#### Installing Test Dependencies
+
+```bash
+# PHP dependencies
+composer install
+
+# JavaScript dependencies
+npm install
+```
+
+#### Running Tests
+
+**PHP Tests (Pest)**
+
+```bash
+# Run all PHP tests
+composer test
+
+# Run only unit tests
+composer test:unit
+
+# Run only integration tests
+composer test:integration
+
+# Run with coverage report
+composer test:coverage
+```
+
+**JavaScript Tests (Jest)**
+
+```bash
+# Run all JavaScript tests
+npm test
+
+# Run only unit tests
+npm run test:unit
+
+# Run only integration tests
+npm run test:integration
+
+# Run in watch mode (re-runs on file changes)
+npm run test:watch
+
+# Run with coverage report
+npm run test:coverage
+```
+
+#### Test Structure
+
+```
+tests/
+├── php/
+│   ├── bootstrap.php           # Test environment setup
+│   ├── Pest.php                # Pest configuration
+│   ├── Unit/
+│   │   ├── ACFAnalyzerTest.php # ACF_Analyzer unit tests
+│   │   └── HakuvahtiTest.php   # Hakuvahti unit tests
+│   └── Integration/
+│       └── SearchIntegrationTest.php
+└── js/
+    ├── setup.js                # Jest setup & mocks
+    ├── unit/
+    │   ├── facetLogger.test.js # Facet collection tests
+    │   └── hakuvahtiPage.test.js
+    └── integration/
+        └── ajaxOperations.test.js
+```
+
+#### Manual Testing Workflow
 
 1. Create test posts with ACF data
 2. Set up WPGB facets pointing to ACF fields
