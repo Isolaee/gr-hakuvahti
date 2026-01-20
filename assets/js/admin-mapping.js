@@ -70,6 +70,223 @@
     $(document).ready(function(){
         if (typeof acfAnalyzerAdmin === 'undefined') return;
         renderEditor(acfAnalyzerAdmin.mapping || {});
+        initUnrestrictedFieldsEditor();
     });
+
+    // ============================================
+    // UNRESTRICTED SEARCH FIELD DEFINITIONS EDITOR
+    // ============================================
+
+    var currentCategory = 'Osakeannit';
+    var fieldDefinitions = {};
+
+    function initUnrestrictedFieldsEditor() {
+        var $editor = $('#unrestricted-fields-editor');
+        if (!$editor.length) return;
+
+        // Load initial data
+        fieldDefinitions = acfAnalyzerAdmin.unrestrictedFields || {};
+
+        // Ensure all categories exist
+        ['Osakeannit', 'Osaketori', 'Velkakirjat'].forEach(function(cat) {
+            if (!fieldDefinitions[cat]) {
+                fieldDefinitions[cat] = [];
+            }
+        });
+
+        // Tab click handlers
+        $('.unrestricted-field-tabs .tab-btn').on('click', function() {
+            var $btn = $(this);
+            var category = $btn.data('category');
+
+            $('.unrestricted-field-tabs .tab-btn').removeClass('active');
+            $btn.addClass('active');
+
+            currentCategory = category;
+            renderFieldsEditor();
+        });
+
+        // Toggle checkbox handler
+        $('#unrestricted-search-toggle').on('change', function() {
+            var enabled = $(this).is(':checked');
+            saveUnrestrictedToggle(enabled);
+        });
+
+        // Initial render
+        renderFieldsEditor();
+    }
+
+    function renderFieldsEditor() {
+        var $editor = $('#unrestricted-fields-editor');
+        $editor.empty();
+
+        var fields = fieldDefinitions[currentCategory] || [];
+
+        var $container = $('<div class="unrestricted-fields-container"></div>');
+
+        // Render each field definition
+        fields.forEach(function(field, index) {
+            $container.append(renderFieldRow(field, index));
+        });
+
+        // Add field button
+        var $addBtn = $('<button type="button" class="button unrestricted-add-field">+ Add Field</button>');
+        $addBtn.on('click', function() {
+            fieldDefinitions[currentCategory].push({
+                name: '',
+                acf_key: '',
+                type: 'range',
+                options: {}
+            });
+            renderFieldsEditor();
+        });
+
+        // Save button
+        var $saveBtn = $('<button type="button" class="button button-primary unrestricted-save-fields">Save Field Definitions</button>');
+        $saveBtn.on('click', function() {
+            collectFieldsData();
+            saveUnrestrictedFields();
+        });
+
+        var $actions = $('<div class="unrestricted-fields-actions"></div>');
+        $actions.append($addBtn).append(' ').append($saveBtn);
+
+        $editor.append($container).append($actions);
+    }
+
+    function renderFieldRow(field, index) {
+        var $row = $('<div class="unrestricted-field-row" data-index="' + index + '"></div>');
+
+        // Display Name
+        var $nameGroup = $('<div class="field-group"><label>Display Name:</label></div>');
+        var $nameInput = $('<input type="text" class="field-name regular-text" />').val(field.name || '');
+        $nameGroup.append($nameInput);
+
+        // ACF Field Key
+        var $acfGroup = $('<div class="field-group"><label>ACF Field:</label></div>');
+        var $acfInput = $('<input type="text" class="field-acf-key regular-text" />').val(field.acf_key || '');
+        $acfGroup.append($acfInput);
+
+        // Type radio buttons
+        var $typeGroup = $('<div class="field-group"><label>Type:</label></div>');
+        var $typeRadios = $('<span class="type-radios"></span>');
+        var radioName = 'field_type_' + currentCategory + '_' + index;
+
+        var $rangeRadio = $('<label><input type="radio" name="' + radioName + '" value="range"' + (field.type === 'range' ? ' checked' : '') + '> Range</label>');
+        var $multiRadio = $('<label><input type="radio" name="' + radioName + '" value="multiple_choice"' + (field.type === 'multiple_choice' ? ' checked' : '') + '> Multiple Choice</label>');
+
+        $typeRadios.append($rangeRadio).append(' ').append($multiRadio);
+        $typeGroup.append($typeRadios);
+
+        // Options textarea (for multiple choice)
+        var $optionsGroup = $('<div class="field-group options-group"' + (field.type !== 'multiple_choice' ? ' style="display:none;"' : '') + '><label>Options (key=value per line):</label></div>');
+        var optionsText = '';
+        if (field.options && typeof field.options === 'object') {
+            Object.keys(field.options).forEach(function(key) {
+                optionsText += key + '=' + field.options[key] + '\n';
+            });
+        }
+        var $optionsTextarea = $('<textarea class="field-options large-text" rows="4"></textarea>').val(optionsText.trim());
+        $optionsGroup.append($optionsTextarea);
+
+        // Toggle options visibility on type change
+        $typeRadios.find('input[type="radio"]').on('change', function() {
+            var selectedType = $(this).val();
+            if (selectedType === 'multiple_choice') {
+                $optionsGroup.show();
+            } else {
+                $optionsGroup.hide();
+            }
+        });
+
+        // Delete button
+        var $deleteBtn = $('<button type="button" class="button field-delete">Delete</button>');
+        $deleteBtn.on('click', function() {
+            fieldDefinitions[currentCategory].splice(index, 1);
+            renderFieldsEditor();
+        });
+
+        var $deleteGroup = $('<div class="field-group field-delete-group"></div>');
+        $deleteGroup.append($deleteBtn);
+
+        $row.append($nameGroup).append($acfGroup).append($typeGroup).append($optionsGroup).append($deleteGroup);
+
+        return $row;
+    }
+
+    function collectFieldsData() {
+        var $rows = $('#unrestricted-fields-editor .unrestricted-field-row');
+        var fields = [];
+
+        $rows.each(function() {
+            var $row = $(this);
+            var name = $row.find('.field-name').val().trim();
+            var acf_key = $row.find('.field-acf-key').val().trim();
+            var type = $row.find('input[type="radio"]:checked').val() || 'range';
+            var optionsText = $row.find('.field-options').val().trim();
+
+            var options = {};
+            if (type === 'multiple_choice' && optionsText) {
+                optionsText.split('\n').forEach(function(line) {
+                    line = line.trim();
+                    if (line) {
+                        var parts = line.split('=');
+                        if (parts.length >= 2) {
+                            var key = parts[0].trim();
+                            var value = parts.slice(1).join('=').trim();
+                            if (key) {
+                                options[key] = value || key;
+                            }
+                        }
+                    }
+                });
+            }
+
+            if (name || acf_key) {
+                fields.push({
+                    name: name,
+                    acf_key: acf_key,
+                    type: type,
+                    options: options
+                });
+            }
+        });
+
+        fieldDefinitions[currentCategory] = fields;
+    }
+
+    function saveUnrestrictedToggle(enabled) {
+        $.post(acfAnalyzerAdmin.ajaxUrl, {
+            action: 'acf_analyzer_save_unrestricted_toggle',
+            nonce: acfAnalyzerAdmin.nonce,
+            enabled: enabled ? '1' : '0'
+        }, function(resp) {
+            if (resp && resp.success) {
+                // Saved successfully
+            } else {
+                alert('Failed to save toggle: ' + (resp && resp.data ? JSON.stringify(resp.data) : 'unknown'));
+            }
+        }).fail(function() {
+            alert('AJAX error saving toggle');
+        });
+    }
+
+    function saveUnrestrictedFields() {
+        $.post(acfAnalyzerAdmin.ajaxUrl, {
+            action: 'acf_analyzer_save_unrestricted_fields',
+            nonce: acfAnalyzerAdmin.nonce,
+            fields: fieldDefinitions
+        }, function(resp) {
+            if (resp && resp.success) {
+                alert('Field definitions saved');
+                fieldDefinitions = resp.data.fields || {};
+                renderFieldsEditor();
+            } else {
+                alert('Failed to save: ' + (resp && resp.data ? JSON.stringify(resp.data) : 'unknown'));
+            }
+        }).fail(function() {
+            alert('AJAX error saving field definitions');
+        });
+    }
 
 })(jQuery);

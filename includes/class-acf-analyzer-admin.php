@@ -41,6 +41,11 @@ class ACF_Analyzer_Admin {
         add_action( 'wp_ajax_acf_analyzer_get_fields', array( $this, 'ajax_get_field_names' ) );
         // Admin action to manually trigger daily run
         add_action( 'admin_post_acf_analyzer_run_now', array( $this, 'handle_run_now' ) );
+
+        // AJAX handlers for unrestricted search field definitions
+        add_action( 'wp_ajax_acf_analyzer_save_unrestricted_toggle', array( $this, 'ajax_save_unrestricted_toggle' ) );
+        add_action( 'wp_ajax_acf_analyzer_save_unrestricted_fields', array( $this, 'ajax_save_unrestricted_fields' ) );
+        add_action( 'wp_ajax_acf_analyzer_get_unrestricted_fields', array( $this, 'ajax_get_unrestricted_fields' ) );
     }
 
     /**
@@ -99,10 +104,15 @@ class ACF_Analyzer_Admin {
 
         // Localize script with current mapping and AJAX parameters
         $mapping = get_option( 'acf_wpgb_facet_map', array() );
+        $unrestricted_fields = get_option( 'acf_analyzer_unrestricted_fields', array() );
+        $unrestricted_enabled = get_option( 'acf_analyzer_unrestricted_search', false );
+
         wp_localize_script( 'acf-analyzer-admin-js', 'acfAnalyzerAdmin', array(
-            'ajaxUrl' => admin_url( 'admin-ajax.php' ),
-            'nonce'   => wp_create_nonce( 'acf_analyzer_save_mapping' ),
-            'mapping' => $mapping,
+            'ajaxUrl'            => admin_url( 'admin-ajax.php' ),
+            'nonce'              => wp_create_nonce( 'acf_analyzer_save_mapping' ),
+            'mapping'            => $mapping,
+            'unrestrictedFields' => $unrestricted_fields,
+            'unrestrictedEnabled' => (bool) $unrestricted_enabled,
         ) );
     }
 
@@ -339,5 +349,113 @@ class ACF_Analyzer_Admin {
         // Redirect back with success message
         wp_redirect( add_query_arg( 'search', 'complete', admin_url( 'tools.php?page=acf-analyzer' ) ) );
         exit;
+    }
+
+    /**
+     * AJAX handler: Save unrestricted search toggle
+     *
+     * @since 1.2.0
+     * @return void Sends JSON response
+     */
+    public function ajax_save_unrestricted_toggle() {
+        check_ajax_referer( 'acf_analyzer_save_mapping', 'nonce' );
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( 'Insufficient permissions' );
+        }
+
+        $enabled = isset( $_POST['enabled'] ) && ( $_POST['enabled'] === '1' || $_POST['enabled'] === 'true' || $_POST['enabled'] === true );
+        update_option( 'acf_analyzer_unrestricted_search', $enabled );
+
+        wp_send_json_success( array( 'enabled' => $enabled ) );
+    }
+
+    /**
+     * AJAX handler: Save unrestricted search field definitions
+     *
+     * Expected POST data:
+     * - nonce: Security nonce
+     * - fields: Array of category => field definitions
+     *
+     * @since 1.2.0
+     * @return void Sends JSON response
+     */
+    public function ajax_save_unrestricted_fields() {
+        check_ajax_referer( 'acf_analyzer_save_mapping', 'nonce' );
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( 'Insufficient permissions' );
+        }
+
+        $fields = isset( $_POST['fields'] ) ? $_POST['fields'] : array();
+
+        if ( ! is_array( $fields ) ) {
+            wp_send_json_error( 'Invalid fields data' );
+        }
+
+        // Sanitize field definitions
+        $sanitized = array();
+        $valid_categories = array( 'Osakeannit', 'Osaketori', 'Velkakirjat' );
+
+        foreach ( $fields as $category => $category_fields ) {
+            $category = sanitize_text_field( $category );
+            if ( ! in_array( $category, $valid_categories, true ) ) {
+                continue;
+            }
+
+            $sanitized[ $category ] = array();
+
+            if ( is_array( $category_fields ) ) {
+                foreach ( $category_fields as $field ) {
+                    if ( ! is_array( $field ) || empty( $field['name'] ) || empty( $field['acf_key'] ) ) {
+                        continue;
+                    }
+
+                    $sanitized_field = array(
+                        'name'    => sanitize_text_field( $field['name'] ),
+                        'acf_key' => sanitize_text_field( $field['acf_key'] ),
+                        'type'    => in_array( $field['type'], array( 'range', 'multiple_choice' ), true ) ? $field['type'] : 'range',
+                        'options' => array(),
+                    );
+
+                    // Handle multiple choice options
+                    if ( $sanitized_field['type'] === 'multiple_choice' && ! empty( $field['options'] ) ) {
+                        if ( is_array( $field['options'] ) ) {
+                            foreach ( $field['options'] as $key => $value ) {
+                                $sanitized_field['options'][ sanitize_text_field( $key ) ] = sanitize_text_field( $value );
+                            }
+                        }
+                    }
+
+                    $sanitized[ $category ][] = $sanitized_field;
+                }
+            }
+        }
+
+        update_option( 'acf_analyzer_unrestricted_fields', $sanitized );
+
+        wp_send_json_success( array( 'fields' => $sanitized ) );
+    }
+
+    /**
+     * AJAX handler: Get unrestricted search field definitions
+     *
+     * @since 1.2.0
+     * @return void Sends JSON response
+     */
+    public function ajax_get_unrestricted_fields() {
+        check_ajax_referer( 'acf_analyzer_save_mapping', 'nonce' );
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( 'Insufficient permissions' );
+        }
+
+        $fields = get_option( 'acf_analyzer_unrestricted_fields', array() );
+        $enabled = get_option( 'acf_analyzer_unrestricted_search', false );
+
+        wp_send_json_success( array(
+            'fields'  => $fields,
+            'enabled' => (bool) $enabled,
+        ) );
     }
 }

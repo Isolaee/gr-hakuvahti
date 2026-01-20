@@ -158,6 +158,130 @@
     border-color: #dc3232;
 }
 
+/* ==========================================================================
+   Unrestricted Search Field Definitions Editor
+   ========================================================================== */
+
+/* Category tabs */
+.unrestricted-field-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #ddd;
+}
+
+.unrestricted-field-tabs .tab-btn {
+    padding: 10px 20px;
+    background: #f5f5f5;
+    border: 1px solid #ddd;
+    border-bottom: none;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    color: #555;
+    margin-bottom: -2px;
+    transition: background 0.2s, color 0.2s;
+}
+
+.unrestricted-field-tabs .tab-btn:hover {
+    background: #e9e9e9;
+}
+
+.unrestricted-field-tabs .tab-btn.active {
+    background: #fff;
+    color: #0073aa;
+    border-bottom: 2px solid #fff;
+}
+
+/* Fields container */
+.unrestricted-fields-container {
+    margin-bottom: 20px;
+}
+
+/* Field row card */
+.unrestricted-field-row {
+    background: #f9f9f9;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    padding: 15px;
+    margin-bottom: 15px;
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 15px;
+    align-items: start;
+}
+
+.unrestricted-field-row .field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.unrestricted-field-row .field-group label {
+    font-weight: 600;
+    font-size: 12px;
+    color: #555;
+    text-transform: uppercase;
+}
+
+.unrestricted-field-row .field-group input[type="text"],
+.unrestricted-field-row .field-group textarea {
+    width: 100%;
+}
+
+.unrestricted-field-row .type-radios {
+    display: flex;
+    gap: 15px;
+}
+
+.unrestricted-field-row .type-radios label {
+    font-weight: normal;
+    font-size: 13px;
+    text-transform: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+}
+
+.unrestricted-field-row .options-group {
+    grid-column: 1 / -1;
+}
+
+.unrestricted-field-row .options-group textarea {
+    font-family: monospace;
+    font-size: 12px;
+}
+
+.unrestricted-field-row .field-delete-group {
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-end;
+}
+
+.unrestricted-field-row .field-delete {
+    color: #a00;
+    border-color: #a00;
+}
+
+.unrestricted-field-row .field-delete:hover {
+    color: #dc3232;
+    border-color: #dc3232;
+    background: #fef7f7;
+}
+
+/* Actions row */
+.unrestricted-fields-actions {
+    display: flex;
+    gap: 10px;
+    padding-top: 15px;
+    border-top: 1px solid #ddd;
+}
+
+.unrestricted-add-field {
+    background: #f7f7f7 !important;
+}
+
 /* Responsive */
 @media screen and (max-width: 782px) {
     .acf-analyzer-fields table {
@@ -168,5 +292,22 @@
         display: block;
         margin-bottom: 10px;
         width: 100%;
+    }
+
+    .unrestricted-field-tabs {
+        flex-wrap: wrap;
+    }
+
+    .unrestricted-field-tabs .tab-btn {
+        flex: 1;
+        text-align: center;
+    }
+
+    .unrestricted-field-row {
+        grid-template-columns: 1fr;
+    }
+
+    .unrestricted-field-row .field-delete-group {
+        justify-content: flex-start;
     }
 }

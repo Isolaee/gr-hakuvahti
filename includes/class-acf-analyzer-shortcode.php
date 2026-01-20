@@ -159,12 +159,17 @@ class ACF_Analyzer_Shortcode {
 
                 // Provide configuration to the JavaScript
                 $use_api_bool = in_array( strtolower( $atts['use_api'] ), array( '1', 'true', 'yes' ), true );
+                $unrestricted_enabled = (bool) get_option( 'acf_analyzer_unrestricted_search', false );
+                $unrestricted_fields = get_option( 'acf_analyzer_unrestricted_fields', array() );
+
                 wp_localize_script( 'acf-analyzer-wpgb-logger', 'acfWpgbLogger', array(
-                    'use_api_default' => $use_api_bool,
-                    'ajaxUrl' => admin_url( 'admin-ajax.php' ),
-                    'nonce' => wp_create_nonce( 'acf_popup_search' ),
-                    'hakuvahtiNonce' => wp_create_nonce( 'hakuvahti_nonce' ),
-                    'isLoggedIn' => is_user_logged_in(),
+                    'use_api_default'    => $use_api_bool,
+                    'ajaxUrl'            => admin_url( 'admin-ajax.php' ),
+                    'nonce'              => wp_create_nonce( 'acf_popup_search' ),
+                    'hakuvahtiNonce'     => wp_create_nonce( 'hakuvahti_nonce' ),
+                    'isLoggedIn'         => is_user_logged_in(),
+                    'unrestrictedMode'   => $unrestricted_enabled,
+                    'fieldDefinitions'   => $unrestricted_fields,
                 ) );
 
                 // Load admin-defined mapping from database option

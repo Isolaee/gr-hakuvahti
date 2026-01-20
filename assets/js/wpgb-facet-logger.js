@@ -360,34 +360,208 @@
         $modalInit.hide();
     });
 
+    // ============================================
+    // UNRESTRICTED SEARCH MODE
+    // ============================================
+
+    /**
+     * Detect current category from URL path
+     */
+    function detectCategory() {
+        var path = window.location.pathname.toLowerCase();
+        if (path.indexOf('/osakeannit') !== -1) return 'Osakeannit';
+        if (path.indexOf('/velkakirjat') !== -1) return 'Velkakirjat';
+        if (path.indexOf('/osaketori') !== -1) return 'Osaketori';
+        return '';
+    }
+
+    /**
+     * Get field definitions for current category
+     */
+    function getFieldsForCategory(category) {
+        var defs = window.acfWpgbLogger && window.acfWpgbLogger.fieldDefinitions || {};
+        return defs[category] || [];
+    }
+
+    /**
+     * Build the unrestricted search builder UI
+     */
+    function buildUnrestrictedModal(category) {
+        var fields = getFieldsForCategory(category);
+        var $preview = $('#hakuvahti-criteria-preview');
+
+        // Clear and rebuild preview area as search builder
+        $preview.empty().addClass('hakuvahti-unrestricted-builder');
+
+        // Container for criteria rows
+        var $criteriaContainer = $('<div id="unrestricted-criteria-rows"></div>');
+
+        // Add field dropdown + "Add Criterion" button
+        var $addRow = $('<div class="hakuvahti-add-criterion"></div>');
+        var $fieldSelect = $('<select id="unrestricted-field-select"></select>');
+        $fieldSelect.append('<option value="">Valitse kenttä...</option>');
+
+        fields.forEach(function(field) {
+            $fieldSelect.append('<option value="' + field.acf_key + '" data-type="' + field.type + '">' + field.name + '</option>');
+        });
+
+        var $addBtn = $('<button type="button" class="button hakuvahti-add-btn">+ Lisää hakuehto</button>');
+
+        $addRow.append($fieldSelect).append(' ').append($addBtn);
+
+        $preview.append($criteriaContainer).append($addRow);
+
+        // Store field definitions for building rows
+        $preview.data('fields', fields);
+        $preview.data('category', category);
+
+        // Add criterion click handler
+        $addBtn.on('click', function() {
+            var selectedKey = $fieldSelect.val();
+            if (!selectedKey) return;
+
+            var fieldDef = null;
+            for (var i = 0; i < fields.length; i++) {
+                if (fields[i].acf_key === selectedKey) {
+                    fieldDef = fields[i];
+                    break;
+                }
+            }
+            if (!fieldDef) return;
+
+            addCriterionRow($criteriaContainer, fieldDef);
+
+            // Reset select
+            $fieldSelect.val('');
+        });
+    }
+
+    /**
+     * Add a criterion row to the builder
+     */
+    function addCriterionRow($container, fieldDef) {
+        var $row = $('<div class="hakuvahti-criterion-row" data-field="' + fieldDef.acf_key + '" data-type="' + fieldDef.type + '"></div>');
+
+        // Field label
+        var $label = $('<span class="criterion-label">' + fieldDef.name + ':</span>');
+
+        // Input based on type
+        var $input;
+        if (fieldDef.type === 'range') {
+            $input = $('<div class="criterion-range-inputs"></div>');
+            $input.append('<input type="number" class="criterion-min" placeholder="Min">');
+            $input.append('<span class="range-separator"> - </span>');
+            $input.append('<input type="number" class="criterion-max" placeholder="Max">');
+        } else {
+            // Multiple choice - checkbox list
+            $input = $('<div class="criterion-checkboxes"></div>');
+            var options = fieldDef.options || {};
+            Object.keys(options).forEach(function(key) {
+                var $checkbox = $('<label class="criterion-checkbox"><input type="checkbox" value="' + key + '"> ' + options[key] + '</label>');
+                $input.append($checkbox);
+            });
+        }
+
+        // Remove button
+        var $removeBtn = $('<button type="button" class="button criterion-remove">&times;</button>');
+        $removeBtn.on('click', function() {
+            $row.remove();
+        });
+
+        $row.append($label).append($input).append($removeBtn);
+        $container.append($row);
+    }
+
+    /**
+     * Collect criteria from unrestricted builder
+     */
+    function collectUnrestrictedCriteria() {
+        var criteria = [];
+
+        $('#unrestricted-criteria-rows .hakuvahti-criterion-row').each(function() {
+            var $row = $(this);
+            var fieldKey = $row.data('field');
+            var fieldType = $row.data('type');
+            var values = [];
+
+            if (fieldType === 'range') {
+                var min = $row.find('.criterion-min').val();
+                var max = $row.find('.criterion-max').val();
+                if (min) values.push(min);
+                if (max) values.push(max);
+            } else {
+                // Multiple choice - get checked boxes
+                $row.find('.criterion-checkboxes input:checked').each(function() {
+                    values.push($(this).val());
+                });
+            }
+
+            if (values.length > 0) {
+                criteria.push({
+                    name: fieldKey,
+                    label: fieldType,
+                    values: values
+                });
+            }
+        });
+
+        return criteria;
+    }
+
     // Open modal handler
     $(document).on('click', '.acf-hakuvahti-save', function(e) {
         e.preventDefault();
 
         var $btn = $(this);
         var target = $btn.attr('data-target') || '';
-        // Read the per-button `data-use-api` attribute; fall back to localized default
-        var useApiAttr = $btn.attr('data-use-api');
-        var useApi = (typeof useApiAttr !== 'undefined' && useApiAttr !== null) ? (useApiAttr === '1' || useApiAttr === 'true') : (window.acfWpgbLogger && window.acfWpgbLogger.use_api_default);
 
-        // Get current criteria
-        var result = getCurrentCriteria(target, useApi);
-        // Debug: always use console.log so logs show even if info-level is hidden
-        try { console.log('hakuvahti: open modal target=' + target + ' useApi=' + useApi); } catch(e){}
-        try { console.log('hakuvahti: getCurrentCriteria ->', result); } catch(e){}
-        lastCollectedCriteria = result.criteria;
-        lastCollectedCategory = result.category;
+        // Check if unrestricted mode is enabled
+        var isUnrestricted = window.acfWpgbLogger && window.acfWpgbLogger.unrestrictedMode;
 
-        // Show criteria preview
-        $('#hakuvahti-criteria-preview').html(formatCriteriaPreview(lastCollectedCriteria));
+        // Detect category from URL
+        var category = detectCategory();
 
-        // Show the modal: clear previous messages, populate preview, and show
+        if (!category) {
+            alert('Kategoriaa ei voitu tunnistaa.');
+            return;
+        }
+
         var $modal = $('#hakuvahti-save-modal');
         $('#hakuvahti-save-message').html('');
         $('#hakuvahti-name').val('');
 
-        $modal.stop(true,true).fadeIn(150);
-        setTimeout(function() { $('#hakuvahti-name').focus(); }, 120);
+        if (isUnrestricted) {
+            // UNRESTRICTED MODE: Show manual builder
+            lastCollectedCategory = category;
+            lastCollectedCriteria = []; // Will be collected on save
+
+            // Build the unrestricted modal UI
+            buildUnrestrictedModal(category);
+
+            // Show modal
+            $modal.stop(true,true).fadeIn(150);
+            setTimeout(function() { $('#hakuvahti-name').focus(); }, 120);
+
+        } else {
+            // RESTRICTED MODE: Use existing WP Grid Builder collection
+            var useApiAttr = $btn.attr('data-use-api');
+            var useApi = (typeof useApiAttr !== 'undefined' && useApiAttr !== null) ? (useApiAttr === '1' || useApiAttr === 'true') : (window.acfWpgbLogger && window.acfWpgbLogger.use_api_default);
+
+            // Get current criteria
+            var result = getCurrentCriteria(target, useApi);
+            try { console.log('hakuvahti: open modal target=' + target + ' useApi=' + useApi); } catch(ex){}
+            try { console.log('hakuvahti: getCurrentCriteria ->', result); } catch(ex){}
+            lastCollectedCriteria = result.criteria;
+            lastCollectedCategory = result.category || category;
+
+            // Show criteria preview
+            $('#hakuvahti-criteria-preview')
+                .removeClass('hakuvahti-unrestricted-builder')
+                .html(formatCriteriaPreview(lastCollectedCriteria));
+
+            $modal.stop(true,true).fadeIn(150);
+            setTimeout(function() { $('#hakuvahti-name').focus(); }, 120);
+        }
     });
     // Close modal handlers
     $(document).on('click', '.hakuvahti-modal-close', function() {
@@ -419,6 +593,19 @@
             return;
         }
 
+        // Check if we're in unrestricted mode
+        var isUnrestricted = $('#hakuvahti-criteria-preview').hasClass('hakuvahti-unrestricted-builder');
+
+        if (isUnrestricted) {
+            // Collect criteria from the builder
+            lastCollectedCriteria = collectUnrestrictedCriteria();
+        }
+
+        if (!lastCollectedCriteria || lastCollectedCriteria.length === 0) {
+            $('#hakuvahti-save-message').html('<p class="error">Valitse vähintään yksi hakuehto.</p>');
+            return;
+        }
+
         if (!lastCollectedCategory) {
             $('#hakuvahti-save-message').html('<p class="error">Kategoriaa ei voitu tunnistaa.</p>');
             return;
@@ -437,7 +624,7 @@
             if (resp && resp.success) {
                 $('#hakuvahti-save-message').html('<p class="success">' + (resp.data.message || 'Hakuvahti tallennettu!') + '</p>');
                 setTimeout(function() {
-                    $('#hakuvahti-save-modal').addBack().attr('hidden', '').removeClass('is-open').attr('aria-hidden', 'true');
+                    $('#hakuvahti-save-modal').stop(true,true).fadeOut(120);
                 }, 1500);
             } else {
                 $('#hakuvahti-save-message').html('<p class="error">' + (resp.data && resp.data.message ? resp.data.message : 'Tallennus epäonnistui.') + '</p>');
