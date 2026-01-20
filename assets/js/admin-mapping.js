@@ -2,6 +2,15 @@
     'use strict';
 
     function renderEditor(mapping){
+        // protect against unexpected input shapes
+        if (!mapping) mapping = {};
+        if (Array.isArray(mapping)) {
+            // older callers may pass an array; nothing to render here
+            return;
+        }
+        var opt = mapping || {};
+        var index = 0;
+
         // single-line criteria-style row
         var $row = $('<div class="criteria-row search-option-row" data-index="' + index + '"></div>');
 
