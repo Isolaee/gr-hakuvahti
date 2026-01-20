@@ -391,6 +391,12 @@ class ACF_Analyzer_Admin {
         $fields_json = isset( $_POST['fields_json'] ) ? wp_unslash( $_POST['fields_json'] ) : '';
         $fields = json_decode( $fields_json, true );
 
+        // Debug: log received payload for troubleshooting
+        if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+            error_log( '[acf_analyzer] ajax_save_unrestricted_fields - raw fields_json: ' . substr( $fields_json, 0, 10000 ) );
+            error_log( '[acf_analyzer] ajax_save_unrestricted_fields - decoded fields: ' . print_r( $fields, true ) );
+        }
+
         if ( ! is_array( $fields ) ) {
             wp_send_json_error( 'Invalid fields data' );
         }
@@ -436,7 +442,8 @@ class ACF_Analyzer_Admin {
 
         update_option( 'acf_analyzer_unrestricted_fields', $sanitized );
 
-        wp_send_json_success( array( 'fields' => $sanitized ) );
+        // Return sanitized structure directly (consistent with mapping save handler)
+        wp_send_json_success( $sanitized );
     }
 
     /**

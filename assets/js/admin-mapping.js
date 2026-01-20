@@ -289,7 +289,8 @@
             console.debug('acf-analyzer: saveUnrestrictedFields response', resp);
             if (resp && resp.success) {
                 alert('Field definitions saved');
-                fieldDefinitions = resp.data.fields || {};
+                // Server now returns sanitized structure directly
+                fieldDefinitions = resp.data || {};
                 renderFieldsEditor();
             } else {
                 alert('Failed to save: ' + (resp && resp.data ? JSON.stringify(resp.data) : 'unknown'));
