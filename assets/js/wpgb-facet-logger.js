@@ -55,8 +55,11 @@
      */
     function getOptionsForCategory(category) {
         var allOptions = window.acfWpgbLogger && window.acfWpgbLogger.userSearchOptions || [];
+        if (!category) return [];
+        var lc = (category || '').toString().toLowerCase();
         return allOptions.filter(function(opt) {
-            return opt.category === category;
+            var optCat = (opt.category || '').toString().toLowerCase();
+            return optCat === lc;
         });
     }
 
@@ -99,6 +102,10 @@
         $wrapper.append($label);
 
         // Determine field type based on values
+        // opt.values may be:
+        // - array of choices -> multiple_choice
+        // - associative with min/max -> range (prefill)
+        // - null/undefined -> assume range by default
         if (opt.values && Array.isArray(opt.values) && opt.values.length > 0) {
             // Multiple choice: render checkboxes
             var $checkboxes = $('<div class="search-field-checkboxes"></div>');
@@ -113,6 +120,17 @@
             });
 
             $wrapper.append($checkboxes).attr('data-type', 'multiple_choice');
+        } else if (opt.values && typeof opt.values === 'object' && (opt.values.min !== undefined || opt.values.max !== undefined)) {
+            // associative min/max
+            var $range = $('<div class="search-field-range"></div>');
+            var minVal = opt.values.min || '';
+            var maxVal = opt.values.max || '';
+
+            $range.append('<input type="number" class="range-min" placeholder="Min" value="' + minVal + '">');
+            $range.append('<span class="range-separator"> - </span>');
+            $range.append('<input type="number" class="range-max" placeholder="Max" value="' + maxVal + '">');
+
+            $wrapper.append($range).attr('data-type', 'range');
         } else {
             // Range: render min/max inputs
             var $range = $('<div class="search-field-range"></div>');
@@ -122,6 +140,7 @@
             $range.append('<input type="number" class="range-max" placeholder="Max">');
 
             $wrapper.append($range).attr('data-type', 'range');
+        }
         }
 
         return $wrapper;
@@ -151,6 +170,13 @@
                 var max = $field.find('.range-max').val();
                 if (min) values.push(min);
                 if (max) values.push(max);
+            } else {
+                // fallback: check for any text inputs inside the field wrapper
+                $field.find('input[type="text"]').each(function() {
+                    var v = $(this).val();
+                    if (v) values.push(v);
+                });
+            }
             }
 
             if (values.length > 0) {
