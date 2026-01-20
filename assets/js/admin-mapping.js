@@ -178,14 +178,8 @@
             var $min = $('<input type="text" class="option-values-min small-text" placeholder="min" />').val(min);
             var $max = $('<input type="text" class="option-values-max small-text" placeholder="max" />').val(max);
 
-            // Postfix / unit selector for range fields
-            var postfixChoices = ['', '€', 'm²', 'kpl', '%'];
-            var $postfix = $('<select class="option-values-postfix small-text" style="margin-left:8px;"></select>');
-            postfixChoices.forEach(function(p) {
-                var $o = $('<option></option>').attr('value', p).text(p || '(none)');
-                if (p === postfix) $o.attr('selected', 'selected');
-                $postfix.append($o);
-            });
+            // Postfix / unit text input for display only (free text)
+            var $postfix = $('<input type="text" class="option-values-postfix small-text" placeholder="Postfix (e.g. €)" style="margin-left:8px; width:80px;" />').val(postfix);
 
             $container.append($('<div></div>').append($min).append(' – ').append($max).append($postfix));
         }
