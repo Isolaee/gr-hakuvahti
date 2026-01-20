@@ -270,6 +270,7 @@ class ACF_Analyzer_Admin {
         }
 
         $sanitized = array();
+        $fields_cache = array(); // category -> array(key => label)
         $valid_categories = array( 'Osakeannit', 'Osaketori', 'Velkakirjat' );
 
         $existing_keys = array();
@@ -279,6 +280,58 @@ class ACF_Analyzer_Admin {
             $key  = isset( $opt['key'] ) ? sanitize_text_field( $opt['key'] ) : '';
             $cat  = isset( $opt['category'] ) ? sanitize_text_field( $opt['category'] ) : '';
             $acf  = isset( $opt['acf_field'] ) ? sanitize_text_field( $opt['acf_field'] ) : '';
+
+            // If acf_field missing, attempt to auto-detect based on category fields
+            if ( $acf === '' && $cat !== '' ) {
+                if ( ! isset( $fields_cache[ $cat ] ) ) {
+                    // build fields for this category similar to ajax_get_fields_by_category
+                    $query = new WP_Query( array(
+                        'post_type'      => 'post',
+                        'post_status'    => 'any',
+                        'posts_per_page' => 200,
+                        'category_name'  => $cat,
+                    ) );
+
+                    $fields_meta = array();
+                    if ( $query->have_posts() ) {
+                        foreach ( $query->posts as $p ) {
+                            if ( ! function_exists( 'get_fields' ) ) continue;
+                            $post_fields = get_fields( $p->ID );
+                            if ( ! is_array( $post_fields ) ) continue;
+
+                            foreach ( $post_fields as $k => $v ) {
+                                if ( isset( $fields_meta[ $k ] ) ) continue;
+                                $field_obj = false;
+                                if ( function_exists( 'get_field_object' ) ) {
+                                    $field_obj = get_field_object( $k, $p->ID );
+                                }
+                                $label = ( $field_obj && ! empty( $field_obj['label'] ) ) ? $field_obj['label'] : $k;
+                                $fields_meta[ $k ] = $label;
+                            }
+                        }
+                        wp_reset_postdata();
+                    }
+
+                    $fields_cache[ $cat ] = $fields_meta;
+                }
+
+                // try to match by key first
+                if ( $key && isset( $fields_cache[ $cat ][ $key ] ) ) {
+                    $acf = $key;
+                } else {
+                    // try to match by display name -> label
+                    $found = '';
+                    foreach ( $fields_cache[ $cat ] as $fkey => $flabel ) {
+                        if ( strcasecmp( $flabel, $name ) === 0 || strcasecmp( $fkey, $name ) === 0 || strcasecmp( $fkey, sanitize_title( $name ) ) === 0 ) {
+                            $found = $fkey;
+                            break;
+                        }
+                    }
+                    if ( $found ) {
+                        $acf = $found;
+                    }
+                }
+            }
 
             if ( $name === '' || ! in_array( $cat, $valid_categories, true ) ) {
                 continue;
@@ -319,6 +372,11 @@ class ACF_Analyzer_Admin {
                         }
                     }
                 }
+            }
+
+            // Require acf_field at this point; if still missing, abort and ask admin to correct
+            if ( empty( $acf ) ) {
+                wp_send_json_error( array( 'message' => sprintf( __( 'ACF field could not be determined for option "%s" in category "%s". Please set the ACF field explicitly.', 'acf-analyzer' ), $name, $cat ) ) );
             }
 
             $sanitized[] = array(

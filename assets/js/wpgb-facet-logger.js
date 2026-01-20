@@ -94,8 +94,8 @@
      * @returns {jQuery} Field element
      */
     function buildFieldInput(opt) {
-        // Prefer explicit ACF field, fall back to option key or name
-        var acfField = opt.acf_field || opt.key || (opt.name ? opt.name.replace(/\s+/g, '_') : '');
+        // Require explicit ACF field identifier (acf_field) — frontend relies on exact ACF meta key
+        var acfField = opt.acf_field || '';
         var $wrapper = $('<div class="search-field-wrapper" data-acf="' + acfField + '" data-key="' + (opt.key || '') + '"></div>');
         var $label = $('<label class="search-field-label">' + (opt.name || acfField) + '</label>');
 
@@ -106,6 +106,14 @@
         // - array of choices -> multiple_choice
         // - associative with min/max -> range (prefill)
         // - null/undefined -> assume range by default
+        if (!acfField) {
+            // If admin mapping is missing acf_field, indicate and skip rendering inputs
+            $wrapper.append($('<div class="muted">ACF field not configured for this option.</div>'));
+            // mark as disabled so collectSearchCriteria ignores it
+            $wrapper.attr('data-type', 'missing_acf');
+            return $wrapper;
+        }
+
         if (opt.values && Array.isArray(opt.values) && opt.values.length > 0) {
             // Multiple choice: render checkboxes
             var $checkboxes = $('<div class="search-field-checkboxes"></div>');
@@ -156,6 +164,7 @@
             var $field = $(this);
             var acfField = $field.data('acf') || $field.data('key') || ($field.find('.search-field-label').text() || '').trim().replace(/\s+/g, '_');
             var fieldType = $field.data('type');
+            if (fieldType === 'missing_acf') return;
             var values = [];
 
             if (!acfField) return;
@@ -250,13 +259,30 @@
         $btn.prop('disabled', true);
         $status.text('Tallennetaan...');
 
-        $.post(acfWpgbLogger.ajaxUrl, {
+        // Build form-style data so jQuery posts criteria as array entries
+        var postData = {
             action: 'hakuvahti_save',
             nonce: acfWpgbLogger.hakuvahtiNonce,
             name: name,
-            category: category,
-            criteria: JSON.stringify(criteria)
-        }).done(function(resp) {
+            category: category
+        };
+
+        criteria.forEach(function(c, i) {
+            postData['criteria[' + i + '][name]'] = c.name;
+            postData['criteria[' + i + '][label]'] = c.label;
+            if (Array.isArray(c.values)) {
+                c.values.forEach(function(v, j) {
+                    postData['criteria[' + i + '][values][' + j + ']'] = v;
+                });
+            } else {
+                postData['criteria[' + i + '][values][0]'] = c.values;
+            }
+        });
+
+        // Debug: log outgoing criteria structure
+        if ( window.console && console.debug ) console.debug('Posting hakuvahti save', postData);
+
+        $.post(acfWpgbLogger.ajaxUrl, postData).done(function(resp) {
             if (resp && resp.success) {
                 $status.text(resp.data && resp.data.message ? resp.data.message : 'Tallennettu.');
                 // Optionally redirect if myPageUrl provided

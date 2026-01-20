@@ -236,6 +236,15 @@
     }
 
     function saveUserOptions() {
+        // Validate that every option includes an acf_field
+        for (var i = 0; i < userSearchOptions.length; i++) {
+            var o = userSearchOptions[i];
+            if (!o.acf_field || o.acf_field.toString().trim() === '') {
+                alert('Every search option must have an ACF field selected. Please fill the ACF Field for all options before saving.');
+                return;
+            }
+        }
+
         $.post(acfAnalyzerAdmin.ajaxUrl, {
             action: 'acf_analyzer_save_user_options',
             nonce: acfAnalyzerAdmin.nonce,
