@@ -62,9 +62,6 @@ $hakuvahdits = Hakuvahti::get_by_user( $user_id );
                         </p>
                     </div>
                     <div class="hakuvahti-card-actions">
-                        <button class="hakuvahti-edit-btn button" data-id="<?php echo esc_attr( $hv->id ); ?>">
-                            <?php esc_html_e( 'Muokkaa', 'acf-analyzer' ); ?>
-                        </button>
                         <button class="hakuvahti-delete-btn button" data-id="<?php echo esc_attr( $hv->id ); ?>">
                             <?php esc_html_e( 'Poista', 'acf-analyzer' ); ?>
                         </button>
