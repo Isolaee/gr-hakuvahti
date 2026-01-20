@@ -40,6 +40,66 @@
         return html;
     }
 
+    // Client-side formatter to mirror server-side display logic
+    function formatCriteriaHTML(crits) {
+        if (!crits || !crits.length) {
+            return '<div class="hakuvahti-crit-groups"><div class="hakuvahti-crit-group"><ul class="hakuvahti-crit-list"><li class="hakuvahti-crit-item">' + (hakuvahtiConfig.i18n.noCriteria || 'Ei hakuehtoja') + '</li></ul></div></div>';
+        }
+
+        var groups = {};
+        crits.forEach(function(item){
+            var label = item.label || 'other';
+            groups[label] = groups[label] || [];
+            groups[label].push(item);
+        });
+
+        var html = '<div class="hakuvahti-crit-groups">';
+        Object.keys(groups).forEach(function(label){
+            html += '<div class="hakuvahti-crit-group" data-label="'+label+'">';
+            html += '<ul class="hakuvahti-crit-list">';
+            groups[label].forEach(function(it){
+                var name = it.name || '';
+                var values = it.values || [];
+                var display = '';
+                if (it.label === 'range') {
+                    if (Array.isArray(values) && values.length >= 2) {
+                        display = values.join(' - ');
+                    } else if (Array.isArray(values) && values.length === 1) {
+                        var raw = String(values[0]).trim();
+                        var norm = raw.replace(',', '.');
+                        var m = norm.match(/^\s*([<>]=?)\s*(.+)$/);
+                        if (m) {
+                            var op = m[1];
+                            var num = m[2].trim();
+                            if (op.indexOf('<') !== -1) {
+                                display = (hakuvahtiConfig.i18n.underLabelPrefix || 'alle ') + num;
+                            } else {
+                                display = (hakuvahtiConfig.i18n.overLabelPrefix || 'yli ') + num;
+                            }
+                        } else if (/^\s*(min|max)\s*[:=]\s*(.+)$/i.test(norm)) {
+                            var mm = norm.match(/^\s*(min|max)\s*[:=]\s*(.+)$/i);
+                            if (mm && mm[1].toLowerCase() === 'min') display = (hakuvahtiConfig.i18n.overLabelPrefix || 'yli ') + mm[2].trim();
+                            else display = (hakuvahtiConfig.i18n.underLabelPrefix || 'alle ') + mm[2].trim();
+                        } else if (!isNaN(parseFloat(norm))) {
+                            display = (hakuvahtiConfig.i18n.overLabelPrefix || 'yli ') + norm;
+                        } else {
+                            display = raw;
+                        }
+                    }
+                } else {
+                    if (Array.isArray(values)) display = values.join(', ');
+                    else display = values;
+                }
+                html += '<li class="hakuvahti-crit-item">' + (escapeHtml(name + ': ' + display)) + '</li>';
+            });
+            html += '</ul></div>';
+        });
+        html += '</div>';
+        return html;
+    }
+
+    function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
     // Run hakuvahti search
     $(document).on('click', '.hakuvahti-run-btn', function(e) {
         e.preventDefault();
@@ -133,7 +193,7 @@
                     html += '<div class="hakuvahti-edit-criterion" data-index="' + idx + '" style="margin-bottom:6px;">';
                     html += buildFieldDropdown(fields, c.name || '');
                     html += '<select class="hakuvahti-edit-crit-label" style="width:20%; margin-right:6px;"><option value="multiple_choice">Multiple</option><option value="range">Range</option></select>';
-                    html += '<input type="text" class="hakuvahti-edit-crit-values" placeholder="Arvot (pilkulla eroteltu)" value="' + (vals) + '" style="width:40%; margin-right:6px;" />';
+                    html += '<input type="text" class="hakuvahti-edit-crit-values" placeholder="Arvot (esim. >100, <200 tai 100,200)" value="' + (vals) + '" style="width:40%; margin-right:6px;" />';
                     html += '<button class="hakuvahti-edit-crit-remove button" type="button">' + (hakuvahtiConfig.i18n.remove || 'Poista') + '</button>';
                     html += '</div>';
                 });
@@ -178,7 +238,7 @@
         var html = '<div class="hakuvahti-edit-criterion" data-index="' + idx + '" style="margin-bottom:6px;">';
         html += buildFieldDropdown(fields, '');
         html += '<select class="hakuvahti-edit-crit-label" style="width:20%; margin-right:6px;"><option value="multiple_choice">Multiple</option><option value="range">Range</option></select>';
-        html += '<input type="text" class="hakuvahti-edit-crit-values" placeholder="Arvot (pilkulla eroteltu)" value="" style="width:40%; margin-right:6px;" />';
+        html += '<input type="text" class="hakuvahti-edit-crit-values" placeholder="Arvot (esim. >100, <200 tai 100,200)" value="" style="width:40%; margin-right:6px;" />';
         html += '<button class="hakuvahti-edit-crit-remove button" type="button">' + (hakuvahtiConfig.i18n.remove || 'Poista') + '</button>';
         html += '</div>';
         $list.append(html);
@@ -243,32 +303,17 @@
             if ( resp && resp.success ) {
                 // Update UI
                 $card.find('.hakuvahti-name').text(newName);
-                // Update criteria summary and data attribute
-                var summary = (window.hakuvahtiFormatCriteria && typeof window.hakuvahtiFormatCriteria === 'function') ? window.hakuvahtiFormatCriteria(crits) : (newName); // fallback
-                // Try to render simple summary: name: v1, v2 | ...
-                var parts = [];
-                crits.forEach(function(c){
-                    if (c.values && c.values.length) {
-                        var postfix = '';
-                        try {
-                            var adminOpts = window.acfWpgbLogger && window.acfWpgbLogger.userSearchOptions ? window.acfWpgbLogger.userSearchOptions : [];
-                            for (var i=0;i<adminOpts.length;i++) {
-                                var o = adminOpts[i];
-                                if (o && o.acf_field === c.name) {
-                                    if (o.values && typeof o.values === 'object') {
-                                        postfix = o.values.postfix || '';
-                                    } else if (o.postfix) {
-                                        postfix = o.postfix;
-                                    }
-                                    break;
-                                }
-                            }
-                        } catch (err) {}
-
-                        parts.push(c.name + ': ' + c.values.join(', ') + (postfix ? ' ' + postfix : ''));
-                    }
-                });
-                $card.find('.hakuvahti-criteria').text(parts.join(' | ') || hakuvahtiConfig.i18n.noCriteria || 'Ei hakuehtoja');
+                // Update criteria summary and data attribute using client formatter
+                if (typeof formatCriteriaHTML === 'function') {
+                    $card.find('.hakuvahti-criteria').html(formatCriteriaHTML(crits));
+                } else if (window.hakuvahtiFormatCriteria && typeof window.hakuvahtiFormatCriteria === 'function') {
+                    $card.find('.hakuvahti-criteria').html(window.hakuvahtiFormatCriteria(crits));
+                } else {
+                    // fallback to plain text
+                    var parts = [];
+                    crits.forEach(function(c){ if (c.values && c.values.length) parts.push(c.name + ': ' + c.values.join(', ')); });
+                    $card.find('.hakuvahti-criteria').text(parts.join(' | ') || hakuvahtiConfig.i18n.noCriteria || 'Ei hakuehtoja');
+                }
                 $card.attr('data-criteria', JSON.stringify(crits));
                 $form.slideUp();
             } else {
