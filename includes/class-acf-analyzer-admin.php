@@ -359,7 +359,7 @@ class ACF_Analyzer_Admin {
                         $field_obj = get_field_object( $k, $p->ID );
                     }
 
-                    $entry = array( 'key' => $k, 'has_choices' => false, 'choices' => array() );
+                    $entry = array( 'key' => $k, 'label' => ( $field_obj && ! empty( $field_obj['label'] ) ) ? $field_obj['label'] : $k, 'has_choices' => false, 'choices' => array() );
                     if ( $field_obj && isset( $field_obj['choices'] ) && is_array( $field_obj['choices'] ) && ! empty( $field_obj['choices'] ) ) {
                         $entry['has_choices'] = true;
                         $entry['choices'] = $field_obj['choices'];
@@ -409,6 +409,7 @@ class ACF_Analyzer_Admin {
         $sanitized = array();
         $valid_categories = array( 'Osakeannit', 'Osaketori', 'Velkakirjat' );
 
+        $existing_keys = array();
         foreach ( $raw as $opt ) {
             if ( ! is_array( $opt ) ) continue;
             $name = isset( $opt['name'] ) ? sanitize_text_field( $opt['name'] ) : '';
@@ -416,8 +417,45 @@ class ACF_Analyzer_Admin {
             $cat  = isset( $opt['category'] ) ? sanitize_text_field( $opt['category'] ) : '';
             $acf  = isset( $opt['acf_field'] ) ? sanitize_text_field( $opt['acf_field'] ) : '';
 
-            if ( $name === '' || $key === '' || ! in_array( $cat, $valid_categories, true ) ) {
+            if ( $name === '' || ! in_array( $cat, $valid_categories, true ) ) {
                 continue;
+            }
+
+            // generate a key from name if not provided
+            if ( $key === '' ) {
+                $key = sanitize_title( $name );
+            } else {
+                $key = sanitize_title( $key );
+            }
+
+            // ensure unique key
+            $base = $key;
+            $i = 1;
+            while ( in_array( $key, $existing_keys, true ) ) {
+                $key = $base . '-' . $i;
+                $i++;
+            }
+            $existing_keys[] = $key;
+
+            // sanitize values if provided (choices array or min/max object)
+            $sanitized_values = null;
+            if ( isset( $opt['values'] ) ) {
+                if ( is_array( $opt['values'] ) ) {
+                    // detect associative min/max or numeric-indexed choices
+                    $is_assoc = array_keys( $opt['values'] ) !== range(0, count( $opt['values'] ) - 1 );
+                    if ( $is_assoc && isset( $opt['values']['min'] ) || isset( $opt['values']['max'] ) ) {
+                        $sanitized_values = array(
+                            'min' => isset( $opt['values']['min'] ) ? sanitize_text_field( $opt['values']['min'] ) : '',
+                            'max' => isset( $opt['values']['max'] ) ? sanitize_text_field( $opt['values']['max'] ) : '',
+                        );
+                    } else {
+                        // treat as list of choice keys
+                        $sanitized_values = array();
+                        foreach ( $opt['values'] as $v ) {
+                            $sanitized_values[] = sanitize_text_field( $v );
+                        }
+                    }
+                }
             }
 
             $sanitized[] = array(
@@ -425,6 +463,7 @@ class ACF_Analyzer_Admin {
                 'key'  => $key,
                 'category' => $cat,
                 'acf_field' => $acf,
+                'values' => $sanitized_values,
             );
         }
 

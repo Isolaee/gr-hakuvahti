@@ -2,73 +2,83 @@
     'use strict';
 
     function renderEditor(mapping){
-        var $root = $('#acf-wpgb-mapping-editor');
-        if (!$root.length) return;
-        $root.empty();
+        // single-line criteria-style row
+        var $row = $('<div class="criteria-row search-option-row" data-index="' + index + '"></div>');
 
-        var $table = $('<table class="widefat"><thead><tr><th>Facet slug</th><th>ACF field</th><th></th></tr></thead><tbody></tbody></table>');
-        var $tbody = $table.find('tbody');
+        var $acf = $('<select class="option-acf-field criteria-field"><option value="">-- Select ACF field --</option></select>');
+        var $name = $('<input type="text" class="option-name regular-text" placeholder="Display name" />').val(opt.name || '');
+        var $valuesContainer = $('<span class="option-values" style="vertical-align:middle; margin-left:10px;"></span>');
+        var $remove = $('<button type="button" class="button remove-criteria" style="margin-left:8px;">&times;</button>');
 
-        var addRow = function(slug, field){
-            var $row = $('<tr></tr>');
-            var $slugTd = $('<td></td>');
-            var $fieldTd = $('<td></td>');
-            var $actionsTd = $('<td></td>');
-
-            var $slugInput = $('<input type="text" class="regular-text" />').val(slug||'');
-            var $fieldInput = $('<input type="text" class="regular-text" />').val(field||'');
-            var $del = $('<button type="button" class="button-link">Remove</button>');
-
-            $del.on('click', function(){ $row.remove(); });
-
-            $slugTd.append($slugInput);
-            $fieldTd.append($fieldInput);
-            $actionsTd.append($del);
-            $row.append($slugTd, $fieldTd, $actionsTd);
-            $tbody.append($row);
-        };
-
-        // existing mapping rows
-        if (mapping && typeof mapping === 'object'){
-            Object.keys(mapping).forEach(function(k){ addRow(k, mapping[k]); });
-        }
-
-        // allow adding empty row
-        var $addBtn = $('<button type="button" class="button">Add mapping</button>');
-        $addBtn.on('click', function(){ addRow('', ''); });
-
-        var $saveBtn = $('<button type="button" class="button button-primary">Save mapping</button>');
-        $saveBtn.on('click', function(){
-            var payload = {};
-            $tbody.find('tr').each(function(){
-                var s = $(this).find('td:nth-child(1) input').val().trim();
-                var f = $(this).find('td:nth-child(2) input').val().trim();
-                if (s !== '') payload[s] = f;
+        $remove.on('click', function(){
+            // remove this option from the stored array
+            // find by matching name+acf+category (best-effort)
+            userSearchOptions = userSearchOptions.filter(function(o){
+                return !(o.name === opt.name && o.acf_field === opt.acf_field && (o.category || currentOptionsTab) === (opt.category || currentOptionsTab));
             });
+            renderSearchOptionsEditor();
+        });
 
-            console.debug('acf-analyzer: saving mapping', payload);
+        // when acf selection changes
+        $acf.on('change', function() { renderValuesAreaFor($(this), $valuesContainer, opt); });
 
-            // AJAX save
-            $.post(acfAnalyzerAdmin.ajaxUrl, {
-                action: 'acf_analyzer_save_mapping',
-                nonce: acfAnalyzerAdmin.nonce,
-                mapping: payload
-            }, function(resp){
-                console.debug('acf-analyzer: save mapping response', resp);
-                if (resp && resp.success){
-                    alert('Mapping saved');
-                    renderEditor(resp.data);
-                } else {
-                    alert('Save failed: ' + (resp && resp.data ? JSON.stringify(resp.data) : 'unknown'));
-                }
-            }).fail(function(xhr){
-                console.error('acf-analyzer: AJAX error saving mapping', xhr);
-                alert('AJAX error saving mapping');
-            });
+        $row.append($acf).append($name).append($valuesContainer).append($remove);
+
+        // populate acf options for the current tab
+        var category = opt.category || currentOptionsTab;
+        fetchFieldsForCategory(category, function(fields){
+            fieldMetaCache[category] = fieldMetaCache[category] || {};
+            $acf.empty();
+            $acf.append($('<option value=""></option>').text('-- Select ACF field --'));
+            fields.forEach(function(f){ fieldMetaCache[category][f.key] = f; $acf.append($('<option></option>').attr('value', f.key).text(f.label || f.key)); });
+            if (opt.acf_field) { $acf.val(opt.acf_field); }
+            renderValuesAreaFor($acf, $valuesContainer, opt);
+        });
+
+        return $row;
         });
 
         $root.append($table);
         $root.append($('<p></p>').append($addBtn).append(' ').append($saveBtn));
+    }
+
+    function renderValuesAreaFor($acfSelect, $container, opt) {
+        $container.empty();
+        var $row = $acfSelect.closest('.search-option-row');
+        var category = $row.find('.option-category').val();
+        var fieldKey = $acfSelect.val();
+        if (!fieldKey) {
+            $container.append($('<span class="muted">Select an ACF field</span>'));
+            return;
+        }
+
+        var meta = (fieldMetaCache[category] && fieldMetaCache[category][fieldKey]) ? fieldMetaCache[category][fieldKey] : null;
+        if (!meta) {
+            // fetch and retry
+            fetchFieldsForCategory(category, function(fields){
+                fieldMetaCache[category] = fieldMetaCache[category] || {};
+                fields.forEach(function(f){ fieldMetaCache[category][f.key] = f; });
+                renderValuesAreaFor($acfSelect, $container, opt);
+            });
+            return;
+        }
+
+        if (meta.has_choices && meta.choices && Object.keys(meta.choices).length > 0) {
+            var $select = $('<select multiple class="option-values-choices" style="min-width:200px; max-width:400px; height:120px;"></select>');
+            Object.keys(meta.choices).forEach(function(k){
+                var label = meta.choices[k];
+                var $o = $('<option></option>').attr('value', k).text(label);
+                if (opt && opt.values && Array.isArray(opt.values) && opt.values.indexOf(k) !== -1) $o.attr('selected','selected');
+                $select.append($o);
+            });
+            $container.append($select);
+        } else {
+            var min = (opt && opt.values && typeof opt.values === 'object') ? (opt.values.min || '') : '';
+            var max = (opt && opt.values && typeof opt.values === 'object') ? (opt.values.max || '') : '';
+            var $min = $('<input type="text" class="option-values-min small-text" placeholder="min" />').val(min);
+            var $max = $('<input type="text" class="option-values-max small-text" placeholder="max" />').val(max);
+            $container.append($('<div></div>').append($min).append(' – ').append($max));
+        }
     }
 
     $(document).ready(function(){
@@ -83,6 +93,8 @@
     // ============================================
 
     var userSearchOptions = [];
+    var fieldMetaCache = {}; // category -> { key: meta }
+    var currentOptionsTab = (acfAnalyzerAdmin && acfAnalyzerAdmin.categories && acfAnalyzerAdmin.categories[0]) || 'Osakeannit';
 
     function initSearchOptionsEditor() {
         var $editor = $('#search-options-editor');
@@ -97,15 +109,25 @@
         var $editor = $('#search-options-editor');
         $editor.empty();
 
-        var $list = $('<div class="search-options-list"></div>');
+        // Tabs: wire handlers
+        $('.user-search-tabs .tab-btn').off('click').on('click', function(){
+            $('.user-search-tabs .tab-btn').removeClass('active');
+            $(this).addClass('active');
+            currentOptionsTab = $(this).data('category');
+            renderSearchOptionsEditor();
+        });
 
+        var $list = $('<div class="search-options-list"></div>');
+        // render only options for current tab
         userSearchOptions.forEach(function(opt, index) {
-            $list.append(renderSearchOptionRow(opt, index));
+            if ((opt.category || '') === currentOptionsTab) {
+                $list.append(renderSearchOptionRow(opt, index));
+            }
         });
 
         var $addBtn = $('<button type="button" class="button">+ Add Option</button>');
         $addBtn.on('click', function() {
-            userSearchOptions.push({ name: '', key: '', category: acfAnalyzerAdmin.categories[0], acf_field: '' });
+            userSearchOptions.push({ name: '', category: currentOptionsTab, acf_field: '', values: null });
             renderSearchOptionsEditor();
         });
 
@@ -122,7 +144,6 @@
         var $row = $('<div class="search-option-row" data-index="' + index + '"></div>');
 
         var $name = $('<input type="text" class="option-name regular-text" placeholder="Display name" />').val(opt.name || '');
-        var $key  = $('<input type="text" class="option-key regular-text" placeholder="Option key" />').val(opt.key || '');
 
         var $cat = $('<select class="option-category"></select>');
         (acfAnalyzerAdmin.categories || []).forEach(function(c) {
@@ -132,19 +153,26 @@
         });
 
         var $acf = $('<select class="option-acf-field"><option value="">-- Select ACF field --</option></select>');
-        if (opt.acf_field) {
-            $acf.append($('<option></option>').attr('value', opt.acf_field).text(opt.acf_field).attr('selected','selected'));
-        }
+        var $valuesContainer = $('<div class="option-values"></div>');
 
         // When category changes, fetch fields
         $cat.on('change', function() {
             var category = $(this).val();
             fetchFieldsForCategory(category, function(fields) {
+                // cache
+                fieldMetaCache[category] = fieldMetaCache[category] || {};
+                fields.forEach(function(f){ fieldMetaCache[category][f.key] = f; });
+
                 $acf.empty();
                 $acf.append($('<option value=""></option>').text('-- Select ACF field --'));
-                fields.forEach(function(f) { $acf.append($('<option></option>').attr('value', f).text(f)); });
+                fields.forEach(function(f) { $acf.append($('<option></option>').attr('value', f.key).text(f.label || f.key)); });
+                if (opt.acf_field) { $acf.val(opt.acf_field); }
+                renderValuesAreaFor($acf, $valuesContainer, opt);
             });
         });
+
+        // when acf selection changes
+        $acf.on('change', function() { renderValuesAreaFor($(this), $valuesContainer); });
 
         var $remove = $('<button type="button" class="button-link">Remove</button>');
         $remove.on('click', function() {
@@ -156,25 +184,52 @@
         $row.append($('<div class="field-group"></div>').append($('<label>Key:</label>')).append($key));
         $row.append($('<div class="field-group"></div>').append($('<label>Category:</label>')).append($cat));
         $row.append($('<div class="field-group"></div>').append($('<label>ACF Field:</label>')).append($acf));
+        $row.append($('<div class="field-group"></div>').append($('<label>Values:</label>')).append($valuesContainer));
         $row.append($('<div class="field-group field-delete-group"></div>').append($remove));
+
+        // Trigger initial population of ACF select for this category
+        (function initPopulate(){
+            var category = $cat.val();
+            fetchFieldsForCategory(category, function(fields){
+                fieldMetaCache[category] = fieldMetaCache[category] || {};
+                fields.forEach(function(f){ fieldMetaCache[category][f.key] = f; });
+
+                $acf.empty();
+                $acf.append($('<option value=""></option>').text('-- Select ACF field --'));
+                fields.forEach(function(f){ $acf.append($('<option></option>').attr('value', f.key).text(f.label || f.key)); });
+                if (opt.acf_field) { $acf.val(opt.acf_field); }
+                renderValuesAreaFor($acf, $valuesContainer, opt);
+            });
+        })();
 
         return $row;
     }
 
     function collectUserOptions() {
+        // Collect rows visible for the current tab and replace that category in userSearchOptions
         var $rows = $('#search-options-editor .search-option-row');
-        var out = [];
+        var collected = [];
         $rows.each(function() {
             var $r = $(this);
             var name = $r.find('.option-name').val().trim();
-            var key  = $r.find('.option-key').val().trim();
-            var cat  = $r.find('.option-category').val();
             var acf  = $r.find('.option-acf-field').val();
-            if (name && key && cat) {
-                out.push({ name: name, key: key, category: cat, acf_field: acf });
+            var values = null;
+            var $choices = $r.find('.option-values-choices');
+            if ($choices.length) {
+                values = $choices.val() || [];
+            } else {
+                var min = $r.find('.option-values-min').val();
+                var max = $r.find('.option-values-max').val();
+                values = { min: min, max: max };
+            }
+            if (name) {
+                collected.push({ name: name, category: currentOptionsTab, acf_field: acf, values: values });
             }
         });
-        userSearchOptions = out;
+
+        // merge: keep existing options from other categories
+        var others = userSearchOptions.filter(function(o){ return (o.category || '') !== currentOptionsTab; });
+        userSearchOptions = others.concat(collected);
     }
 
     function fetchFieldsForCategory(category, cb) {
