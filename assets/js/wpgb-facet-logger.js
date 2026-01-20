@@ -399,6 +399,7 @@
      */
     function buildUnrestrictedModal(category) {
         var fields = getFieldsForCategory(category);
+        try { console.debug('buildUnrestrictedModal - category, available fields:', { category: category, fields: fields }); } catch(e){}
         var $preview = $('#hakuvahti-criteria-preview');
 
         // Clear and rebuild preview area as search builder
