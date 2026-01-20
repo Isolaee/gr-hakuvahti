@@ -288,9 +288,10 @@
         }, function(resp) {
             console.debug('acf-analyzer: saveUnrestrictedFields response', resp);
             if (resp && resp.success) {
+                console.debug('acf-analyzer: saveUnrestrictedFields response data', resp.data);
                 alert('Field definitions saved');
-                // Server now returns sanitized structure directly
-                fieldDefinitions = resp.data || {};
+                // Server returns { sanitized: ..., raw: ... }
+                fieldDefinitions = (resp.data && resp.data.sanitized) ? resp.data.sanitized : (resp.data || {});
                 renderFieldsEditor();
             } else {
                 alert('Failed to save: ' + (resp && resp.data ? JSON.stringify(resp.data) : 'unknown'));

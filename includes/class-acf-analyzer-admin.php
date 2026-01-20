@@ -442,8 +442,13 @@ class ACF_Analyzer_Admin {
 
         update_option( 'acf_analyzer_unrestricted_fields', $sanitized );
 
-        // Return sanitized structure directly (consistent with mapping save handler)
-        wp_send_json_success( $sanitized );
+        // Return both sanitized and raw decoded payload to aid debugging client-side
+        $response = array(
+            'sanitized' => $sanitized,
+            'raw'       => $fields,
+        );
+
+        wp_send_json_success( $response );
     }
 
     /**
