@@ -125,6 +125,7 @@
         $editor.empty();
 
         var fields = fieldDefinitions[currentCategory] || [];
+        try { console.debug('renderFieldsEditor', { currentCategory: currentCategory, fields: fields, allDefs: fieldDefinitions }); } catch(e){}
 
         var $container = $('<div class="unrestricted-fields-container"></div>');
 
@@ -222,6 +223,8 @@
         var $rows = $('#unrestricted-fields-editor .unrestricted-field-row');
         var fields = [];
 
+        try { console.debug('collectFieldsData - rows found:', $rows.length); } catch(e){}
+
         $rows.each(function() {
             var $row = $(this);
             var name = $row.find('.field-name').val().trim();
@@ -256,6 +259,7 @@
             }
         });
 
+        try { console.debug('collectFieldsData - collected fields for', currentCategory, fields); } catch(e){}
         fieldDefinitions[currentCategory] = fields;
     }
 
@@ -280,18 +284,25 @@
 
     function saveUnrestrictedFields() {
         console.debug('acf-analyzer: saveUnrestrictedFields payload', fieldDefinitions);
-        // Send fields as JSON string to preserve nested structure
+        // Send fields as an object (same style as mapping save)
         $.post(acfAnalyzerAdmin.ajaxUrl, {
             action: 'acf_analyzer_save_unrestricted_fields',
             nonce: acfAnalyzerAdmin.nonce,
-            fields_json: JSON.stringify(fieldDefinitions)
+            fields: fieldDefinitions
         }, function(resp) {
             console.debug('acf-analyzer: saveUnrestrictedFields response', resp);
             if (resp && resp.success) {
                 console.debug('acf-analyzer: saveUnrestrictedFields response data', resp.data);
                 alert('Field definitions saved');
                 // Server returns { sanitized: ..., raw: ... }
-                fieldDefinitions = (resp.data && resp.data.sanitized) ? resp.data.sanitized : (resp.data || {});
+                // Prefer sanitized object if available
+                if (resp.data && resp.data.sanitized) {
+                    fieldDefinitions = resp.data.sanitized;
+                } else if (resp.data && resp.data.fields) {
+                    fieldDefinitions = resp.data.fields;
+                } else {
+                    fieldDefinitions = (resp.data || {});
+                }
                 renderFieldsEditor();
             } else {
                 alert('Failed to save: ' + (resp && resp.data ? JSON.stringify(resp.data) : 'unknown'));

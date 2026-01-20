@@ -387,9 +387,14 @@ class ACF_Analyzer_Admin {
             wp_send_json_error( 'Insufficient permissions' );
         }
 
-        // Decode JSON string from POST
-        $fields_json = isset( $_POST['fields_json'] ) ? wp_unslash( $_POST['fields_json'] ) : '';
-        $fields = json_decode( $fields_json, true );
+        // Accept either a direct POSTed array `fields` (preferred) or the legacy `fields_json` string
+        if ( isset( $_POST['fields'] ) && is_array( $_POST['fields'] ) ) {
+            $fields = $_POST['fields'];
+        } else {
+            // Decode JSON string from POST (legacy)
+            $fields_json = isset( $_POST['fields_json'] ) ? wp_unslash( $_POST['fields_json'] ) : '';
+            $fields = json_decode( $fields_json, true );
+        }
 
         // Debug: log received payload for troubleshooting
         if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
@@ -446,6 +451,8 @@ class ACF_Analyzer_Admin {
         $response = array(
             'sanitized' => $sanitized,
             'raw'       => $fields,
+            // also include under `fields` key for parity with JS payload
+            'fields'    => $sanitized,
         );
 
         wp_send_json_success( $response );
