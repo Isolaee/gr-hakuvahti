@@ -340,26 +340,46 @@ class ACF_Analyzer_Admin {
         $query = new WP_Query( array(
             'post_type'      => 'post',
             'post_status'    => 'any',
-            'posts_per_page' => 100,
+            'posts_per_page' => 200,
             'category_name'  => $category,
         ) );
 
-        $fields = array();
-        if ( $query->have_posts() && function_exists( 'get_fields' ) ) {
+        $fields_meta = array();
+        if ( $query->have_posts() ) {
             foreach ( $query->posts as $p ) {
+                if ( ! function_exists( 'get_fields' ) ) continue;
                 $post_fields = get_fields( $p->ID );
-                if ( is_array( $post_fields ) ) {
-                    foreach ( $post_fields as $k => $v ) {
-                        $fields[] = $k;
+                if ( ! is_array( $post_fields ) ) continue;
+
+                foreach ( $post_fields as $k => $v ) {
+                    if ( isset( $fields_meta[ $k ] ) ) continue;
+
+                    $field_obj = false;
+                    if ( function_exists( 'get_field_object' ) ) {
+                        $field_obj = get_field_object( $k, $p->ID );
                     }
+
+                    $entry = array( 'key' => $k, 'has_choices' => false, 'choices' => array() );
+                    if ( $field_obj && isset( $field_obj['choices'] ) && is_array( $field_obj['choices'] ) && ! empty( $field_obj['choices'] ) ) {
+                        $entry['has_choices'] = true;
+                        $entry['choices'] = $field_obj['choices'];
+                    }
+
+                    $fields_meta[ $k ] = $entry;
                 }
             }
         }
 
-        $fields = array_values( array_unique( $fields ) );
-        sort( $fields );
+        // Sort keys for predictable order
+        $keys = array_keys( $fields_meta );
+        sort( $keys );
 
-        wp_send_json_success( $fields );
+        $out = array();
+        foreach ( $keys as $k ) {
+            $out[] = $fields_meta[ $k ];
+        }
+
+        wp_send_json_success( $out );
     }
 
     /**
