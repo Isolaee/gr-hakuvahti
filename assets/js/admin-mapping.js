@@ -50,7 +50,8 @@
     function renderValuesAreaFor($acfSelect, $container, opt) {
         $container.empty();
         var $row = $acfSelect.closest('.search-option-row');
-        var category = $row.find('.option-category').val();
+        var $catSelect = $row.find('.option-category');
+        var category = $catSelect.length ? $catSelect.val() : ((opt && opt.category) || currentOptionsTab);
         var fieldKey = $acfSelect.val();
         if (!fieldKey) {
             $container.append($('<span class="muted">Select an ACF field</span>'));
@@ -177,7 +178,7 @@
         });
 
         // when acf selection changes
-        $acf.on('change', function() { renderValuesAreaFor($(this), $valuesContainer); });
+        $acf.on('change', function() { renderValuesAreaFor($(this), $valuesContainer, opt); });
 
         var $remove = $('<button type="button" class="button-link">Remove</button>');
         $remove.on('click', function() {
@@ -186,7 +187,6 @@
         });
 
         $row.append($('<div class="field-group"></div>').append($('<label>Display Name:</label>')).append($name));
-        $row.append($('<div class="field-group"></div>').append($('<label>Key:</label>')).append($key));
         $row.append($('<div class="field-group"></div>').append($('<label>Category:</label>')).append($cat));
         $row.append($('<div class="field-group"></div>').append($('<label>ACF Field:</label>')).append($acf));
         $row.append($('<div class="field-group"></div>').append($('<label>Values:</label>')).append($valuesContainer));
