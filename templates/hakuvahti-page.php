@@ -65,7 +65,6 @@ $hakuvahdits = Hakuvahti::get_by_user( $user_id );
                                 <div class="hakuvahti-crit-groups">
                                     <?php foreach ( $groups as $label => $items ) : ?>
                                         <div class="hakuvahti-crit-group" data-label="<?php echo esc_attr( $label ); ?>">
-                                            <div class="hakuvahti-crit-group-title"><?php echo esc_html( ucfirst( str_replace( '_', ' ', $label ) ) ); ?></div>
                                             <ul class="hakuvahti-crit-list">
                                                 <?php foreach ( $items as $it ) :
                                                     $name = isset( $it['name'] ) ? $it['name'] : '';
