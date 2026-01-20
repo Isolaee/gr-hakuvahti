@@ -69,9 +69,43 @@ $hakuvahdits = Hakuvahti::get_by_user( $user_id );
                                                 <?php foreach ( $items as $it ) :
                                                     $name = isset( $it['name'] ) ? $it['name'] : '';
                                                     $values = isset( $it['values'] ) ? $it['values'] : '';
-                                                    if ( is_array( $values ) && count( $values ) >= 2 && isset( $it['label'] ) && $it['label'] === 'range' ) {
-                                                        $display = implode( ' - ', $values );
+                                                    $display = '';
+
+                                                    // If this is a range field, handle single-value and two-value cases
+                                                    if ( isset( $it['label'] ) && $it['label'] === 'range' ) {
+                                                        // normalize to array
+                                                        $vals = is_array( $values ) ? $values : array( $values );
+                                                        if ( count( $vals ) >= 2 ) {
+                                                            $display = implode( ' - ', $vals );
+                                                        } elseif ( count( $vals ) === 1 ) {
+                                                            $raw = trim( (string) $vals[0] );
+                                                            $norm = str_replace( ',', '.', $raw );
+                                                            // operator form: <, <=, >, >=
+                                                            if ( preg_match( '/^\s*([<>]=?)\s*(.+)$/', $norm, $m ) ) {
+                                                                $op = $m[1];
+                                                                $num = trim( $m[2] );
+                                                                if ( strpos( $op, '<' ) !== false ) {
+                                                                    $display = sprintf( /* translators: %s = value */ __( 'alle %s', 'acf-analyzer' ), $num );
+                                                                } else {
+                                                                    $display = sprintf( /* translators: %s = value */ __( 'yli %s', 'acf-analyzer' ), $num );
+                                                                }
+                                                            } elseif ( preg_match( '/^\s*(min|max)\s*[:=]\s*(.+)$/i', $norm, $m2 ) ) {
+                                                                $which = strtolower( $m2[1] );
+                                                                $num = trim( $m2[2] );
+                                                                if ( $which === 'min' ) {
+                                                                    $display = sprintf( __( 'yli %s', 'acf-analyzer' ), $num );
+                                                                } else {
+                                                                    $display = sprintf( __( 'alle %s', 'acf-analyzer' ), $num );
+                                                                }
+                                                            } elseif ( is_numeric( $norm ) ) {
+                                                                // default: single numeric treated as minimum
+                                                                $display = sprintf( __( 'yli %s', 'acf-analyzer' ), $norm );
+                                                            } else {
+                                                                $display = $raw;
+                                                            }
+                                                        }
                                                     } else {
+                                                        // Non-range: join multiple values or show single
                                                         $display = is_array( $values ) ? implode( ', ', $values ) : $values;
                                                     }
                                                 ?>
