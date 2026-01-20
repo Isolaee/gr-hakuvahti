@@ -363,6 +363,7 @@ class ACF_Analyzer_Admin {
                         $sanitized_values = array(
                             'min' => isset( $opt['values']['min'] ) ? sanitize_text_field( $opt['values']['min'] ) : '',
                             'max' => isset( $opt['values']['max'] ) ? sanitize_text_field( $opt['values']['max'] ) : '',
+                            'postfix' => isset( $opt['values']['postfix'] ) ? sanitize_text_field( $opt['values']['postfix'] ) : '',
                         );
                     } else {
                         // treat as list of choice keys

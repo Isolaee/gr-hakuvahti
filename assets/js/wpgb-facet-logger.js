@@ -177,19 +177,27 @@
             var $range = $('<div class="search-field-range"></div>');
             var minVal = opt.values.min || '';
             var maxVal = opt.values.max || '';
+            var postfix = opt.values.postfix || '';
 
             $range.append('<input type="number" class="range-min" placeholder="Min" value="' + minVal + '">');
             $range.append('<span class="range-separator"> - </span>');
             $range.append('<input type="number" class="range-max" placeholder="Max" value="' + maxVal + '">');
+            if (postfix) {
+                $range.append('<span class="range-postfix" style="margin-left:6px; color:#333;">' + postfix + '</span>');
+            }
 
             $wrapper.append($range).attr('data-type', 'range');
         } else {
             // Range: render min/max inputs
             var $range = $('<div class="search-field-range"></div>');
+            var postfix = (opt && opt.values && opt.values.postfix) ? opt.values.postfix : (opt && opt.postfix ? opt.postfix : '');
 
             $range.append('<input type="number" class="range-min" placeholder="Min">');
             $range.append('<span class="range-separator"> - </span>');
             $range.append('<input type="number" class="range-max" placeholder="Max">');
+            if (postfix) {
+                $range.append('<span class="range-postfix" style="margin-left:6px; color:#333;">' + postfix + '</span>');
+            }
 
             $wrapper.append($range).attr('data-type', 'range');
         }

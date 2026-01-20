@@ -247,7 +247,27 @@
                 var summary = (window.hakuvahtiFormatCriteria && typeof window.hakuvahtiFormatCriteria === 'function') ? window.hakuvahtiFormatCriteria(crits) : (newName); // fallback
                 // Try to render simple summary: name: v1, v2 | ...
                 var parts = [];
-                crits.forEach(function(c){ if (c.values && c.values.length) parts.push(c.name + ': ' + c.values.join(', ')); });
+                crits.forEach(function(c){
+                    if (c.values && c.values.length) {
+                        var postfix = '';
+                        try {
+                            var adminOpts = window.acfWpgbLogger && window.acfWpgbLogger.userSearchOptions ? window.acfWpgbLogger.userSearchOptions : [];
+                            for (var i=0;i<adminOpts.length;i++) {
+                                var o = adminOpts[i];
+                                if (o && o.acf_field === c.name) {
+                                    if (o.values && typeof o.values === 'object') {
+                                        postfix = o.values.postfix || '';
+                                    } else if (o.postfix) {
+                                        postfix = o.postfix;
+                                    }
+                                    break;
+                                }
+                            }
+                        } catch (err) {}
+
+                        parts.push(c.name + ': ' + c.values.join(', ') + (postfix ? ' ' + postfix : ''));
+                    }
+                });
                 $card.find('.hakuvahti-criteria').text(parts.join(' | ') || hakuvahtiConfig.i18n.noCriteria || 'Ei hakuehtoja');
                 $card.attr('data-criteria', JSON.stringify(crits));
                 $form.slideUp();

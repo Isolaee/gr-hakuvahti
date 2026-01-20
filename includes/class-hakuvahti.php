@@ -528,6 +528,9 @@ class Hakuvahti {
         }
 
         $parts = array();
+        // Load admin-defined user search options to possibly retrieve postfix/unit for fields
+        $user_options = get_option( 'acf_analyzer_user_search_options', array() );
+
         foreach ( $criteria as $item ) {
             if ( ! isset( $item['name'] ) || ! isset( $item['values'] ) ) {
                 continue;
@@ -536,8 +539,33 @@ class Hakuvahti {
             $name = $item['name'];
             $values = $item['values'];
 
-            if ( ! empty( $values ) ) {
-                $parts[] = $name . ': ' . implode( '-', $values );
+            if ( empty( $values ) ) {
+                continue;
+            }
+
+            $postfix = '';
+            // Try to find matching admin option by acf_field to get postfix
+            if ( is_array( $user_options ) ) {
+                foreach ( $user_options as $u ) {
+                    if ( isset( $u['acf_field'] ) && $u['acf_field'] === $name ) {
+                        if ( isset( $u['values'] ) && is_array( $u['values'] ) && isset( $u['values']['postfix'] ) ) {
+                            $postfix = $u['values']['postfix'];
+                        }
+                        break;
+                    }
+                }
+            }
+
+            // Format range-like values (min/max) specially
+            if ( is_array( $values ) && count( $values ) >= 2 ) {
+                $parts[] = $name . ': ' . implode( ' - ', $values ) . ( $postfix ? ' ' . $postfix : '' );
+            } else {
+                // Fallback for single or list values
+                if ( is_array( $values ) ) {
+                    $parts[] = $name . ': ' . implode( ', ', $values );
+                } else {
+                    $parts[] = $name . ': ' . $values;
+                }
             }
         }
 

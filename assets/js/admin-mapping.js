@@ -174,9 +174,20 @@
         } else {
             var min = (opt && opt.values && typeof opt.values === 'object') ? (opt.values.min || '') : '';
             var max = (opt && opt.values && typeof opt.values === 'object') ? (opt.values.max || '') : '';
+            var postfix = (opt && opt.values && typeof opt.values === 'object') ? (opt.values.postfix || '') : '';
             var $min = $('<input type="text" class="option-values-min small-text" placeholder="min" />').val(min);
             var $max = $('<input type="text" class="option-values-max small-text" placeholder="max" />').val(max);
-            $container.append($('<div></div>').append($min).append(' – ').append($max));
+
+            // Postfix / unit selector for range fields
+            var postfixChoices = ['', '€', 'm²', 'kpl', '%'];
+            var $postfix = $('<select class="option-values-postfix small-text" style="margin-left:8px;"></select>');
+            postfixChoices.forEach(function(p) {
+                var $o = $('<option></option>').attr('value', p).text(p || '(none)');
+                if (p === postfix) $o.attr('selected', 'selected');
+                $postfix.append($o);
+            });
+
+            $container.append($('<div></div>').append($min).append(' – ').append($max).append($postfix));
         }
     }
 
@@ -200,7 +211,8 @@
             } else {
                 var min = $r.find('.option-values-min').val();
                 var max = $r.find('.option-values-max').val();
-                values = { min: min, max: max };
+                var postfix = $r.find('.option-values-postfix').val() || '';
+                values = { min: min, max: max, postfix: postfix };
             }
 
             if (name) {
