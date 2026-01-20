@@ -1,404 +1,71 @@
-/**
- * Hakuvahti Styles
- *
- * Styles for both the save modal on search pages
- * and the hakuvahdit management page in My Account.
- */
-
-/* ==========================================================================
-   Save Modal (on search pages)
-   ========================================================================== */
-
-.hakuvahti-modal {
-    /* Hidden by default; toggled with .is-open */
-    position: fixed;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.6);
-    z-index: 999999;
-    display: none;
-    margin: 0;
-    padding: 0;
+:root{
+  --haku-primary:#032e5b;
+  --haku-primary-dark:#021d3f;
+  --haku-bg:#f8f9fa;
+  --haku-muted:#666;
+  --haku-border:#e0e0e0;
+  --haku-error:#dc3545;
+  --haku-success-bg:#d4edda;
+  --haku-success-color:#155724;
 }
 
-.hakuvahti-modal.is-open {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-}
+/* Simplified Hakuvahti styles — colors centralized in variables above. */
 
-.hakuvahti-modal-content {
-    background: #fff !important;
-    padding: 25px 30px !important;
-    border-radius: 12px !important;
-    max-width: 400px !important;
-    width: 90% !important;
-    position: relative !important;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3) !important;
-    text-align: center !important;
-    animation: hakuvahtiModalFadeIn 0.2s ease-out;
-    margin: 0 auto !important;
-}
+/* Buttons */
+.acf-analyzer-buttons{display:flex;gap:10px;flex-wrap:wrap}
+.acf-hakuvahti-save,
+.hakuvahti-submit,
+.hakuvahti-run-btn{background:var(--haku-primary);color:#fff;border:none;padding:.6rem 1.2rem;border-radius:.5rem;cursor:pointer;font-weight:600}
+.acf-hakuvahti-save:hover,.hakuvahti-submit:hover,.hakuvahti-run-btn:hover{background:var(--haku-primary-dark)}
+.hakuvahti-submit:disabled,.hakuvahti-run-btn:disabled{background:#ccc;cursor:not-allowed}
 
-@keyframes hakuvahtiModalFadeIn {
-    from {
-        opacity: 0;
-        transform: scale(0.95);
-    }
-    to {
-        opacity: 1;
-        transform: scale(1);
-    }
-}
+/* Page layout */
+.hakuvahti-page{max-width:800px}
+.hakuvahti-description{color:var(--haku-muted);margin-bottom:1.25rem}
 
-.hakuvahti-modal-close {
-    position: absolute;
-    top: 10px;
-    right: 15px;
-    font-size: 28px;
-    font-weight: bold;
-    color: #032e5b;
-    cursor: pointer;
-    line-height: 1;
-    z-index: 1000001; /* ensure clickable above other content */
-    pointer-events: auto;
-}
+/* Cards */
+.hakuvahti-list{display:flex;flex-direction:column;gap:1.25rem}
+.hakuvahti-card{background:#fff;border:1px solid var(--haku-border);border-radius:.5rem;overflow:hidden}
+.hakuvahti-card-header{display:flex;justify-content:space-between;align-items:center;padding:1rem;background:var(--haku-bg);border-bottom:1px solid var(--haku-border)}
+.hakuvahti-name{margin:0;font-size:1.1rem;font-weight:600}
+.hakuvahti-category{background:var(--haku-primary);color:#fff;padding:.25rem .6rem;border-radius:999px;font-size:.85rem}
+.hakuvahti-card-body{padding:1rem}
+.hakuvahti-criteria{margin:0 0 .625rem;color:#555}
+.hakuvahti-meta{margin:0;color:#888;font-size:.85rem}
+.hakuvahti-card-actions{padding:1rem;border-top:1px solid var(--haku-border);display:flex;gap:.5rem}
+.hakuvahti-delete-btn{background:var(--haku-error);color:#fff;border:none;padding:.5rem 1rem;border-radius:.35rem;cursor:pointer}
+.hakuvahti-delete-btn:hover{background:#c82333}
 
-.hakuvahti-modal-close:hover {
-    color: #021d3f;
-}
+/* Results */
+.hakuvahti-results{padding:1rem;background:var(--haku-bg);border-top:1px solid var(--haku-border)}
+.hakuvahti-no-results{color:var(--haku-muted);font-style:italic}
+.hakuvahti-results-count{color:var(--haku-primary);margin:0 0 .625rem}
+.hakuvahti-results-list{margin:0;padding:0 0 0 1.25rem}
+.hakuvahti-results-list a{color:var(--haku-primary);text-decoration:none}
+.hakuvahti-results-list a:hover{text-decoration:underline}
 
-.hakuvahti-modal h3 {
-    margin: 0 0 20px;
-    padding: 0;
-    font-size: 1.4em;
-}
+/* Search builder */
+.hakuvahti-search-builder{background:var(--haku-bg);padding:1rem;border-radius:.5rem;max-height:300px;overflow:auto}
+.search-field-wrapper{padding:.75rem;margin-bottom:.625rem;background:#fff;border:1px solid var(--haku-border);border-radius:.375rem}
+.search-field-label{display:block;font-weight:600;color:var(--haku-primary);margin-bottom:.5rem;font-size:.875rem}
+.search-field-checkboxes{display:flex;flex-wrap:wrap;gap:.5rem}
+.search-checkbox{display:inline-flex;align-items:center;gap:.3125rem;padding:.375rem .75rem;background:#f5f5f5;border-radius:.3125rem;font-size:.8125rem;cursor:pointer}
+.search-checkbox:hover{background:#e9e9e9}
+.search-checkbox input[type="checkbox"]{margin:0}
+.search-checkbox.selected{background:var(--haku-primary);color:#fff}
+.search-field-range{display:flex;align-items:center;gap:.5rem}
+.search-field-range input{width:6.25rem;padding:.5rem;border:1px solid #ccc;border-radius:.3125rem;text-align:center}
+.no-options{color:var(--haku-muted);font-style:italic;text-align:center;padding:1.25rem}
 
-#hakuvahti-save-form p {
-    margin: 0 0 15px;
-    font-size: 16px;
-    color: #333;
-    font-weight: 500;
-}
+/* Legacy sections simplified/kept minimal for compatibility */
+.hakuvahti-unrestricted-builder{background:var(--haku-bg);padding:1rem;border-radius:.5rem}
+.hakuvahti-add-btn{background:var(--haku-primary);color:#fff;padding:.5rem .75rem;border-radius:.375rem;border:none}
 
-#hakuvahti-save-form label {
-    display: block;
-    margin-bottom: 8px;
-    font-weight: 600;
-}
-
-#hakuvahti-save-form input[type="text"] {
-    width: 100%;
-    padding: 12px 14px;
-    border: 2px solid #e0e0e0;
-    border-radius: 8px;
-    font-size: 16px;
-    margin-bottom: 20px;
-    box-sizing: border-box;
-    text-align: center;
-}
-
-#hakuvahti-save-form input[type="text"]:focus {
-    border-color: #032e5b;
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(3,46,91,0.08);
-}
-
-#hakuvahti-criteria-preview {
-    background: #032e5b;
-    color: #fff;
-    padding: 15px;
-    border-radius: 4px;
-    margin-bottom: 20px;
-}
-.hakuvahti-criteria-list, #hakuvahti-criteria-preview { color: #fff; }
-.hakuvahti-criteria-list li { color: #fff; }
-
-.hakuvahti-criteria-list {
-    margin: 0;
-    padding: 0 0 0 20px;
-    list-style: disc;
-}
-
-.hakuvahti-criteria-list li {
-    margin-bottom: 5px;
-}
-
-.hakuvahti-submit {
-    background: #032e5b;
-    color: #fff;
-    border: none;
-    padding: 14px 32px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 16px;
-    font-weight: 600;
-    width: 100%;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-.hakuvahti-submit:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(3,46,91,0.28);
-}
-
-.hakuvahti-submit:disabled {
-    background: #ccc;
-    cursor: not-allowed;
-}
-
-#hakuvahti-save-message {
-    margin-top: 15px;
-}
-
-#hakuvahti-save-message p {
-    margin: 0;
-    padding: 10px;
-    border-radius: 4px;
-}
-
-#hakuvahti-save-message .success {
-    background: #d4edda;
-    color: #155724;
-}
-
-#hakuvahti-save-message .error {
-    background: #f8d7da;
-    color: #721c24;
-}
-
-/* Button container */
-.acf-analyzer-buttons {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-    color: #032e5b;
-}
-
-.acf-hakuvahti-save {
-    background: #032e5b;
-    color: #fff;
-    border: none;
-    padding: 14px 28px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 15px;
-    font-weight: 600;
-    letter-spacing: 0.3px;
-    box-shadow: 0 4px 12px rgba(3, 46, 91, 0.3);
-    transition: all 0.2s ease;
-}
-
-.acf-hakuvahti-save:hover {
-    background: #021d3f;
-    box-shadow: 0 6px 16px rgba(3, 46, 91, 0.4);
-    transform: translateY(-2px);
-}
-
-.acf-hakuvahti-save:active {
-    transform: translateY(0);
-    box-shadow: 0 2px 8px rgba(3, 46, 91, 0.3);
-}
-
-/* Stronger selector to override theme/button styles if necessary */
-.acf-analyzer-buttons .acf-hakuvahti-save,
-button.acf-hakuvahti-save,
-.acf-hakuvahti-save.button,
-.acf-hakuvahti-save.button-primary {
-    background: #032e5b !important;
-    color: #fff !important;
-}
-
-/* ==========================================================================
-   My Account Page (hakuvahdit management)
-   ========================================================================== */
-
-.hakuvahti-page {
-    max-width: 800px;
-}
-
-.hakuvahti-page h2 {
-    margin-bottom: 10px;
-}
-
-.hakuvahti-description {
-    color: #666;
-    margin-bottom: 25px;
-}
-
-.hakuvahti-empty {
-    background: #f8f9fa;
-    padding: 30px;
-    border-radius: 8px;
-    text-align: center;
-}
-
-.hakuvahti-empty p {
-    margin: 0 0 10px;
-}
-
-.hakuvahti-empty a {
-    color: #032e5b;
-}
-
-/* Hakuvahti Cards */
-.hakuvahti-list {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-}
-
-.hakuvahti-card {
-    background: #fff;
-    border: 1px solid #e1e1e1;
-    border-radius: 8px;
-    overflow: hidden;
-}
-
-.hakuvahti-card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 15px 20px;
-    background: #f8f9fa;
-    border-bottom: 1px solid #e1e1e1;
-}
-
-.hakuvahti-name {
-    margin: 0;
-    font-size: 1.1em;
-    font-weight: 600;
-}
-
-.hakuvahti-category {
-    background: #032e5b;
-    color: #fff;
-    padding: 4px 10px;
-    border-radius: 12px;
-    font-size: 0.85em;
-}
-
-.hakuvahti-card-body {
-    padding: 15px 20px;
-}
-
-.hakuvahti-criteria {
-    margin: 0 0 10px;
-    color: #555;
-    font-size: 0.95em;
-}
-
-.hakuvahti-meta {
-    margin: 0;
-    color: #888;
-    font-size: 0.85em;
-}
-
-.hakuvahti-card-actions {
-    padding: 15px 20px;
-    border-top: 1px solid #e1e1e1;
-    display: flex;
-    gap: 10px;
-}
-
-.hakuvahti-run-btn {
-    background: #032e5b;
-    color: #fff;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-.hakuvahti-run-btn:hover {
-    background: #021d3f;
-}
-
-.hakuvahti-run-btn:disabled {
-    background: #ccc;
-    cursor: not-allowed;
-}
-
-.hakuvahti-delete-btn {
-    background: #dc3545;
-    color: #fff;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-.hakuvahti-delete-btn:hover {
-    background: #c82333;
-}
-
-.hakuvahti-delete-btn:disabled {
-    background: #ccc;
-    cursor: not-allowed;
-}
-
-/* Results Section */
-.hakuvahti-results {
-    padding: 15px 20px;
-    background: #f8f9fa;
-    border-top: 1px solid #e1e1e1;
-}
-
-.hakuvahti-no-results {
-    margin: 0;
-    color: #666;
-    font-style: italic;
-}
-
-.hakuvahti-results-count {
-    margin: 0 0 10px;
-    color: #032e5b;
-}
-
-.hakuvahti-results-list {
-    margin: 0;
-    padding: 0 0 0 20px;
-    list-style: disc;
-}
-
-.hakuvahti-results-list li {
-    margin-bottom: 5px;
-}
-
-.hakuvahti-results-list a {
-    color: #032e5b;
-    text-decoration: none;
-}
-
-.hakuvahti-results-list a:hover {
-    text-decoration: underline;
-}
-
-.hakuvahti-error {
-    margin: 0;
-    color: #dc3545;
-}
-
-/* ==========================================================================
-   User Search Options Form (Frontend Modal)
-   ========================================================================== */
-
-.hakuvahti-search-builder {
-    background: #f8f9fa !important;
-    padding: 15px !important;
-    border-radius: 8px !important;
-    text-align: left !important;
-    max-height: 300px;
-    overflow-y: auto;
-}
-
-.search-field-wrapper {
-    padding: 12px;
-    margin-bottom: 10px;
-    background: #fff;
-    border: 1px solid #e0e0e0;
-    border-radius: 6px;
+/* Responsive adjustments */
+@media (max-width:600px){
+  .hakuvahti-card-header{flex-direction:column;align-items:flex-start;gap:.625rem}
+  .hakuvahti-card-actions{flex-direction:column}
+  .hakuvahti-run-btn,.hakuvahti-delete-btn{width:100%}
 }
 
 .search-field-label {
