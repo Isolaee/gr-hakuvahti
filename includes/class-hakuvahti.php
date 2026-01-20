@@ -574,7 +574,7 @@ class Hakuvahti {
             $values = $item['values'];
 
             if ( ! empty( $values ) ) {
-                $parts[] = $name . ': ' . implode( ', ', $values );
+                $parts[] = $name . ': ' . implode( '-', $values );
             }
         }
 
