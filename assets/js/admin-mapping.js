@@ -75,7 +75,141 @@
         if (typeof acfAnalyzerAdmin === 'undefined') return;
         renderEditor(acfAnalyzerAdmin.mapping || {});
         initUnrestrictedFieldsEditor();
+        initSearchOptionsEditor();
     });
+
+    // ============================================
+    // USER-DEFINED SEARCH OPTIONS EDITOR
+    // ============================================
+
+    var userSearchOptions = [];
+
+    function initSearchOptionsEditor() {
+        var $editor = $('#search-options-editor');
+        if (!$editor.length) return;
+
+        userSearchOptions = acfAnalyzerAdmin.userSearchOptions || [];
+
+        renderSearchOptionsEditor();
+    }
+
+    function renderSearchOptionsEditor() {
+        var $editor = $('#search-options-editor');
+        $editor.empty();
+
+        var $list = $('<div class="search-options-list"></div>');
+
+        userSearchOptions.forEach(function(opt, index) {
+            $list.append(renderSearchOptionRow(opt, index));
+        });
+
+        var $addBtn = $('<button type="button" class="button">+ Add Option</button>');
+        $addBtn.on('click', function() {
+            userSearchOptions.push({ name: '', key: '', category: acfAnalyzerAdmin.categories[0], acf_field: '' });
+            renderSearchOptionsEditor();
+        });
+
+        var $saveBtn = $('<button type="button" class="button button-primary">Save Options</button>');
+        $saveBtn.on('click', function() {
+            collectUserOptions();
+            saveUserOptions();
+        });
+
+        $editor.append($list).append($('<p></p>').append($addBtn).append(' ').append($saveBtn));
+    }
+
+    function renderSearchOptionRow(opt, index) {
+        var $row = $('<div class="search-option-row" data-index="' + index + '"></div>');
+
+        var $name = $('<input type="text" class="option-name regular-text" placeholder="Display name" />').val(opt.name || '');
+        var $key  = $('<input type="text" class="option-key regular-text" placeholder="Option key" />').val(opt.key || '');
+
+        var $cat = $('<select class="option-category"></select>');
+        (acfAnalyzerAdmin.categories || []).forEach(function(c) {
+            var $o = $('<option></option>').attr('value', c).text(c);
+            if (opt.category === c) $o.attr('selected', 'selected');
+            $cat.append($o);
+        });
+
+        var $acf = $('<select class="option-acf-field"><option value="">-- Select ACF field --</option></select>');
+        if (opt.acf_field) {
+            $acf.append($('<option></option>').attr('value', opt.acf_field).text(opt.acf_field).attr('selected','selected'));
+        }
+
+        // When category changes, fetch fields
+        $cat.on('change', function() {
+            var category = $(this).val();
+            fetchFieldsForCategory(category, function(fields) {
+                $acf.empty();
+                $acf.append($('<option value=""></option>').text('-- Select ACF field --'));
+                fields.forEach(function(f) { $acf.append($('<option></option>').attr('value', f).text(f)); });
+            });
+        });
+
+        var $remove = $('<button type="button" class="button-link">Remove</button>');
+        $remove.on('click', function() {
+            userSearchOptions.splice(index, 1);
+            renderSearchOptionsEditor();
+        });
+
+        $row.append($('<div class="field-group"></div>').append($('<label>Display Name:</label>')).append($name));
+        $row.append($('<div class="field-group"></div>').append($('<label>Key:</label>')).append($key));
+        $row.append($('<div class="field-group"></div>').append($('<label>Category:</label>')).append($cat));
+        $row.append($('<div class="field-group"></div>').append($('<label>ACF Field:</label>')).append($acf));
+        $row.append($('<div class="field-group field-delete-group"></div>').append($remove));
+
+        return $row;
+    }
+
+    function collectUserOptions() {
+        var $rows = $('#search-options-editor .search-option-row');
+        var out = [];
+        $rows.each(function() {
+            var $r = $(this);
+            var name = $r.find('.option-name').val().trim();
+            var key  = $r.find('.option-key').val().trim();
+            var cat  = $r.find('.option-category').val();
+            var acf  = $r.find('.option-acf-field').val();
+            if (name && key && cat) {
+                out.push({ name: name, key: key, category: cat, acf_field: acf });
+            }
+        });
+        userSearchOptions = out;
+    }
+
+    function fetchFieldsForCategory(category, cb) {
+        $.post(acfAnalyzerAdmin.ajaxUrl, {
+            action: 'acf_analyzer_get_fields_by_category',
+            nonce: acfAnalyzerAdmin.nonce,
+            category: category
+        }, function(resp) {
+            if (resp && resp.success) {
+                cb(resp.data || []);
+            } else {
+                console.error('Failed to fetch fields for', category, resp);
+                cb([]);
+            }
+        }).fail(function(xhr) { console.error('AJAX error fetching fields', xhr); cb([]); });
+    }
+
+    function saveUserOptions() {
+        console.debug('acf-analyzer: saveUserOptions payload', userSearchOptions);
+        $.post(acfAnalyzerAdmin.ajaxUrl, {
+            action: 'acf_analyzer_save_user_options',
+            nonce: acfAnalyzerAdmin.nonce,
+            options: userSearchOptions,
+            options_json: JSON.stringify(userSearchOptions)
+        }, function(resp) {
+            console.debug('acf-analyzer: saveUserOptions response', resp);
+            if (resp && resp.success) {
+                alert('User search options saved');
+                userSearchOptions = resp.data && resp.data.sanitized ? resp.data.sanitized : (resp.data && resp.data.raw ? resp.data.raw : userSearchOptions);
+                renderSearchOptionsEditor();
+            } else {
+                alert('Failed to save options: ' + (resp && resp.data ? JSON.stringify(resp.data) : 'unknown'));
+            }
+        }).fail(function(xhr) { console.error('AJAX error saving options', xhr); alert('AJAX error saving options'); });
+    }
 
     // ============================================
     // UNRESTRICTED SEARCH FIELD DEFINITIONS EDITOR

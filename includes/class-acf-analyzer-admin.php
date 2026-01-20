@@ -39,6 +39,8 @@ class ACF_Analyzer_Admin {
         
         // AJAX handler for retrieving ACF field names
         add_action( 'wp_ajax_acf_analyzer_get_fields', array( $this, 'ajax_get_field_names' ) );
+        add_action( 'wp_ajax_acf_analyzer_get_fields_by_category', array( $this, 'ajax_get_fields_by_category' ) );
+        add_action( 'wp_ajax_acf_analyzer_save_user_options', array( $this, 'ajax_save_user_search_options' ) );
         // Admin post handler to save search options
         add_action( 'admin_post_acf_analyzer_save_options', array( $this, 'handle_save_options' ) );
         // Admin action to manually trigger daily run
@@ -120,6 +122,8 @@ class ACF_Analyzer_Admin {
                 'results_per_page'    => (int) get_option( 'acf_analyzer_results_per_page', 20 ),
                 'debug_by_default'    => (bool) get_option( 'acf_analyzer_debug_by_default', false ),
             ),
+            'userSearchOptions'  => get_option( 'acf_analyzer_user_search_options', array() ),
+            'categories'         => array( 'Osakeannit', 'Osaketori', 'Velkakirjat' ),
         ) );
     }
 
@@ -314,6 +318,99 @@ class ACF_Analyzer_Admin {
 
         // Return success with field names
         wp_send_json_success( $field_names );
+    }
+
+    /**
+     * AJAX handler: Get ACF field names for posts in a category
+     *
+     * @return void Sends JSON response
+     */
+    public function ajax_get_fields_by_category() {
+        check_ajax_referer( 'acf_analyzer_save_mapping', 'nonce' );
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( 'Insufficient permissions' );
+        }
+
+        $category = isset( $_POST['category'] ) ? sanitize_text_field( $_POST['category'] ) : '';
+        if ( empty( $category ) ) {
+            wp_send_json_error( 'Missing category' );
+        }
+
+        $query = new WP_Query( array(
+            'post_type'      => 'post',
+            'post_status'    => 'any',
+            'posts_per_page' => 100,
+            'category_name'  => $category,
+        ) );
+
+        $fields = array();
+        if ( $query->have_posts() && function_exists( 'get_fields' ) ) {
+            foreach ( $query->posts as $p ) {
+                $post_fields = get_fields( $p->ID );
+                if ( is_array( $post_fields ) ) {
+                    foreach ( $post_fields as $k => $v ) {
+                        $fields[] = $k;
+                    }
+                }
+            }
+        }
+
+        $fields = array_values( array_unique( $fields ) );
+        sort( $fields );
+
+        wp_send_json_success( $fields );
+    }
+
+    /**
+     * AJAX handler: Save admin-defined user search options
+     *
+     * @return void Sends JSON response
+     */
+    public function ajax_save_user_search_options() {
+        check_ajax_referer( 'acf_analyzer_save_mapping', 'nonce' );
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( 'Insufficient permissions' );
+        }
+
+        // Accept array 'options' or legacy JSON
+        if ( isset( $_POST['options'] ) && is_array( $_POST['options'] ) ) {
+            $raw = $_POST['options'];
+        } else {
+            $options_json = isset( $_POST['options_json'] ) ? wp_unslash( $_POST['options_json'] ) : '';
+            $raw = json_decode( $options_json, true );
+        }
+
+        if ( ! is_array( $raw ) ) {
+            wp_send_json_error( 'Invalid options data' );
+        }
+
+        $sanitized = array();
+        $valid_categories = array( 'Osakeannit', 'Osaketori', 'Velkakirjat' );
+
+        foreach ( $raw as $opt ) {
+            if ( ! is_array( $opt ) ) continue;
+            $name = isset( $opt['name'] ) ? sanitize_text_field( $opt['name'] ) : '';
+            $key  = isset( $opt['key'] ) ? sanitize_text_field( $opt['key'] ) : '';
+            $cat  = isset( $opt['category'] ) ? sanitize_text_field( $opt['category'] ) : '';
+            $acf  = isset( $opt['acf_field'] ) ? sanitize_text_field( $opt['acf_field'] ) : '';
+
+            if ( $name === '' || $key === '' || ! in_array( $cat, $valid_categories, true ) ) {
+                continue;
+            }
+
+            $sanitized[] = array(
+                'name' => $name,
+                'key'  => $key,
+                'category' => $cat,
+                'acf_field' => $acf,
+            );
+        }
+
+        update_option( 'acf_analyzer_user_search_options', $sanitized );
+
+        wp_send_json_success( array( 'sanitized' => $sanitized, 'raw' => $raw ) );
     }
 
     /**
