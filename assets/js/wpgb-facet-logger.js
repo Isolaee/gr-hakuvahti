@@ -91,8 +91,9 @@
      * @returns {jQuery} Field element
      */
     function buildFieldInput(opt) {
-        var acfField = opt.acf_field || '';
-        var $wrapper = $('<div class="search-field-wrapper" data-acf="' + acfField + '"></div>');
+        // Prefer explicit ACF field, fall back to option key or name
+        var acfField = opt.acf_field || opt.key || (opt.name ? opt.name.replace(/\s+/g, '_') : '');
+        var $wrapper = $('<div class="search-field-wrapper" data-acf="' + acfField + '" data-key="' + (opt.key || '') + '"></div>');
         var $label = $('<label class="search-field-label">' + (opt.name || acfField) + '</label>');
 
         $wrapper.append($label);
@@ -135,7 +136,7 @@
 
         $('#search-criteria-fields .search-field-wrapper').each(function() {
             var $field = $(this);
-            var acfField = $field.data('acf');
+            var acfField = $field.data('acf') || $field.data('key') || ($field.find('.search-field-label').text() || '').trim().replace(/\s+/g, '_');
             var fieldType = $field.data('type');
             var values = [];
 
