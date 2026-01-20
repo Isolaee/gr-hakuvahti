@@ -47,10 +47,43 @@ $hakuvahdits = Hakuvahti::get_by_user( $user_id );
                         <span class="hakuvahti-category"><?php echo esc_html( $hv->category ); ?></span>
                     </div>
                     <div class="hakuvahti-card-body">
-                        <p class="hakuvahti-criteria">
+                        <?php
+                        // Simple grouping: show criteria grouped by their label/type
+                        $groups = array();
+                        if ( ! empty( $hv->criteria ) && is_array( $hv->criteria ) ) {
+                            foreach ( $hv->criteria as $c ) {
+                                $label = isset( $c['label'] ) ? $c['label'] : 'other';
+                                $groups[ $label ][] = $c;
+                            }
+                        }
+                        ?>
+                        <div class="hakuvahti-criteria">
                             <strong><?php esc_html_e( 'Hakuehdot:', 'acf-analyzer' ); ?></strong>
-                            <?php echo esc_html( Hakuvahti::format_criteria_summary( $hv->criteria ) ); ?>
-                        </p>
+                            <?php if ( empty( $groups ) ) : ?>
+                                <?php esc_html_e( 'Ei hakuehtoja', 'acf-analyzer' ); ?>
+                            <?php else : ?>
+                                <div class="hakuvahti-crit-groups">
+                                    <?php foreach ( $groups as $label => $items ) : ?>
+                                        <div class="hakuvahti-crit-group" data-label="<?php echo esc_attr( $label ); ?>">
+                                            <div class="hakuvahti-crit-group-title"><?php echo esc_html( ucfirst( str_replace( '_', ' ', $label ) ) ); ?></div>
+                                            <ul class="hakuvahti-crit-list">
+                                                <?php foreach ( $items as $it ) :
+                                                    $name = isset( $it['name'] ) ? $it['name'] : '';
+                                                    $values = isset( $it['values'] ) ? $it['values'] : '';
+                                                    if ( is_array( $values ) && count( $values ) >= 2 && isset( $it['label'] ) && $it['label'] === 'range' ) {
+                                                        $display = implode( ' - ', $values );
+                                                    } else {
+                                                        $display = is_array( $values ) ? implode( ', ', $values ) : $values;
+                                                    }
+                                                ?>
+                                                    <li class="hakuvahti-crit-item"><?php echo esc_html( $name . ': ' . $display ); ?></li>
+                                                <?php endforeach; ?>
+                                            </ul>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php endif; ?>
+                        </div>
                         <p class="hakuvahti-meta">
                             <?php
                             printf(
