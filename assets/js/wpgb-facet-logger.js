@@ -524,6 +524,15 @@
             isUnrestricted = window.acfWpgbLogger && window.acfWpgbLogger.unrestrictedMode;
         }
 
+        // Debug: log button attrs and resolved unrestricted mode
+        try {
+            console.log('acf-hakuvahti-save clicked', {
+                target: target,
+                dataUnrestricted: dataUnrestricted,
+                globalUnrestricted: window.acfWpgbLogger && window.acfWpgbLogger.unrestrictedMode,
+            });
+        } catch (e) {}
+
         // Detect category from URL
         var category = detectCategory();
 
@@ -537,6 +546,7 @@
         $('#hakuvahti-name').val('');
 
         if (isUnrestricted) {
+            try { console.log('acf-hakuvahti: opening UNRESTRICTED modal, category=', category); } catch(e){}
             // UNRESTRICTED MODE: Show manual builder
             lastCollectedCategory = category;
             lastCollectedCriteria = []; // Will be collected on save
@@ -549,6 +559,7 @@
             setTimeout(function() { $('#hakuvahti-name').focus(); }, 120);
 
         } else {
+            try { console.log('acf-hakuvahti: opening RESTRICTED modal, category=', category); } catch(e){}
             // RESTRICTED MODE: Use existing WP Grid Builder collection
             var useApiAttr = $btn.attr('data-use-api');
             var useApi = (typeof useApiAttr !== 'undefined' && useApiAttr !== null) ? (useApiAttr === '1' || useApiAttr === 'true') : (window.acfWpgbLogger && window.acfWpgbLogger.use_api_default);
