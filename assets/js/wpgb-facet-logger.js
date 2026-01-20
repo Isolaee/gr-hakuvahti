@@ -164,7 +164,91 @@
         return criteria;
     }
 
-    // Popup/modal behavior removed per request.
-    // All modal open/close and form submission handlers cleared to disable the frontend popup.
+    // Popup/modal behavior: open, close and save handlers
+
+    function openModal() {
+        var $modal = $('#hakuvahti-modal');
+        if (!$modal.length) return;
+
+        var category = detectCategory() || '';
+        lastCollectedCategory = category;
+
+        // Build the search form for this category
+        buildSearchForm(category);
+
+        // Clear name and status
+        $('#hakuvahti-save-name').val('');
+        $modal.find('.hakuvahti-save-status').text('');
+
+        $modal.show();
+        $('body').addClass('hakuvahti-modal-open');
+    }
+
+    function closeModal() {
+        var $modal = $('#hakuvahti-modal');
+        $modal.hide();
+        $('body').removeClass('hakuvahti-modal-open');
+    }
+
+    // Open modal when button clicked
+    $(document).on('click', '.hakuvahti-open-popup', function(e) {
+        e.preventDefault();
+        openModal();
+    });
+
+    // Close by overlay, close button or cancel
+    $(document).on('click', '#hakuvahti-modal .hakuvahti-modal-overlay, #hakuvahti-modal .hakuvahti-modal-close, .hakuvahti-cancel-popup', function(e) {
+        e.preventDefault();
+        closeModal();
+    });
+
+    // Handle save
+    $(document).on('click', '.hakuvahti-save-popup', function(e) {
+        e.preventDefault();
+        var $btn = $(this);
+        var name = $('#hakuvahti-save-name').val().trim();
+        var category = lastCollectedCategory || detectCategory() || '';
+
+        var $status = $('.hakuvahti-save-status');
+
+        if (!name) {
+            $status.text('Anna nimi.');
+            return;
+        }
+
+        var criteria = collectSearchCriteria();
+        if (!criteria || !criteria.length) {
+            $status.text('Valitse vähintään yksi hakuehto.');
+            return;
+        }
+
+        $btn.prop('disabled', true);
+        $status.text('Tallennetaan...');
+
+        $.post(acfWpgbLogger.ajaxUrl, {
+            action: 'hakuvahti_save',
+            nonce: acfWpgbLogger.hakuvahtiNonce,
+            name: name,
+            category: category,
+            criteria: JSON.stringify(criteria)
+        }).done(function(resp) {
+            if (resp && resp.success) {
+                $status.text(resp.data && resp.data.message ? resp.data.message : 'Tallennettu.');
+                // Optionally redirect if myPageUrl provided
+                if (acfWpgbLogger.myPageUrl) {
+                    window.location.href = acfWpgbLogger.myPageUrl;
+                } else {
+                    setTimeout(function() { closeModal(); }, 800);
+                }
+            } else {
+                var msg = resp && resp.data && resp.data.message ? resp.data.message : 'Tallennus epäonnistui.';
+                $status.text(msg);
+            }
+        }).fail(function() {
+            $status.text('Verkkovirhe. Yritä uudelleen.');
+        }).always(function() {
+            $btn.prop('disabled', false);
+        });
+    });
 
 })(jQuery);
