@@ -46,12 +46,15 @@
                 if (s !== '') payload[s] = f;
             });
 
+            console.debug('acf-analyzer: saving mapping', payload);
+
             // AJAX save
             $.post(acfAnalyzerAdmin.ajaxUrl, {
                 action: 'acf_analyzer_save_mapping',
                 nonce: acfAnalyzerAdmin.nonce,
                 mapping: payload
             }, function(resp){
+                console.debug('acf-analyzer: save mapping response', resp);
                 if (resp && resp.success){
                     alert('Mapping saved');
                     renderEditor(resp.data);
@@ -59,6 +62,7 @@
                     alert('Save failed: ' + (resp && resp.data ? JSON.stringify(resp.data) : 'unknown'));
                 }
             }).fail(function(xhr){
+                console.error('acf-analyzer: AJAX error saving mapping', xhr);
                 alert('AJAX error saving mapping');
             });
         });
@@ -256,28 +260,33 @@
     }
 
     function saveUnrestrictedToggle(enabled) {
+        console.debug('acf-analyzer: saveUnrestrictedToggle', { enabled: enabled });
         $.post(acfAnalyzerAdmin.ajaxUrl, {
             action: 'acf_analyzer_save_unrestricted_toggle',
             nonce: acfAnalyzerAdmin.nonce,
             enabled: enabled ? '1' : '0'
         }, function(resp) {
+            console.debug('acf-analyzer: saveUnrestrictedToggle response', resp);
             if (resp && resp.success) {
                 // Saved successfully
             } else {
                 alert('Failed to save toggle: ' + (resp && resp.data ? JSON.stringify(resp.data) : 'unknown'));
             }
-        }).fail(function() {
+        }).fail(function(xhr) {
+            console.error('acf-analyzer: AJAX error saving toggle', xhr);
             alert('AJAX error saving toggle');
         });
     }
 
     function saveUnrestrictedFields() {
+        console.debug('acf-analyzer: saveUnrestrictedFields payload', fieldDefinitions);
         // Send fields as JSON string to preserve nested structure
         $.post(acfAnalyzerAdmin.ajaxUrl, {
             action: 'acf_analyzer_save_unrestricted_fields',
             nonce: acfAnalyzerAdmin.nonce,
             fields_json: JSON.stringify(fieldDefinitions)
         }, function(resp) {
+            console.debug('acf-analyzer: saveUnrestrictedFields response', resp);
             if (resp && resp.success) {
                 alert('Field definitions saved');
                 fieldDefinitions = resp.data.fields || {};
@@ -285,7 +294,8 @@
             } else {
                 alert('Failed to save: ' + (resp && resp.data ? JSON.stringify(resp.data) : 'unknown'));
             }
-        }).fail(function() {
+        }).fail(function(xhr) {
+            console.error('acf-analyzer: AJAX error saving field definitions', xhr);
             alert('AJAX error saving field definitions');
         });
     }
