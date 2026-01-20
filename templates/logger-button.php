@@ -2,13 +2,13 @@
 // Hakuvahti button and modal template
 ?>
 <?php if ( is_user_logged_in() ) : ?>
-    <button class="hakuvahti-open-popup button"><?php esc_html_e( 'Tallenna hakuvahti', 'acf-analyzer' ); ?></button>
+    <button class="hakuvahti-open-popup button"><?php esc_html_e( 'Luo hakuvahti', 'acf-analyzer' ); ?></button>
 
     <div id="hakuvahti-modal" class="hakuvahti-modal" style="display:none;">
         <div class="hakuvahti-modal-overlay"></div>
         <div class="hakuvahti-modal-dialog">
             <header class="hakuvahti-modal-header">
-                <h3><?php esc_html_e( 'Tallenna hakuvahti', 'acf-analyzer' ); ?></h3>
+                <h3><?php esc_html_e( 'Luo hakuvahti', 'acf-analyzer' ); ?></h3>
                 <button class="hakuvahti-modal-close" aria-label="Sulje">&times;</button>
             </header>
             <div class="hakuvahti-modal-body">
