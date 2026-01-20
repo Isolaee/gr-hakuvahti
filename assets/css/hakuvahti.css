@@ -82,6 +82,45 @@
     gap: 8px;
 }
 
+/* Multi-select dropdown (compact) for frontend popup choices */
+.search-field-dropdown {
+    position: relative;
+    display: inline-block;
+}
+.search-field-dropdown .msd-toggle {
+    background: #fff;
+    border: 1px solid #ccc;
+    padding: 8px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    min-width: 180px;
+    text-align: left;
+    font-size: 13px;
+}
+.search-field-dropdown .msd-toggle.has-value {
+    background: #032e5b;
+    color: #fff;
+}
+.search-field-dropdown .msd-panel {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    background: #fff;
+    border: 1px solid #ddd;
+    box-shadow: 0 6px 18px rgba(10,10,10,0.08);
+    z-index: 9999;
+    border-radius: 6px;
+    padding: 8px;
+    max-height: 220px;
+    overflow: auto;
+    min-width: 220px;
+}
+.search-field-dropdown .msd-options { display:flex;flex-direction:column;gap:6px;padding:4px }
+.search-field-dropdown .msd-option { display:flex;align-items:center;gap:8px;padding:6px;border-radius:6px;cursor:pointer }
+.search-field-dropdown .msd-option:hover { background:#f6f7f8 }
+.search-field-dropdown .msd-option input { margin:0 }
+
+
 .search-checkbox {
     display: inline-flex;
     align-items: center;

@@ -17,6 +17,7 @@
 
     var lastCollectedCriteria = null;
     var lastCollectedCategory = '';
+    var msdGlobalBound = false; // ensure only one document click handler for msd panels
 
     // ============================================
     // CATEGORY DETECTION
@@ -115,19 +116,62 @@
         }
 
         if (opt.values && Array.isArray(opt.values) && opt.values.length > 0) {
-            // Multiple choice: render checkboxes
-            var $checkboxes = $('<div class="search-field-checkboxes"></div>');
+            // Multiple choice: render a compact multi-select dropdown (checkboxes inside panel)
+            var $dropdown = $('<div class="search-field-dropdown"></div>');
+            var $toggle = $('<button type="button" class="msd-toggle">Valitse...</button>');
+            var $panel = $('<div class="msd-panel" style="display:none;"></div>');
+            var $optionsList = $('<div class="msd-options"></div>');
 
             opt.values.forEach(function(val) {
                 var escapedVal = $('<div>').text(val).html();
-                var $cb = $('<label class="search-checkbox">' +
+                var $opt = $('<label class="msd-option">' +
                     '<input type="checkbox" value="' + escapedVal + '"> ' +
-                    '<span>' + escapedVal + '</span>' +
+                    '<span class="msd-option-label">' + escapedVal + '</span>' +
                     '</label>');
-                $checkboxes.append($cb);
+                $optionsList.append($opt);
             });
 
-            $wrapper.append($checkboxes).attr('data-type', 'multiple_choice');
+            $panel.append($optionsList);
+            $dropdown.append($toggle).append($panel);
+            $wrapper.append($dropdown).attr('data-type', 'multiple_choice');
+
+            // helper to update toggle text based on selections
+            function updateToggleText() {
+                var selected = [];
+                $optionsList.find('input:checked').each(function() { selected.push($(this).val()); });
+                if (!selected.length) {
+                    $toggle.text('Valitse...').removeClass('has-value');
+                } else if (selected.length <= 3) {
+                    $toggle.text(selected.join(', ')).addClass('has-value');
+                } else {
+                    $toggle.text(selected.length + ' valittua').addClass('has-value');
+                }
+            }
+
+            // Wire interactions
+            $toggle.on('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                $('.msd-panel').not($panel).hide();
+                $panel.toggle();
+            });
+
+            $optionsList.on('click', 'input[type="checkbox"]', function(e) {
+                e.stopPropagation();
+                updateToggleText();
+            });
+
+            // Initialize toggle text
+            updateToggleText();
+
+            // Close panels when clicking outside (bind only once globally)
+            if (!msdGlobalBound) {
+                $(document).on('click.hakuvahti-msd', function() { $('.msd-panel').hide(); });
+                msdGlobalBound = true;
+            }
+            // Stop propagation for clicks inside the panel so document handler doesn't immediately close it
+            $panel.on('click', function(e) { e.stopPropagation(); });
+
         } else if (opt.values && typeof opt.values === 'object' && (opt.values.min !== undefined || opt.values.max !== undefined)) {
             // associative min/max
             var $range = $('<div class="search-field-range"></div>');
