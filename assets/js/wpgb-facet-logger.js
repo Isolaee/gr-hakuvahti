@@ -238,6 +238,7 @@
         var collected = collectAll(target, useApi);
         var map = window.acfWpgbFacetMap || {};
         var criteriaArray = [];
+        try { console.debug('getCurrentCriteria:', { target: target, useApi: useApi, collected: collected, map: map }); } catch(e){}
 
         if (!Array.isArray(collected) || !collected.length) {
             return { criteria: [], category: '' };
@@ -368,10 +369,20 @@
      * Detect current category from URL path
      */
     function detectCategory() {
-        var path = window.location.pathname.toLowerCase();
+        var path = window.location.pathname || '';
+        try { console.debug('detectCategory path=', path); } catch(e){}
+        path = path.toLowerCase();
         if (path.indexOf('/osakeannit') !== -1) return 'Osakeannit';
         if (path.indexOf('/velkakirjat') !== -1) return 'Velkakirjat';
         if (path.indexOf('/osaketori') !== -1) return 'Osaketori';
+        // Fallback: try to derive from body classes like 'category-osakeannit'
+        try {
+            var bodyCls = document.body && document.body.className ? document.body.className.toLowerCase() : '';
+            if (bodyCls.indexOf('category-osakeannit') !== -1) return 'Osakeannit';
+            if (bodyCls.indexOf('category-velkakirjat') !== -1) return 'Velkakirjat';
+            if (bodyCls.indexOf('category-osaketori') !== -1) return 'Osaketori';
+        } catch (e) {}
+
         return '';
     }
 
