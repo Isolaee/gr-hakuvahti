@@ -39,6 +39,8 @@ class ACF_Analyzer_Admin {
         
         // AJAX handler for retrieving ACF field names
         add_action( 'wp_ajax_acf_analyzer_get_fields', array( $this, 'ajax_get_field_names' ) );
+        // Admin post handler to save search options
+        add_action( 'admin_post_acf_analyzer_save_options', array( $this, 'handle_save_options' ) );
         // Admin action to manually trigger daily run
         add_action( 'admin_post_acf_analyzer_run_now', array( $this, 'handle_run_now' ) );
 
@@ -113,6 +115,11 @@ class ACF_Analyzer_Admin {
             'mapping'            => $mapping,
             'unrestrictedFields' => $unrestricted_fields,
             'unrestrictedEnabled' => (bool) $unrestricted_enabled,
+            'searchOptions'      => array(
+                'default_match_logic' => get_option( 'acf_analyzer_default_match_logic', 'AND' ),
+                'results_per_page'    => (int) get_option( 'acf_analyzer_results_per_page', 20 ),
+                'debug_by_default'    => (bool) get_option( 'acf_analyzer_debug_by_default', false ),
+            ),
         ) );
     }
 
@@ -190,8 +197,42 @@ class ACF_Analyzer_Admin {
         // Get debug log from last run
         $last_run_debug = get_option( 'acf_analyzer_last_run_debug', array() );
 
+        // Get saved search options
+        $search_options = array(
+            'default_match_logic' => get_option( 'acf_analyzer_default_match_logic', 'AND' ),
+            'results_per_page'    => (int) get_option( 'acf_analyzer_results_per_page', 20 ),
+            'debug_by_default'    => (bool) get_option( 'acf_analyzer_debug_by_default', false ),
+        );
+
         // Load and display the admin template
         include ACF_ANALYZER_PLUGIN_DIR . 'templates/admin-page.php';
+    }
+
+    /**
+     * Handle saving of search options from admin form
+     *
+     * @return void Redirects back to admin page
+     */
+    public function handle_save_options() {
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_die( __( 'Insufficient permissions', 'acf-analyzer' ) );
+        }
+
+        if ( ! isset( $_POST['acf_analyzer_save_options_nonce'] ) || ! wp_verify_nonce( $_POST['acf_analyzer_save_options_nonce'], 'acf_analyzer_save_options' ) ) {
+            wp_die( __( 'Invalid nonce', 'acf-analyzer' ) );
+        }
+
+        $default_match_logic = isset( $_POST['default_match_logic'] ) && in_array( $_POST['default_match_logic'], array( 'AND', 'OR' ), true ) ? sanitize_text_field( $_POST['default_match_logic'] ) : 'AND';
+        $results_per_page = isset( $_POST['results_per_page'] ) ? absint( $_POST['results_per_page'] ) : 20;
+        if ( $results_per_page <= 0 ) { $results_per_page = 20; }
+        $debug_by_default = isset( $_POST['debug_by_default'] ) && ( $_POST['debug_by_default'] === '1' || $_POST['debug_by_default'] === 'on' );
+
+        update_option( 'acf_analyzer_default_match_logic', $default_match_logic );
+        update_option( 'acf_analyzer_results_per_page', $results_per_page );
+        update_option( 'acf_analyzer_debug_by_default', $debug_by_default );
+
+        wp_redirect( add_query_arg( 'options', 'saved', admin_url( 'tools.php?page=acf-analyzer' ) ) );
+        exit;
     }
 
     /**

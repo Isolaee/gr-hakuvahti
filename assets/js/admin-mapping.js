@@ -283,12 +283,15 @@
     }
 
     function saveUnrestrictedFields() {
-        console.debug('acf-analyzer: saveUnrestrictedFields payload', fieldDefinitions);
+        try { console.debug('acf-analyzer: saveUnrestrictedFields payload', fieldDefinitions); } catch(e){}
+        try { console.debug('acf-analyzer: payload typeof:', typeof fieldDefinitions, 'isArray:', Array.isArray(fieldDefinitions), JSON.stringify(fieldDefinitions).slice(0,200)); } catch(e){}
         // Send fields as an object (same style as mapping save)
         $.post(acfAnalyzerAdmin.ajaxUrl, {
             action: 'acf_analyzer_save_unrestricted_fields',
             nonce: acfAnalyzerAdmin.nonce,
-            fields: fieldDefinitions
+            fields: fieldDefinitions,
+            // Also include JSON string as a fallback for PHP parsing differences
+            fields_json: JSON.stringify(fieldDefinitions)
         }, function(resp) {
             console.debug('acf-analyzer: saveUnrestrictedFields response', resp);
             if (resp && resp.success) {
