@@ -94,8 +94,19 @@ class ACF_Analyzer_Shortcode {
                 array(),
                 ACF_ANALYZER_VERSION
             );
+
+            // Get unrestricted mode settings
+            $unrestricted_enabled = (bool) get_option( 'acf_analyzer_unrestricted_search', false );
+            $unrestricted_fields = get_option( 'acf_analyzer_unrestricted_fields', array() );
+
             wp_localize_script( 'acf-analyzer-wpgb-logger', 'acfWpgbLogger', array(
-                'use_api_default' => true,
+                'use_api_default'    => true,
+                'ajaxUrl'            => admin_url( 'admin-ajax.php' ),
+                'nonce'              => wp_create_nonce( 'acf_popup_search' ),
+                'hakuvahtiNonce'     => wp_create_nonce( 'hakuvahti_nonce' ),
+                'isLoggedIn'         => is_user_logged_in(),
+                'unrestrictedMode'   => $unrestricted_enabled,
+                'fieldDefinitions'   => $unrestricted_fields,
             ) );
         }
 

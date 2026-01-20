@@ -272,10 +272,11 @@
     }
 
     function saveUnrestrictedFields() {
+        // Send fields as JSON string to preserve nested structure
         $.post(acfAnalyzerAdmin.ajaxUrl, {
             action: 'acf_analyzer_save_unrestricted_fields',
             nonce: acfAnalyzerAdmin.nonce,
-            fields: fieldDefinitions
+            fields_json: JSON.stringify(fieldDefinitions)
         }, function(resp) {
             if (resp && resp.success) {
                 alert('Field definitions saved');

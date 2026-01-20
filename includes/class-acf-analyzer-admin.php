@@ -375,7 +375,7 @@ class ACF_Analyzer_Admin {
      *
      * Expected POST data:
      * - nonce: Security nonce
-     * - fields: Array of category => field definitions
+     * - fields_json: JSON string of category => field definitions
      *
      * @since 1.2.0
      * @return void Sends JSON response
@@ -387,7 +387,9 @@ class ACF_Analyzer_Admin {
             wp_send_json_error( 'Insufficient permissions' );
         }
 
-        $fields = isset( $_POST['fields'] ) ? $_POST['fields'] : array();
+        // Decode JSON string from POST
+        $fields_json = isset( $_POST['fields_json'] ) ? wp_unslash( $_POST['fields_json'] ) : '';
+        $fields = json_decode( $fields_json, true );
 
         if ( ! is_array( $fields ) ) {
             wp_send_json_error( 'Invalid fields data' );
