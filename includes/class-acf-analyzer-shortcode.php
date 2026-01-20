@@ -95,18 +95,11 @@ class ACF_Analyzer_Shortcode {
                 ACF_ANALYZER_VERSION
             );
 
-            // Get unrestricted mode settings
-            $unrestricted_enabled = (bool) get_option( 'acf_analyzer_unrestricted_search', false );
-            $unrestricted_fields = get_option( 'acf_analyzer_unrestricted_fields', array() );
-
             wp_localize_script( 'acf-analyzer-wpgb-logger', 'acfWpgbLogger', array(
-                'use_api_default'    => true,
                 'ajaxUrl'            => admin_url( 'admin-ajax.php' ),
-                'nonce'              => wp_create_nonce( 'acf_popup_search' ),
                 'hakuvahtiNonce'     => wp_create_nonce( 'hakuvahti_nonce' ),
                 'isLoggedIn'         => is_user_logged_in(),
-                'unrestrictedMode'   => $unrestricted_enabled,
-                'fieldDefinitions'   => $unrestricted_fields,
+                'userSearchOptions'  => get_option( 'acf_analyzer_user_search_options', array() ),
             ) );
         }
 
@@ -168,26 +161,13 @@ class ACF_Analyzer_Shortcode {
                 wp_enqueue_script( 'acf-analyzer-wpgb-logger' );
             }
 
-                // Provide configuration to the JavaScript
-                $use_api_bool = in_array( strtolower( $atts['use_api'] ), array( '1', 'true', 'yes' ), true );
-                $unrestricted_enabled = (bool) get_option( 'acf_analyzer_unrestricted_search', false );
-                $unrestricted_fields = get_option( 'acf_analyzer_unrestricted_fields', array() );
-
-                wp_localize_script( 'acf-analyzer-wpgb-logger', 'acfWpgbLogger', array(
-                    'use_api_default'    => $use_api_bool,
-                    'ajaxUrl'            => admin_url( 'admin-ajax.php' ),
-                    'nonce'              => wp_create_nonce( 'acf_popup_search' ),
-                    'hakuvahtiNonce'     => wp_create_nonce( 'hakuvahti_nonce' ),
-                    'isLoggedIn'         => is_user_logged_in(),
-                    'unrestrictedMode'   => $unrestricted_enabled,
-                    'fieldDefinitions'   => $unrestricted_fields,
-                ) );
-
-                // Load admin-defined mapping from database option
-                // Maps WP Grid Builder facet slugs to ACF field names
-                $admin_mapping = get_option( 'acf_wpgb_facet_map', array() );
-                $mapping = is_array( $admin_mapping ) ? $admin_mapping : array();
-                wp_localize_script( 'acf-analyzer-wpgb-logger', 'acfWpgbFacetMap', $mapping );
+            // Provide User Search Options to the JavaScript
+            wp_localize_script( 'acf-analyzer-wpgb-logger', 'acfWpgbLogger', array(
+                'ajaxUrl'            => admin_url( 'admin-ajax.php' ),
+                'hakuvahtiNonce'     => wp_create_nonce( 'hakuvahti_nonce' ),
+                'isLoggedIn'         => is_user_logged_in(),
+                'userSearchOptions'  => get_option( 'acf_analyzer_user_search_options', array() ),
+            ) );
         }
 
         // Load and return the button template

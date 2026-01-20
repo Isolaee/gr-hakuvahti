@@ -517,43 +517,6 @@ class Hakuvahti {
     /**
      * Get recent matches from the matches table
      *
-     * Returns the most recent matches grouped by search (hakuvahti).
-     *
-     * @param int $limit Maximum number of matches to return
-     * @return array Array of recent match records with hakuvahti and post info
-     */
-    public static function get_recent_matches( $limit = 3 ) {
-        global $wpdb;
-
-        $matches_table = self::get_matches_table_name();
-        $hakuvahdit_table = self::get_table_name();
-
-        $results = $wpdb->get_results(
-            $wpdb->prepare(
-                "SELECT m.*, h.name as hakuvahti_name, h.category, h.user_id
-                 FROM $matches_table m
-                 LEFT JOIN $hakuvahdit_table h ON m.search_id = h.id
-                 ORDER BY m.created_at DESC
-                 LIMIT %d",
-                $limit
-            )
-        );
-
-        // Enrich with post and user data
-        foreach ( $results as &$row ) {
-            $row->meta = json_decode( $row->meta, true );
-            $post = get_post( $row->match_id );
-            $row->post_title = $post ? $post->post_title : __( '(Deleted)', 'acf-analyzer' );
-            $row->post_url = $post ? get_permalink( $post->ID ) : '';
-            $user = get_userdata( $row->user_id );
-            $row->user_email = $user ? $user->user_email : '';
-            $row->user_display_name = $user ? $user->display_name : __( '(Unknown)', 'acf-analyzer' );
-        }
-
-        return $results;
-    }
-
-    /**
      * Format criteria for display (human-readable summary)
      *
      * @param array $criteria Criteria array
