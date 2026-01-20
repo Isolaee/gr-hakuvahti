@@ -260,6 +260,14 @@ class ACF_Analyzer_Shortcode {
         $category = isset( $_POST['category'] ) ? sanitize_text_field( $_POST['category'] ) : '';
         $criteria = isset( $_POST['criteria'] ) ? $_POST['criteria'] : array();
 
+        // If criteria was sent as a JSON-encoded string, decode it
+        if ( ! is_array( $criteria ) && is_string( $criteria ) ) {
+            $decoded = json_decode( stripslashes( $criteria ), true );
+            if ( is_array( $decoded ) ) {
+                $criteria = $decoded;
+            }
+        }
+
         // If criteria is a JSON-encoded string (sent by JS), decode it
         if ( ! is_array( $criteria ) && is_string( $criteria ) ) {
             $decoded = json_decode( stripslashes( $criteria ), true );
