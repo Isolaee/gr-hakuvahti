@@ -96,7 +96,7 @@
     function buildFieldInput(opt) {
         // Require explicit ACF field identifier (acf_field) — frontend relies on exact ACF meta key
         var acfField = opt.acf_field || '';
-        var $wrapper = $('<div class="search-field-wrapper" data-acf="' + acfField + '" data-key="' + (opt.key || '') + '"></div>');
+        var $wrapper = $('<div class="search-field-wrapper" data-acf="' + acfField + '"></div>');
         var $label = $('<label class="search-field-label">' + (opt.name || acfField) + '</label>');
 
         $wrapper.append($label);
@@ -162,7 +162,7 @@
 
         $('#search-criteria-fields .search-field-wrapper').each(function() {
             var $field = $(this);
-            var acfField = $field.data('acf') || $field.data('key') || ($field.find('.search-field-label').text() || '').trim().replace(/\s+/g, '_');
+            var acfField = $field.data('acf');
             var fieldType = $field.data('type');
             if (fieldType === 'missing_acf') return;
             var values = [];
