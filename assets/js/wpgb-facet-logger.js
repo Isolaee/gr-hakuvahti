@@ -141,7 +141,6 @@
 
             $wrapper.append($range).attr('data-type', 'range');
         }
-        }
 
         return $wrapper;
     }
@@ -176,7 +175,6 @@
                     var v = $(this).val();
                     if (v) values.push(v);
                 });
-            }
             }
 
             if (values.length > 0) {
