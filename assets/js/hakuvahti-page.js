@@ -123,7 +123,6 @@
             // Build form HTML
             var html = '';
             html += '<div class="hakuvahti-edit-inner">';
-            html += '<label>' + (hakuvahtiConfig.i18n.nameLabel || 'Nimi') + '</label>';
             html += '<input type="text" class="hakuvahti-edit-name" value="' + $card.find('.hakuvahti-name').text().trim().replace(/"/g,'&quot;') + '" style="width:100%; margin-bottom:8px;" />';
 
             html += '<div class="hakuvahti-edit-criteria-list" data-fields="' + encodeURIComponent(JSON.stringify(fields)) + '">';
