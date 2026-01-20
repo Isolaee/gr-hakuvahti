@@ -5,8 +5,9 @@ $use_api = isset( $atts['use_api'] ) ? $atts['use_api'] : 'true';
 $use_api_attr = in_array( strtolower( $use_api ), array( '1', 'true', 'yes' ), true ) ? '1' : '0';
 ?>
 <?php if ( is_user_logged_in() ) : ?>
+<?php $unrestricted_enabled = (bool) get_option( 'acf_analyzer_unrestricted_search', false ); ?>
 <div class="acf-analyzer-buttons">
-    <button class="acf-hakuvahti-save" data-target="<?php echo esc_attr( $target ); ?>" data-use-api="<?php echo esc_attr( $use_api_attr ); ?>">
+    <button class="acf-hakuvahti-save" data-target="<?php echo esc_attr( $target ); ?>" data-use-api="<?php echo esc_attr( $use_api_attr ); ?>" data-unrestricted="<?php echo $unrestricted_enabled ? '1' : '0'; ?>">
         <?php esc_html_e( 'Hakuvahti', 'acf-analyzer' ); ?>
     </button>
 </div>

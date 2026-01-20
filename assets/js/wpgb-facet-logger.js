@@ -515,8 +515,14 @@
         var $btn = $(this);
         var target = $btn.attr('data-target') || '';
 
-        // Check if unrestricted mode is enabled
-        var isUnrestricted = window.acfWpgbLogger && window.acfWpgbLogger.unrestrictedMode;
+        // Check if unrestricted mode is enabled — prefer button data attribute if present
+        var dataUnrestricted = $btn.data('unrestricted');
+        var isUnrestricted;
+        if ( typeof dataUnrestricted !== 'undefined' && dataUnrestricted !== null ) {
+            isUnrestricted = (dataUnrestricted === 1 || dataUnrestricted === '1' || dataUnrestricted === true || dataUnrestricted === 'true');
+        } else {
+            isUnrestricted = window.acfWpgbLogger && window.acfWpgbLogger.unrestrictedMode;
+        }
 
         // Detect category from URL
         var category = detectCategory();
