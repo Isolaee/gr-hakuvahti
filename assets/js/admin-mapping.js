@@ -36,10 +36,6 @@
         });
 
         return $row;
-        });
-
-        $root.append($table);
-        $root.append($('<p></p>').append($addBtn).append(' ').append($saveBtn));
     }
 
     function renderValuesAreaFor($acfSelect, $container, opt) {
