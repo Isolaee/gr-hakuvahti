@@ -495,14 +495,98 @@ class Hakuvahti {
             $label = isset( $item['label'] ) ? $item['label'] : 'multiple_choice';
             $values = $item['values'];
 
-            if ( 'range' === $label && count( $values ) >= 2 ) {
-                // Range: extract min and max
-                $nums = array_map( 'floatval', $values );
-                sort( $nums );
-                $search_criteria[ $field_name . '_min' ] = $nums[0];
-                $search_criteria[ $field_name . '_max' ] = $nums[ count( $nums ) - 1 ];
+            // Normalize values to array for easier handling
+            if ( ! is_array( $values ) ) {
+                $values = array( $values );
+            }
+
+            if ( 'range' === $label ) {
+                // Support multiple formats:
+                // - two plain numbers => min/max
+                // - operator-prefixed single values like '<100' or '>=200' => map to _min/_max
+                // - mix of operator and plain numbers
+                $min = null;
+                $max = null;
+                $plain = array();
+
+                foreach ( $values as $v ) {
+                    $raw = trim( (string) $v );
+                    if ( $raw === '' ) {
+                        continue;
+                    }
+
+                    // Normalize decimal comma to dot
+                    $norm = str_replace( ',', '.', $raw );
+
+                    // Operator form: <, <=, >, >=
+                    if ( preg_match( '/^\s*([<>]=?)\s*(.+)$/', $norm, $m ) ) {
+                        $op = $m[1];
+                        $num = floatval( preg_replace( '/[^0-9\.\-]/', '', $m[2] ) );
+                        if ( strpos( $op, '<' ) !== false ) {
+                            if ( $max === null ) {
+                                $max = $num;
+                            } else {
+                                $max = min( $max, $num );
+                            }
+                        } else {
+                            if ( $min === null ) {
+                                $min = $num;
+                            } else {
+                                $min = max( $min, $num );
+                            }
+                        }
+                        continue;
+                    }
+
+                    // Explicit labels like min:100 or max:100
+                    if ( preg_match( '/^\s*(min|max)\s*[:=]\s*(.+)$/i', $norm, $m2 ) ) {
+                        $which = strtolower( $m2[1] );
+                        $num = floatval( preg_replace( '/[^0-9\.\-]/', '', $m2[2] ) );
+                        if ( $which === 'min' ) {
+                            $min = $num;
+                        } else {
+                            $max = $num;
+                        }
+                        continue;
+                    }
+
+                    // Plain numeric
+                    if ( is_numeric( $norm ) ) {
+                        $plain[] = floatval( $norm );
+                    }
+                    // otherwise ignore non-numeric strings here
+                }
+
+                if ( count( $plain ) >= 2 ) {
+                    sort( $plain );
+                    $search_criteria[ $field_name . '_min' ] = $plain[0];
+                    $search_criteria[ $field_name . '_max' ] = $plain[ count( $plain ) - 1 ];
+                } else {
+                    // If plain numbers contain one value and we also parsed operator bounds, merge
+                    if ( count( $plain ) === 1 ) {
+                        $pv = $plain[0];
+                        if ( $min === null && $max === null ) {
+                            // preserve legacy behavior: single plain numeric => exact match
+                            $search_criteria[ $field_name ] = $pv;
+                        } else {
+                            // merge plain value with operator bounds
+                            if ( $min === null ) {
+                                $min = $pv;
+                            } elseif ( $max === null ) {
+                                $max = $pv;
+                            }
+                        }
+                    }
+
+                    if ( $min !== null ) {
+                        $search_criteria[ $field_name . '_min' ] = $min;
+                    }
+                    if ( $max !== null ) {
+                        $search_criteria[ $field_name . '_max' ] = $max;
+                    }
+                }
             } else {
-                // Multiple choice or single value
+                // Multiple choice or single value (non-range)
                 if ( count( $values ) === 1 ) {
                     $search_criteria[ $field_name ] = $values[0];
                 } else {
@@ -556,13 +640,37 @@ class Hakuvahti {
                 }
             }
 
-            // Format range-like values (min/max) specially
+            // Format range-like values (min/max) and operator-prefixed single values specially
             if ( is_array( $values ) && count( $values ) >= 2 ) {
                 $parts[] = $name . ': ' . implode( ' - ', $values ) . ( $postfix ? ' ' . $postfix : '' );
             } else {
-                // Fallback for single or list values
+                // Single-value or list
                 if ( is_array( $values ) ) {
-                    $parts[] = $name . ': ' . implode( ', ', $values );
+                    if ( count( $values ) === 1 ) {
+                        $v = trim( (string) $values[0] );
+                        // operator-prefixed single values
+                        if ( preg_match( '/^\s*([<>]=?)\s*(.+)$/', $v, $m ) ) {
+                            $op = $m[1];
+                            $num = trim( $m[2] );
+                            if ( strpos( $op, '<' ) !== false ) {
+                                $parts[] = $name . ': ' . sprintf( /* translators: %s = value */ __( 'alle %s', 'acf-analyzer' ), $num ) . ( $postfix ? ' ' . $postfix : '' );
+                            } else {
+                                $parts[] = $name . ': ' . sprintf( /* translators: %s = value */ __( 'yli %s', 'acf-analyzer' ), $num ) . ( $postfix ? ' ' . $postfix : '' );
+                            }
+                        } elseif ( preg_match( '/^\s*(min|max)\s*[:=]\s*(.+)$/i', $v, $m2 ) ) {
+                            $which = strtolower( $m2[1] );
+                            $num = trim( $m2[2] );
+                            if ( $which === 'min' ) {
+                                $parts[] = $name . ': ' . sprintf( __( 'yli %s', 'acf-analyzer' ), $num ) . ( $postfix ? ' ' . $postfix : '' );
+                            } else {
+                                $parts[] = $name . ': ' . sprintf( __( 'alle %s', 'acf-analyzer' ), $num ) . ( $postfix ? ' ' . $postfix : '' );
+                            }
+                        } else {
+                            $parts[] = $name . ': ' . $v . ( $postfix ? ' ' . $postfix : '' );
+                        }
+                    } else {
+                        $parts[] = $name . ': ' . implode( ', ', $values );
+                    }
                 } else {
                     $parts[] = $name . ': ' . $values;
                 }
