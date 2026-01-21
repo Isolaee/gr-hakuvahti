@@ -97,10 +97,19 @@
     function buildFieldInput(opt) {
         // Require explicit ACF field identifier (acf_field) — frontend relies on exact ACF meta key
         var acfField = opt.acf_field || '';
+        var optionType = opt.option_type || 'acf_field';
         var $wrapper = $('<div class="search-field-wrapper" data-acf="' + acfField + '"></div>');
         var $label = $('<label class="search-field-label">' + (opt.name || acfField) + '</label>');
 
         $wrapper.append($label);
+
+        // Handle word_search type - user enters their own search terms
+        if (optionType === 'word_search') {
+            var $input = $('<input type="text" class="word-search-input" placeholder="esim. auto punainen talo*" style="width:100%;">');
+            var $hint = $('<p class="description" style="margin:4px 0 0; font-size:12px; color:#666;">Erota sanat välilyönnillä. * = jokerimerkki (esim. talo* löytää talo, talot, talossa)</p>');
+            $wrapper.append($input).append($hint).attr('data-type', 'word_search');
+            return $wrapper;
+        }
 
         // Determine field type based on values
         // opt.values may be:
@@ -221,7 +230,19 @@
 
             if (!acfField) return;
 
-            if (fieldType === 'multiple_choice') {
+            if (fieldType === 'word_search') {
+                // Word search: get text input value, split into words
+                var rawText = $field.find('.word-search-input').val() || '';
+                var words = rawText.trim().split(/\s+/).filter(function(w) { return w.length > 0; });
+                if (words.length > 0) {
+                    criteria.push({
+                        name: '__word_search',
+                        label: 'word_search',
+                        values: words
+                    });
+                }
+                return; // Continue to next field
+            } else if (fieldType === 'multiple_choice') {
                 $field.find('input:checked').each(function() {
                     values.push($(this).val());
                 });

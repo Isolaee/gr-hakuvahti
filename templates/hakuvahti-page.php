@@ -90,8 +90,13 @@ $user_search_options = get_option( 'acf_analyzer_user_search_options', array() )
                                                         }
                                                     }
 
+                                                    // If this is a word_search field, display the search terms
+                                                    if ( isset( $it['label'] ) && $it['label'] === 'word_search' ) {
+                                                        $display_name = __( 'Sanahaku', 'acf-analyzer' );
+                                                        $display = is_array( $values ) ? implode( ' ', $values ) : $values;
+                                                    }
                                                     // If this is a range field, handle single-value and two-value cases
-                                                    if ( isset( $it['label'] ) && $it['label'] === 'range' ) {
+                                                    elseif ( isset( $it['label'] ) && $it['label'] === 'range' ) {
                                                         // normalize to array
                                                         $vals = is_array( $values ) ? $values : array( $values );
                                                         if ( count( $vals ) >= 2 ) {

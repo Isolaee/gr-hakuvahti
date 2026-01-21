@@ -105,11 +105,7 @@
             if (type === 'word_search') {
                 $acf.hide();
                 $valuesContainer.html(
-                    '<input type="text" class="option-word-search-input regular-text" ' +
-                    'placeholder="esim. auto punainen talo*" ' +
-                    'style="width:300px;" ' +
-                    'value="' + (opt.word_search_value || '') + '" />' +
-                    '<p class="description" style="margin-top:4px;">Erota sanat välilyönnillä. Käytä * jokerimerkkiä sanan lopussa (esim. talo* = talo, talot, talossa).</p>'
+                    '<p class="description" style="margin:0;">Käyttäjä syöttää hakusanat itse hakuvahtia luodessaan. Erota sanat välilyönnillä. * = jokerimerkki (esim. talo* = talo, talot, talossa).</p>'
                 );
             } else {
                 $acf.show();
@@ -231,18 +227,15 @@
             var optionType = $r.find('.option-type').val() || 'acf_field';
             var acf = $r.find('.option-acf-field').val();
             var values = null;
-            var wordSearchValue = '';
 
             if (optionType === 'word_search') {
-                // Word search type
-                wordSearchValue = $r.find('.option-word-search-input').val() || '';
+                // Word search type - user will provide words at search time
                 if (name) {
                     collected.push({
                         name: name,
                         category: currentOptionsTab,
                         option_type: 'word_search',
                         acf_field: '__word_search',
-                        word_search_value: wordSearchValue,
                         values: null
                     });
                 }
