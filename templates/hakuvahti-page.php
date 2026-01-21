@@ -15,6 +15,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 $user_id = get_current_user_id();
 $hakuvahdits = Hakuvahti::get_by_user( $user_id );
+// Load admin-defined user search options to get display names and postfixes
+$user_search_options = get_option( 'acf_analyzer_user_search_options', array() );
 ?>
 
 <div class="hakuvahti-page">
@@ -30,7 +32,7 @@ $hakuvahdits = Hakuvahti::get_by_user( $user_id );
                 <?php
                 printf(
                     /* translators: %1$s, %2$s, %3$s are category page links */
-                    esc_html__( 'Luo hakuvahti valitsemalla hakuehdot %1$s, %2$s tai %3$s -sivulla ja klikkaamalla "Tallenna hakuvahti" -painiketta.', 'acf-analyzer' ),
+                    esc_html__( 'Luo hakuvahti valitsemalla hakuehdot %1$s, %2$s tai %3$s -sivulla ja klikkaamalla "Luo hakuvahti" -painiketta.', 'acf-analyzer' ),
                     '<a href="' . esc_url( home_url( '/osakeannit/' ) ) . '">Osakeannit</a>',
                     '<a href="' . esc_url( home_url( '/velkakirjat/' ) ) . '">Velkakirjat</a>',
                     '<a href="' . esc_url( home_url( '/osaketori/' ) ) . '">Osaketori</a>'
@@ -67,16 +69,33 @@ $hakuvahdits = Hakuvahti::get_by_user( $user_id );
                                         <div class="hakuvahti-crit-group" data-label="<?php echo esc_attr( $label ); ?>">
                                             <ul class="hakuvahti-crit-list">
                                                 <?php foreach ( $items as $it ) :
-                                                    $name = isset( $it['name'] ) ? $it['name'] : '';
+                                                    $acf_field = isset( $it['name'] ) ? $it['name'] : '';
                                                     $values = isset( $it['values'] ) ? $it['values'] : '';
                                                     $display = '';
+
+                                                    // Look up display name and postfix from admin-defined options
+                                                    $display_name = $acf_field;
+                                                    $postfix = '';
+                                                    if ( is_array( $user_search_options ) ) {
+                                                        foreach ( $user_search_options as $opt ) {
+                                                            if ( isset( $opt['acf_field'] ) && $opt['acf_field'] === $acf_field ) {
+                                                                if ( isset( $opt['name'] ) && ! empty( $opt['name'] ) ) {
+                                                                    $display_name = $opt['name'];
+                                                                }
+                                                                if ( isset( $opt['values'] ) && is_array( $opt['values'] ) && isset( $opt['values']['postfix'] ) ) {
+                                                                    $postfix = $opt['values']['postfix'];
+                                                                }
+                                                                break;
+                                                            }
+                                                        }
+                                                    }
 
                                                     // If this is a range field, handle single-value and two-value cases
                                                     if ( isset( $it['label'] ) && $it['label'] === 'range' ) {
                                                         // normalize to array
                                                         $vals = is_array( $values ) ? $values : array( $values );
                                                         if ( count( $vals ) >= 2 ) {
-                                                            $display = implode( ' - ', $vals );
+                                                            $display = implode( ' - ', $vals ) . ( $postfix ? ' ' . $postfix : '' );
                                                         } elseif ( count( $vals ) === 1 ) {
                                                             $raw = trim( (string) $vals[0] );
                                                             $norm = str_replace( ',', '.', $raw );
@@ -85,23 +104,23 @@ $hakuvahdits = Hakuvahti::get_by_user( $user_id );
                                                                 $op = $m[1];
                                                                 $num = trim( $m[2] );
                                                                 if ( strpos( $op, '<' ) !== false ) {
-                                                                    $display = sprintf( /* translators: %s = value */ __( 'alle %s', 'acf-analyzer' ), $num );
+                                                                    $display = sprintf( /* translators: %s = value */ __( 'alle %s', 'acf-analyzer' ), $num ) . ( $postfix ? ' ' . $postfix : '' );
                                                                 } else {
-                                                                    $display = sprintf( /* translators: %s = value */ __( 'yli %s', 'acf-analyzer' ), $num );
+                                                                    $display = sprintf( /* translators: %s = value */ __( 'yli %s', 'acf-analyzer' ), $num ) . ( $postfix ? ' ' . $postfix : '' );
                                                                 }
                                                             } elseif ( preg_match( '/^\s*(min|max)\s*[:=]\s*(.+)$/i', $norm, $m2 ) ) {
                                                                 $which = strtolower( $m2[1] );
                                                                 $num = trim( $m2[2] );
                                                                 if ( $which === 'min' ) {
-                                                                    $display = sprintf( __( 'yli %s', 'acf-analyzer' ), $num );
+                                                                    $display = sprintf( __( 'yli %s', 'acf-analyzer' ), $num ) . ( $postfix ? ' ' . $postfix : '' );
                                                                 } else {
-                                                                    $display = sprintf( __( 'alle %s', 'acf-analyzer' ), $num );
+                                                                    $display = sprintf( __( 'alle %s', 'acf-analyzer' ), $num ) . ( $postfix ? ' ' . $postfix : '' );
                                                                 }
                                                             } elseif ( is_numeric( $norm ) ) {
                                                                 // default: single numeric treated as minimum
-                                                                $display = sprintf( __( 'yli %s', 'acf-analyzer' ), $norm );
+                                                                $display = sprintf( __( 'yli %s', 'acf-analyzer' ), $norm ) . ( $postfix ? ' ' . $postfix : '' );
                                                             } else {
-                                                                $display = $raw;
+                                                                $display = $raw . ( $postfix ? ' ' . $postfix : '' );
                                                             }
                                                         }
                                                     } else {
@@ -109,7 +128,7 @@ $hakuvahdits = Hakuvahti::get_by_user( $user_id );
                                                         $display = is_array( $values ) ? implode( ', ', $values ) : $values;
                                                     }
                                                 ?>
-                                                    <li class="hakuvahti-crit-item"><?php echo esc_html( $name . ': ' . $display ); ?></li>
+                                                    <li class="hakuvahti-crit-item"><?php echo esc_html( $display_name . ': ' . $display ); ?></li>
                                                 <?php endforeach; ?>
                                             </ul>
                                         </div>
