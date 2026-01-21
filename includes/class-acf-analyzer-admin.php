@@ -280,9 +280,14 @@ class ACF_Analyzer_Admin {
             $key  = isset( $opt['key'] ) ? sanitize_text_field( $opt['key'] ) : '';
             $cat  = isset( $opt['category'] ) ? sanitize_text_field( $opt['category'] ) : '';
             $acf  = isset( $opt['acf_field'] ) ? sanitize_text_field( $opt['acf_field'] ) : '';
+            $option_type = isset( $opt['option_type'] ) ? sanitize_text_field( $opt['option_type'] ) : 'acf_field';
 
+            // Word search type uses special __word_search field, skip auto-detection
+            if ( 'word_search' === $option_type ) {
+                $acf = '__word_search';
+            }
             // If acf_field missing, attempt to auto-detect based on category fields
-            if ( $acf === '' && $cat !== '' ) {
+            elseif ( $acf === '' && $cat !== '' ) {
                 if ( ! isset( $fields_cache[ $cat ] ) ) {
                     // build fields for this category similar to ajax_get_fields_by_category
                     $query = new WP_Query( array(
@@ -376,7 +381,8 @@ class ACF_Analyzer_Admin {
             }
 
             // Require acf_field at this point; if still missing, abort and ask admin to correct
-            if ( empty( $acf ) ) {
+            // (word_search type is exempt as it uses special __word_search field)
+            if ( empty( $acf ) && 'word_search' !== $option_type ) {
                 wp_send_json_error( array( 'message' => sprintf( __( 'ACF field could not be determined for option "%s" in category "%s". Please set the ACF field explicitly.', 'acf-analyzer' ), $name, $cat ) ) );
             }
 
@@ -384,6 +390,7 @@ class ACF_Analyzer_Admin {
                 'name' => $name,
                 'key'  => $key,
                 'category' => $cat,
+                'option_type' => $option_type,
                 'acf_field' => $acf,
                 'values' => $sanitized_values,
             );
