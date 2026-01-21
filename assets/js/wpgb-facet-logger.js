@@ -228,8 +228,15 @@
             } else if (fieldType === 'range') {
                 var min = $field.find('.range-min').val();
                 var max = $field.find('.range-max').val();
-                if (min) values.push(min);
-                if (max) values.push(max);
+                // Label single values so backend knows if it's min or max
+                if (min && max) {
+                    values.push(min);
+                    values.push(max);
+                } else if (min) {
+                    values.push('min:' + min);
+                } else if (max) {
+                    values.push('max:' + max);
+                }
             } else {
                 // fallback: check for any text inputs inside the field wrapper
                 $field.find('input[type="text"]').each(function() {

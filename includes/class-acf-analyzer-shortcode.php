@@ -324,9 +324,44 @@ class ACF_Analyzer_Shortcode {
                     // Process based on label type
                     if ( $label === 'range' ) {
                         // Range: parse numeric values and create _min and _max fields
+                        // Supports: plain numbers, "min:X", "max:X", operator prefixes (<, >, <=, >=)
                         $numeric_vals = array();
+                        $min_val = null;
+                        $max_val = null;
+
                         foreach ( $values as $val ) {
-                            // Parse numeric value (handle comma as decimal separator)
+                            // Check for explicit min:/max: labels first
+                            if ( preg_match( '/^\s*(min|max)\s*[:=]\s*(.+)$/i', $val, $label_match ) ) {
+                                $which = strtolower( $label_match[1] );
+                                $cleaned = preg_replace( '/[^0-9.,\-]/', '', $label_match[2] );
+                                $cleaned = str_replace( ',', '.', $cleaned );
+                                if ( is_numeric( $cleaned ) ) {
+                                    if ( $which === 'min' ) {
+                                        $min_val = floatval( $cleaned );
+                                    } else {
+                                        $max_val = floatval( $cleaned );
+                                    }
+                                }
+                                continue;
+                            }
+
+                            // Check for operator prefixes (<, >, <=, >=)
+                            if ( preg_match( '/^\s*([<>]=?)\s*(.+)$/', $val, $op_match ) ) {
+                                $op = $op_match[1];
+                                $cleaned = preg_replace( '/[^0-9.,\-]/', '', $op_match[2] );
+                                $cleaned = str_replace( ',', '.', $cleaned );
+                                if ( is_numeric( $cleaned ) ) {
+                                    $num = floatval( $cleaned );
+                                    if ( strpos( $op, '<' ) !== false ) {
+                                        $max_val = ( $max_val === null ) ? $num : min( $max_val, $num );
+                                    } else {
+                                        $min_val = ( $min_val === null ) ? $num : max( $min_val, $num );
+                                    }
+                                }
+                                continue;
+                            }
+
+                            // Parse plain numeric value (handle comma as decimal separator)
                             $cleaned = preg_replace( '/[^0-9.,\-]/', '', $val );
                             $cleaned = str_replace( ',', '.', $cleaned );
                             if ( is_numeric( $cleaned ) ) {
@@ -341,18 +376,29 @@ class ACF_Analyzer_Shortcode {
                                 }
                             }
                         }
-                        
+
+                        // If we have two or more plain numeric values, use them as min/max
                         if ( count( $numeric_vals ) >= 2 ) {
-                            $min = min( $numeric_vals );
-                            $max = max( $numeric_vals );
-                            $sanitized_criteria[ $field_name . '_min' ] = (string) $min;
-                            $sanitized_criteria[ $field_name . '_max' ] = (string) $max;
-                            if ( $debug ) {
-                                error_log( "ACF Search - Range field '{$field_name}': min={$min}, max={$max}" );
-                            }
-                        } elseif ( count( $numeric_vals ) === 1 ) {
-                            // Single numeric value - exact match
+                            $min_val = min( $numeric_vals );
+                            $max_val = max( $numeric_vals );
+                        } elseif ( count( $numeric_vals ) === 1 && $min_val === null && $max_val === null ) {
+                            // Single unlabeled value with no explicit min/max - treat as exact match (legacy)
                             $sanitized_criteria[ $field_name ] = (string) $numeric_vals[0];
+                            if ( $debug ) {
+                                error_log( "ACF Search - Range field '{$field_name}' single value (exact): {$numeric_vals[0]}" );
+                            }
+                        }
+
+                        // Set min/max if we have them
+                        if ( $min_val !== null ) {
+                            $sanitized_criteria[ $field_name . '_min' ] = (string) $min_val;
+                        }
+                        if ( $max_val !== null ) {
+                            $sanitized_criteria[ $field_name . '_max' ] = (string) $max_val;
+                        }
+
+                        if ( $debug && ( $min_val !== null || $max_val !== null ) ) {
+                            error_log( "ACF Search - Range field '{$field_name}': min={$min_val}, max={$max_val}" );
                         }
                     } elseif ( $label === 'multiple_choice' ) {
                         // Multiple choice: store as array and mark for OR logic
