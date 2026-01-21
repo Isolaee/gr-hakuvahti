@@ -381,12 +381,9 @@ class ACF_Analyzer_Shortcode {
                         if ( count( $numeric_vals ) >= 2 ) {
                             $min_val = min( $numeric_vals );
                             $max_val = max( $numeric_vals );
-                        } elseif ( count( $numeric_vals ) === 1 && $min_val === null && $max_val === null ) {
-                            // Single unlabeled value with no explicit min/max - treat as exact match (legacy)
-                            $sanitized_criteria[ $field_name ] = (string) $numeric_vals[0];
-                            if ( $debug ) {
-                                error_log( "ACF Search - Range field '{$field_name}' single value (exact): {$numeric_vals[0]}" );
-                            }
+                        } elseif ( count( $numeric_vals ) === 1 && $min_val === null ) {
+                            // Single unlabeled value - treat as minimum (consistent with display "yli X")
+                            $min_val = $numeric_vals[0];
                         }
 
                         // Set min/max if we have them

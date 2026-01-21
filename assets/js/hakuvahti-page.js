@@ -280,9 +280,24 @@
             if ( ! name ) return;
             var values = [];
             if ( label === 'range' ) {
-                // Expect comma separated two numbers, or single value
+                // Expect comma separated two numbers, or single value with optional min:/max: prefix
                 var parts = rawvals.split(',').map(function(s){ return s.trim(); }).filter(Boolean);
-                values = parts;
+                // If exactly one plain numeric value, we need to determine if it's min or max
+                // Check if user entered with prefix (min:, max:, <, >, etc.)
+                if (parts.length === 1) {
+                    var val = parts[0];
+                    // If already has operator or label prefix, keep as-is
+                    if (/^\s*([<>]=?|min\s*[:=]|max\s*[:=])/i.test(val)) {
+                        values = parts;
+                    } else if (/^\d/.test(val)) {
+                        // Plain number without prefix - default to min (search for values >= this)
+                        values = ['min:' + val];
+                    } else {
+                        values = parts;
+                    }
+                } else {
+                    values = parts;
+                }
             } else {
                 // multiple_choice - comma separated
                 var parts = rawvals.split(',').map(function(s){ return s.trim(); }).filter(Boolean);

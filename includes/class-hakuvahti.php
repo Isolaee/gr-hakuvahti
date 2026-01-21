@@ -562,20 +562,13 @@ class Hakuvahti {
                     $search_criteria[ $field_name . '_min' ] = $plain[0];
                     $search_criteria[ $field_name . '_max' ] = $plain[ count( $plain ) - 1 ];
                 } else {
-                    // If plain numbers contain one value and we also parsed operator bounds, merge
+                    // If plain numbers contain one value, treat as minimum (consistent with display "yli X")
                     if ( count( $plain ) === 1 ) {
                         $pv = $plain[0];
-                        if ( $min === null && $max === null ) {
-                            // preserve legacy behavior: single plain numeric => exact match
-                            $search_criteria[ $field_name ] = $pv;
-                        } else {
-                            // merge plain value with operator bounds
-                            if ( $min === null ) {
-                                $min = $pv;
-                            } elseif ( $max === null ) {
-                                $max = $pv;
-                            }
+                        if ( $min === null ) {
+                            $min = $pv;
                         }
+                        // If max was already set via operator, keep it
                     }
 
                     if ( $min !== null ) {
@@ -665,6 +658,9 @@ class Hakuvahti {
                             } else {
                                 $parts[] = $name . ': ' . sprintf( __( 'alle %s', 'acf-analyzer' ), $num ) . ( $postfix ? ' ' . $postfix : '' );
                             }
+                        } elseif ( is_numeric( trim( $v ) ) ) {
+                            // Plain numeric single value - default to "yli" (over/min) for consistency
+                            $parts[] = $name . ': ' . sprintf( __( 'yli %s', 'acf-analyzer' ), trim( $v ) ) . ( $postfix ? ' ' . $postfix : '' );
                         } else {
                             $parts[] = $name . ': ' . $v . ( $postfix ? ' ' . $postfix : '' );
                         }
