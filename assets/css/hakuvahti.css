@@ -15,8 +15,9 @@
 .acf-analyzer-buttons{display:flex;gap:10px;flex-wrap:wrap}
 .acf-hakuvahti-save,
 .hakuvahti-submit,
-.hakuvahti-run-btn{background:var(--haku-primary);color:#fff;border:none;padding:.6rem 1.2rem;border-radius:.5rem;cursor:pointer;font-weight:600}
-.acf-hakuvahti-save:hover,.hakuvahti-submit:hover,.hakuvahti-run-btn:hover{background:var(--haku-primary-dark)}
+.hakuvahti-run-btn,
+.hakuvahti-open-popup{background:var(--haku-primary);color:#fff;border:none;padding:.6rem 1.2rem;cursor:pointer;font-weight:600}
+.acf-hakuvahti-save:hover,.hakuvahti-submit:hover,.hakuvahti-run-btn:hover,.hakuvahti-open-popup:hover{background:var(--haku-primary-dark)}
 .hakuvahti-submit:disabled,.hakuvahti-run-btn:disabled{background:#ccc;cursor:not-allowed}
 
 /* Page layout */
