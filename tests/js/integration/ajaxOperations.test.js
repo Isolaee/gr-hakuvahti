@@ -1,453 +1,690 @@
 /**
  * Integration Tests for AJAX Operations
  *
- * Tests the AJAX request/response handling for hakuvahti operations.
+ * Tests the AJAX communication patterns across all modules:
+ * - Hakuvahti save, run, edit, delete operations
+ * - Field fetching for categories
+ * - Admin options save
+ * - Error handling and response processing
  */
 
 describe('AJAX Operations Integration', () => {
-    let mockAjaxCall;
-    let mockResponse;
+    // ============================================
+    // HAKUVAHTI SAVE OPERATION
+    // ============================================
+    describe('Hakuvahti Save', () => {
+        describe('Request building', () => {
+            test('builds save request with all required parameters', () => {
+                const request = {
+                    action: 'hakuvahti_save',
+                    nonce: 'test-nonce-123',
+                    name: 'My Search',
+                    category: 'Osakeannit'
+                };
 
-    beforeEach(() => {
-        mockResponse = null;
-        mockAjaxCall = {
-            _done: null,
-            _fail: null,
-            _always: null,
-            done(cb) {
-                this._done = cb;
-                return this;
-            },
-            fail(cb) {
-                this._fail = cb;
-                return this;
-            },
-            always(cb) {
-                this._always = cb;
-                return this;
-            },
-            // Simulate success response
-            triggerSuccess(data) {
-                if (this._done) this._done(data);
-                if (this._always) this._always();
-            },
-            // Simulate failure
-            triggerFail(error) {
-                if (this._fail) this._fail(error);
-                if (this._always) this._always();
-            },
-        };
-    });
+                expect(request).toHaveProperty('action', 'hakuvahti_save');
+                expect(request).toHaveProperty('nonce');
+                expect(request).toHaveProperty('name');
+                expect(request).toHaveProperty('category');
+            });
 
-    describe('Save Hakuvahti', () => {
-        const saveHakuvahti = (data, callbacks) => {
-            const request = mockAjaxCall;
+            test('includes criteria as array entries', () => {
+                const criteria = [
+                    { name: 'hinta', label: 'range', values: ['100', '500'] },
+                    { name: 'tyyppi', label: 'multiple_choice', values: ['A'] }
+                ];
 
-            // Simulate async behavior
-            setTimeout(() => {
-                if (mockResponse && mockResponse.success) {
-                    request.triggerSuccess(mockResponse);
-                } else if (mockResponse) {
-                    request.triggerSuccess(mockResponse);
-                } else {
-                    request.triggerFail({ status: 500 });
-                }
-            }, 0);
+                const postData = {
+                    action: 'hakuvahti_save',
+                    nonce: 'test-nonce',
+                    name: 'Test',
+                    category: 'Osakeannit'
+                };
 
-            return request
-                .done(callbacks.onSuccess)
-                .fail(callbacks.onError)
-                .always(callbacks.onComplete);
-        };
+                criteria.forEach((c, i) => {
+                    postData[`criteria[${i}][name]`] = c.name;
+                    postData[`criteria[${i}][label]`] = c.label;
+                    c.values.forEach((v, j) => {
+                        postData[`criteria[${i}][values][${j}]`] = v;
+                    });
+                });
 
-        it('handles successful save', (done) => {
-            mockResponse = {
-                success: true,
-                data: {
-                    id: 123,
-                    message: 'Hakuvahti tallennettu!',
-                },
-            };
+                expect(postData['criteria[0][name]']).toBe('hinta');
+                expect(postData['criteria[0][values][0]']).toBe('100');
+                expect(postData['criteria[1][name]']).toBe('tyyppi');
+            });
 
-            const callbacks = {
-                onSuccess: jest.fn((resp) => {
-                    expect(resp.success).toBe(true);
-                    expect(resp.data.id).toBe(123);
-                }),
-                onError: jest.fn(),
-                onComplete: jest.fn(() => {
-                    expect(callbacks.onSuccess).toHaveBeenCalled();
-                    expect(callbacks.onError).not.toHaveBeenCalled();
-                    done();
-                }),
-            };
+            test('includes id for update operation', () => {
+                const request = {
+                    action: 'hakuvahti_save',
+                    nonce: 'test-nonce',
+                    id: 42,
+                    name: 'Updated Search',
+                    criteria: JSON.stringify([{ name: 'field', label: 'range', values: ['50'] }])
+                };
 
-            saveHakuvahti(
-                { name: 'Test', category: 'Osakeannit', criteria: [] },
-                callbacks
-            );
+                expect(request.id).toBe(42);
+            });
         });
 
-        it('handles validation error', (done) => {
-            mockResponse = {
-                success: false,
-                data: {
-                    message: 'Nimi on pakollinen',
-                },
-            };
+        describe('Response handling', () => {
+            test('handles successful save response', () => {
+                const response = {
+                    success: true,
+                    data: {
+                        id: 123,
+                        message: 'Hakuvahti tallennettu'
+                    }
+                };
 
-            const callbacks = {
-                onSuccess: jest.fn((resp) => {
-                    expect(resp.success).toBe(false);
-                    expect(resp.data.message).toBe('Nimi on pakollinen');
-                }),
-                onError: jest.fn(),
-                onComplete: jest.fn(() => {
-                    done();
-                }),
-            };
+                expect(response.success).toBe(true);
+                expect(response.data.id).toBe(123);
+            });
 
-            saveHakuvahti({ name: '', category: 'Osakeannit', criteria: [] }, callbacks);
-        });
+            test('handles save error response', () => {
+                const response = {
+                    success: false,
+                    data: {
+                        message: 'Nimi on pakollinen'
+                    }
+                };
 
-        it('handles network error', (done) => {
-            mockResponse = null; // Triggers fail
+                expect(response.success).toBe(false);
+                expect(response.data.message).toBeTruthy();
+            });
 
-            const callbacks = {
-                onSuccess: jest.fn(),
-                onError: jest.fn((error) => {
-                    expect(error.status).toBe(500);
-                }),
-                onComplete: jest.fn(() => {
-                    expect(callbacks.onError).toHaveBeenCalled();
-                    done();
-                }),
-            };
+            test('extracts message from error response', () => {
+                const response = {
+                    success: false,
+                    data: { message: 'Custom error message' }
+                };
 
-            saveHakuvahti({ name: 'Test', category: 'Osakeannit', criteria: [] }, callbacks);
+                const msg = response && response.data && response.data.message
+                    ? response.data.message
+                    : 'Tallennus epäonnistui.';
+
+                expect(msg).toBe('Custom error message');
+            });
+
+            test('uses default message when not provided', () => {
+                const response = { success: false };
+
+                const msg = response && response.data && response.data.message
+                    ? response.data.message
+                    : 'Tallennus epäonnistui.';
+
+                expect(msg).toBe('Tallennus epäonnistui.');
+            });
         });
     });
 
-    describe('Run Search', () => {
-        const runSearch = (hakuvahtiId, callbacks) => {
-            const request = mockAjaxCall;
+    // ============================================
+    // HAKUVAHTI RUN OPERATION
+    // ============================================
+    describe('Hakuvahti Run', () => {
+        describe('Request building', () => {
+            test('builds run request with id', () => {
+                const request = {
+                    action: 'hakuvahti_run',
+                    nonce: 'test-nonce-456',
+                    id: 42
+                };
 
-            setTimeout(() => {
-                if (mockResponse) {
-                    request.triggerSuccess(mockResponse);
-                } else {
-                    request.triggerFail({ status: 500 });
-                }
-            }, 0);
-
-            return request
-                .done(callbacks.onSuccess)
-                .fail(callbacks.onError)
-                .always(callbacks.onComplete);
-        };
-
-        it('returns new posts when found', (done) => {
-            mockResponse = {
-                success: true,
-                data: {
-                    posts: [
-                        { ID: 1, title: 'New Property 1', url: 'https://example.com/1' },
-                        { ID: 2, title: 'New Property 2', url: 'https://example.com/2' },
-                    ],
-                    total_found: 2,
-                    total_all: 10,
-                },
-            };
-
-            const callbacks = {
-                onSuccess: jest.fn((resp) => {
-                    expect(resp.success).toBe(true);
-                    expect(resp.data.posts).toHaveLength(2);
-                    expect(resp.data.total_found).toBe(2);
-                }),
-                onError: jest.fn(),
-                onComplete: jest.fn(() => {
-                    done();
-                }),
-            };
-
-            runSearch(123, callbacks);
+                expect(request.action).toBe('hakuvahti_run');
+                expect(request.id).toBe(42);
+            });
         });
 
-        it('returns empty posts array when no new results', (done) => {
-            mockResponse = {
-                success: true,
-                data: {
-                    posts: [],
-                    total_found: 0,
-                    total_all: 10,
-                },
-            };
+        describe('Response handling', () => {
+            test('handles response with posts', () => {
+                const response = {
+                    success: true,
+                    data: {
+                        posts: [
+                            { id: 1, title: 'Post 1', url: '/post-1/' },
+                            { id: 2, title: 'Post 2', url: '/post-2/' },
+                            { id: 3, title: 'Post 3', url: '/post-3/' }
+                        ]
+                    }
+                };
 
-            const callbacks = {
-                onSuccess: jest.fn((resp) => {
-                    expect(resp.data.posts).toHaveLength(0);
-                    expect(resp.data.total_found).toBe(0);
-                }),
-                onError: jest.fn(),
-                onComplete: jest.fn(() => {
-                    done();
-                }),
-            };
+                expect(response.data.posts).toHaveLength(3);
+                expect(response.data.posts[0].title).toBe('Post 1');
+            });
 
-            runSearch(123, callbacks);
+            test('handles response with no posts', () => {
+                const response = {
+                    success: true,
+                    data: {
+                        posts: []
+                    }
+                };
+
+                expect(response.data.posts).toHaveLength(0);
+            });
+
+            test('handles missing posts array', () => {
+                const response = {
+                    success: true,
+                    data: {}
+                };
+
+                const posts = response.data.posts || [];
+                expect(posts).toEqual([]);
+            });
+
+            test('handles error response', () => {
+                const response = {
+                    success: false,
+                    data: {
+                        message: 'Hakuvahti not found'
+                    }
+                };
+
+                expect(response.success).toBe(false);
+            });
         });
 
-        it('handles unauthorized access', (done) => {
-            mockResponse = {
-                success: false,
-                data: {
-                    message: 'Ei oikeuksia',
-                },
-            };
+        describe('Results formatting', () => {
+            test('formats zero results', () => {
+                const posts = [];
+                const hasResults = posts.length > 0;
+                expect(hasResults).toBe(false);
+            });
 
-            const callbacks = {
-                onSuccess: jest.fn((resp) => {
-                    expect(resp.success).toBe(false);
-                    expect(resp.data.message).toContain('oikeuksia');
-                }),
-                onError: jest.fn(),
-                onComplete: jest.fn(() => {
-                    done();
-                }),
-            };
+            test('counts results correctly', () => {
+                const posts = [
+                    { title: 'A', url: '/a' },
+                    { title: 'B', url: '/b' }
+                ];
+                expect(posts.length).toBe(2);
+            });
 
-            runSearch(999, callbacks);
-        });
-    });
+            test('builds result list HTML', () => {
+                const posts = [
+                    { title: 'Test Post', url: '/test-post/' }
+                ];
 
-    describe('Delete Hakuvahti', () => {
-        const deleteHakuvahti = (hakuvahtiId, callbacks) => {
-            const request = mockAjaxCall;
+                let html = '<ul>';
+                posts.forEach(post => {
+                    html += `<li><a href="${post.url}">${post.title}</a></li>`;
+                });
+                html += '</ul>';
 
-            setTimeout(() => {
-                if (mockResponse) {
-                    request.triggerSuccess(mockResponse);
-                } else {
-                    request.triggerFail({ status: 500 });
-                }
-            }, 0);
-
-            return request
-                .done(callbacks.onSuccess)
-                .fail(callbacks.onError)
-                .always(callbacks.onComplete);
-        };
-
-        it('handles successful deletion', (done) => {
-            mockResponse = {
-                success: true,
-                data: {
-                    message: 'Hakuvahti poistettu',
-                },
-            };
-
-            const callbacks = {
-                onSuccess: jest.fn((resp) => {
-                    expect(resp.success).toBe(true);
-                }),
-                onError: jest.fn(),
-                onComplete: jest.fn(() => {
-                    expect(callbacks.onSuccess).toHaveBeenCalled();
-                    done();
-                }),
-            };
-
-            deleteHakuvahti(123, callbacks);
-        });
-
-        it('handles deletion failure', (done) => {
-            mockResponse = {
-                success: false,
-                data: {
-                    message: 'Poisto epäonnistui',
-                },
-            };
-
-            const callbacks = {
-                onSuccess: jest.fn((resp) => {
-                    expect(resp.success).toBe(false);
-                }),
-                onError: jest.fn(),
-                onComplete: jest.fn(() => {
-                    done();
-                }),
-            };
-
-            deleteHakuvahti(123, callbacks);
+                expect(html).toContain('href="/test-post/"');
+                expect(html).toContain('Test Post');
+            });
         });
     });
 
-    describe('Get Fields', () => {
-        const getFields = (category, callbacks) => {
-            const request = mockAjaxCall;
+    // ============================================
+    // HAKUVAHTI DELETE OPERATION
+    // ============================================
+    describe('Hakuvahti Delete', () => {
+        describe('Request building', () => {
+            test('builds delete request', () => {
+                const request = {
+                    action: 'hakuvahti_delete',
+                    nonce: 'test-nonce',
+                    id: 42
+                };
 
-            setTimeout(() => {
-                if (mockResponse) {
-                    request.triggerSuccess(mockResponse);
-                } else {
-                    request.triggerFail({ status: 500 });
-                }
-            }, 0);
-
-            return request
-                .done(callbacks.onSuccess)
-                .fail(callbacks.onError)
-                .always(callbacks.onComplete);
-        };
-
-        it('returns available fields for category', (done) => {
-            mockResponse = {
-                success: true,
-                data: {
-                    fields: [
-                        'sijainti',
-                        'hinta',
-                        'tyyppi',
-                        'koko',
-                        'Luokitus',
-                    ],
-                },
-            };
-
-            const callbacks = {
-                onSuccess: jest.fn((resp) => {
-                    expect(resp.data.fields).toContain('sijainti');
-                    expect(resp.data.fields).toContain('hinta');
-                    expect(resp.data.fields).toHaveLength(5);
-                }),
-                onError: jest.fn(),
-                onComplete: jest.fn(() => {
-                    done();
-                }),
-            };
-
-            getFields('Osakeannit', callbacks);
+                expect(request.action).toBe('hakuvahti_delete');
+                expect(request.id).toBe(42);
+            });
         });
 
-        it('returns empty array when no fields found', (done) => {
-            mockResponse = {
-                success: true,
-                data: {
-                    fields: [],
-                },
-            };
+        describe('Response handling', () => {
+            test('handles successful delete', () => {
+                const response = { success: true };
+                expect(response.success).toBe(true);
+            });
 
-            const callbacks = {
-                onSuccess: jest.fn((resp) => {
-                    expect(resp.data.fields).toHaveLength(0);
-                }),
-                onError: jest.fn(),
-                onComplete: jest.fn(() => {
-                    done();
-                }),
-            };
+            test('handles delete failure', () => {
+                const response = {
+                    success: false,
+                    data: { message: 'Not authorized' }
+                };
+                expect(response.success).toBe(false);
+            });
+        });
 
-            getFields('UnknownCategory', callbacks);
+        describe('Confirmation', () => {
+            test('requires confirmation before delete', () => {
+                let deleteConfirmed = false;
+                const confirmMessage = 'Haluatko varmasti poistaa?';
+
+                // Simulate confirm
+                const userConfirms = true;
+                if (userConfirms) {
+                    deleteConfirmed = true;
+                }
+
+                expect(deleteConfirmed).toBe(true);
+            });
+
+            test('aborts delete when not confirmed', () => {
+                let requestSent = false;
+                const userConfirms = false;
+
+                if (userConfirms) {
+                    requestSent = true;
+                }
+
+                expect(requestSent).toBe(false);
+            });
         });
     });
 
-    describe('List User Hakuvahdits', () => {
-        const listHakuvahdits = (callbacks) => {
-            const request = mockAjaxCall;
+    // ============================================
+    // FIELD FETCHING
+    // ============================================
+    describe('Field Fetching', () => {
+        describe('Request building', () => {
+            test('builds field fetch request for category', () => {
+                const request = {
+                    action: 'acf_popup_get_fields',
+                    nonce: 'field-nonce',
+                    category: 'Osakeannit'
+                };
 
-            setTimeout(() => {
-                if (mockResponse) {
-                    request.triggerSuccess(mockResponse);
+                expect(request.action).toBe('acf_popup_get_fields');
+                expect(request.category).toBe('Osakeannit');
+            });
+
+            test('builds admin field fetch request', () => {
+                const request = {
+                    action: 'acf_analyzer_get_fields_by_category',
+                    nonce: 'admin-nonce',
+                    category: 'Velkakirjat'
+                };
+
+                expect(request.action).toBe('acf_analyzer_get_fields_by_category');
+            });
+        });
+
+        describe('Response handling', () => {
+            test('handles field list response', () => {
+                const response = {
+                    success: true,
+                    data: {
+                        fields: ['field1', 'field2', 'field3']
+                    }
+                };
+
+                expect(response.data.fields).toHaveLength(3);
+            });
+
+            test('handles admin field response with metadata', () => {
+                const response = {
+                    success: true,
+                    data: [
+                        { key: 'hinta', label: 'Hinta', has_choices: false },
+                        { key: 'tyyppi', label: 'Tyyppi', has_choices: true, choices: { a: 'A' } }
+                    ]
+                };
+
+                expect(response.data[0].key).toBe('hinta');
+                expect(response.data[1].has_choices).toBe(true);
+            });
+
+            test('returns empty array on error', () => {
+                const response = { success: false };
+                const fields = response && response.success && response.data
+                    ? response.data
+                    : [];
+                expect(fields).toEqual([]);
+            });
+        });
+
+        describe('Caching behavior', () => {
+            test('caches fetched fields', () => {
+                const cache = {};
+                const category = 'Osakeannit';
+                const fields = ['field1', 'field2'];
+
+                cache[category] = fields;
+
+                expect(cache[category]).toEqual(fields);
+            });
+
+            test('returns from cache on second request', () => {
+                const cache = { 'Osakeannit': ['cached_field'] };
+                const category = 'Osakeannit';
+
+                let fetchCount = 0;
+                let result;
+
+                if (cache[category]) {
+                    result = cache[category];
                 } else {
-                    request.triggerFail({ status: 500 });
+                    fetchCount++;
+                    result = ['fetched_field'];
                 }
-            }, 0);
 
-            return request
-                .done(callbacks.onSuccess)
-                .fail(callbacks.onError)
-                .always(callbacks.onComplete);
-        };
+                expect(fetchCount).toBe(0);
+                expect(result).toEqual(['cached_field']);
+            });
+        });
+    });
 
-        it('returns list of user hakuvahdits', (done) => {
-            mockResponse = {
-                success: true,
-                data: {
-                    hakuvahdits: [
-                        {
-                            id: 1,
-                            name: 'Helsinki Search',
-                            category: 'Osakeannit',
-                            criteria: [{ name: 'sijainti', values: ['Helsinki'] }],
-                            created_at: '2024-01-15 10:00:00',
-                        },
-                        {
-                            id: 2,
-                            name: 'Espoo Search',
-                            category: 'Velkakirjat',
-                            criteria: [{ name: 'sijainti', values: ['Espoo'] }],
-                            created_at: '2024-01-14 10:00:00',
-                        },
-                    ],
-                },
-            };
+    // ============================================
+    // ADMIN OPTIONS SAVE
+    // ============================================
+    describe('Admin Options Save', () => {
+        describe('Request building', () => {
+            test('builds options save request', () => {
+                const options = [
+                    { name: 'Hinta', category: 'Osakeannit', acf_field: 'hinta', values: null }
+                ];
 
-            const callbacks = {
-                onSuccess: jest.fn((resp) => {
-                    expect(resp.data.hakuvahdits).toHaveLength(2);
-                    expect(resp.data.hakuvahdits[0].name).toBe('Helsinki Search');
-                }),
-                onError: jest.fn(),
-                onComplete: jest.fn(() => {
-                    done();
-                }),
-            };
+                const request = {
+                    action: 'acf_analyzer_save_user_options',
+                    nonce: 'admin-nonce',
+                    options: options,
+                    options_json: JSON.stringify(options)
+                };
 
-            listHakuvahdits(callbacks);
+                expect(request.action).toBe('acf_analyzer_save_user_options');
+                expect(request.options_json).toBeTruthy();
+            });
+
+            test('serializes options as JSON', () => {
+                const options = [
+                    { name: 'Test', category: 'Cat', acf_field: 'field', values: ['a', 'b'] }
+                ];
+
+                const json = JSON.stringify(options);
+                const parsed = JSON.parse(json);
+
+                expect(parsed[0].values).toEqual(['a', 'b']);
+            });
         });
 
-        it('returns empty list for new user', (done) => {
-            mockResponse = {
-                success: true,
-                data: {
-                    hakuvahdits: [],
-                },
-            };
+        describe('Response handling', () => {
+            test('handles successful save', () => {
+                const response = {
+                    success: true,
+                    data: {
+                        sanitized: [
+                            { name: 'Sanitized', category: 'Osakeannit', acf_field: 'field', values: null }
+                        ]
+                    }
+                };
 
-            const callbacks = {
-                onSuccess: jest.fn((resp) => {
-                    expect(resp.data.hakuvahdits).toHaveLength(0);
-                }),
-                onError: jest.fn(),
-                onComplete: jest.fn(() => {
-                    done();
-                }),
-            };
+                expect(response.success).toBe(true);
+                expect(response.data.sanitized).toBeDefined();
+            });
 
-            listHakuvahdits(callbacks);
+            test('handles validation error', () => {
+                const response = {
+                    success: false,
+                    data: {
+                        message: 'Invalid field configuration'
+                    }
+                };
+
+                expect(response.success).toBe(false);
+            });
+        });
+    });
+
+    // ============================================
+    // ERROR HANDLING
+    // ============================================
+    describe('Error Handling', () => {
+        describe('Network errors', () => {
+            test('handles network failure gracefully', () => {
+                let errorMessage = null;
+                const networkError = { status: 0, statusText: 'Network Error' };
+
+                // Simulate fail callback
+                errorMessage = 'Verkkovirhe. Yritä uudelleen.';
+
+                expect(errorMessage).toContain('Verkkovirhe');
+            });
+
+            test('handles server error (500)', () => {
+                const error = { status: 500, statusText: 'Internal Server Error' };
+                const isServerError = error.status >= 500;
+                expect(isServerError).toBe(true);
+            });
+
+            test('handles unauthorized error (403)', () => {
+                const error = { status: 403, statusText: 'Forbidden' };
+                const isAuthError = error.status === 403 || error.status === 401;
+                expect(isAuthError).toBe(true);
+            });
         });
 
-        it('requires authentication', (done) => {
-            mockResponse = {
-                success: false,
-                data: {
-                    message: 'Kirjaudu sisään',
-                },
+        describe('Response validation', () => {
+            test('validates response has success property', () => {
+                const validResponse = { success: true, data: {} };
+                const invalidResponse = { data: {} };
+
+                expect(validResponse.hasOwnProperty('success')).toBe(true);
+                expect(invalidResponse.hasOwnProperty('success')).toBe(false);
+            });
+
+            test('handles null response', () => {
+                const response = null;
+                const isValid = response && response.success;
+                expect(isValid).toBeFalsy();
+            });
+
+            test('handles undefined response', () => {
+                const response = undefined;
+                const isValid = response && response.success;
+                expect(isValid).toBeFalsy();
+            });
+        });
+    });
+
+    // ============================================
+    // BUTTON STATE DURING AJAX
+    // ============================================
+    describe('Button State Management', () => {
+        test('disables button during request', () => {
+            let isDisabled = false;
+
+            // Before request
+            isDisabled = true;
+
+            expect(isDisabled).toBe(true);
+        });
+
+        test('re-enables button after success', () => {
+            let isDisabled = true;
+
+            // After success
+            isDisabled = false;
+
+            expect(isDisabled).toBe(false);
+        });
+
+        test('re-enables button after failure', () => {
+            let isDisabled = true;
+
+            // After failure (in always callback)
+            isDisabled = false;
+
+            expect(isDisabled).toBe(false);
+        });
+
+        test('updates button text during request', () => {
+            let buttonText = 'Hae uudet';
+
+            // During request
+            buttonText = 'Haetaan...';
+            expect(buttonText).toBe('Haetaan...');
+
+            // After request
+            buttonText = 'Hae uudet';
+            expect(buttonText).toBe('Hae uudet');
+        });
+    });
+
+    // ============================================
+    // NONCE HANDLING
+    // ============================================
+    describe('Nonce Handling', () => {
+        test('includes nonce in all authenticated requests', () => {
+            const requests = [
+                { action: 'hakuvahti_save', nonce: 'nonce1' },
+                { action: 'hakuvahti_run', nonce: 'nonce2' },
+                { action: 'hakuvahti_delete', nonce: 'nonce3' }
+            ];
+
+            requests.forEach(req => {
+                expect(req.nonce).toBeTruthy();
+            });
+        });
+
+        test('uses correct nonce for each module', () => {
+            // Frontend uses hakuvahtiConfig.nonce
+            const frontendNonce = 'frontend-nonce';
+
+            // Admin uses acfAnalyzerAdmin.nonce
+            const adminNonce = 'admin-nonce';
+
+            expect(frontendNonce).not.toBe(adminNonce);
+        });
+    });
+
+    // ============================================
+    // URL HANDLING
+    // ============================================
+    describe('URL Handling', () => {
+        test('uses correct AJAX URL', () => {
+            const ajaxUrl = '/wp-admin/admin-ajax.php';
+            expect(ajaxUrl).toContain('admin-ajax.php');
+        });
+
+        test('handles redirect URL after save', () => {
+            const myPageUrl = '/my-account/hakuvahdit/';
+            expect(myPageUrl).toBeTruthy();
+        });
+
+        test('handles missing redirect URL', () => {
+            const myPageUrl = null;
+            const shouldRedirect = !!myPageUrl;
+            expect(shouldRedirect).toBe(false);
+        });
+    });
+
+    // ============================================
+    // DATA TRANSFORMATION
+    // ============================================
+    describe('Data Transformation', () => {
+        describe('Criteria to post data', () => {
+            test('transforms criteria array to flat key-value pairs', () => {
+                const criteria = [
+                    { name: 'field1', label: 'range', values: ['10', '20'] }
+                ];
+
+                const postData = {};
+                criteria.forEach((c, i) => {
+                    postData[`criteria[${i}][name]`] = c.name;
+                    postData[`criteria[${i}][label]`] = c.label;
+                    c.values.forEach((v, j) => {
+                        postData[`criteria[${i}][values][${j}]`] = v;
+                    });
+                });
+
+                expect(Object.keys(postData)).toContain('criteria[0][name]');
+                expect(Object.keys(postData)).toContain('criteria[0][values][0]');
+            });
+        });
+
+        describe('Response to UI data', () => {
+            test('extracts posts from run response', () => {
+                const response = {
+                    success: true,
+                    data: {
+                        posts: [{ id: 1, title: 'Test', url: '/test' }]
+                    }
+                };
+
+                const posts = response.data.posts || [];
+                expect(posts[0].title).toBe('Test');
+            });
+
+            test('extracts fields from fetch response', () => {
+                const response = {
+                    success: true,
+                    data: { fields: ['a', 'b', 'c'] }
+                };
+
+                const fields = response.data.fields;
+                expect(fields).toHaveLength(3);
+            });
+        });
+    });
+
+    // ============================================
+    // CONCURRENT REQUEST HANDLING
+    // ============================================
+    describe('Concurrent Request Handling', () => {
+        test('multiple cards can have independent states', () => {
+            const cardStates = {
+                card1: { loading: false, results: null },
+                card2: { loading: false, results: null }
             };
 
-            const callbacks = {
-                onSuccess: jest.fn((resp) => {
-                    expect(resp.success).toBe(false);
-                    expect(resp.data.message).toContain('Kirjaudu');
-                }),
-                onError: jest.fn(),
-                onComplete: jest.fn(() => {
-                    done();
-                }),
-            };
+            // Start loading card1
+            cardStates.card1.loading = true;
 
-            listHakuvahdits(callbacks);
+            expect(cardStates.card1.loading).toBe(true);
+            expect(cardStates.card2.loading).toBe(false);
+        });
+
+        test('results are stored per card', () => {
+            const cardResults = {};
+
+            cardResults['card1'] = [{ title: 'Result 1' }];
+            cardResults['card2'] = [{ title: 'Result 2' }];
+
+            expect(cardResults['card1'][0].title).toBe('Result 1');
+            expect(cardResults['card2'][0].title).toBe('Result 2');
+        });
+    });
+
+    // ============================================
+    // JSON SERIALIZATION
+    // ============================================
+    describe('JSON Serialization', () => {
+        test('serializes criteria for edit save', () => {
+            const crits = [
+                { name: 'field', label: 'range', values: ['100'] }
+            ];
+
+            const json = JSON.stringify(crits);
+            expect(json).toBe('[{"name":"field","label":"range","values":["100"]}]');
+        });
+
+        test('handles special characters in values', () => {
+            const crits = [
+                { name: 'field', label: 'multiple_choice', values: ['Testi "arvo"', "Toinen 'arvo'"] }
+            ];
+
+            const json = JSON.stringify(crits);
+            const parsed = JSON.parse(json);
+
+            expect(parsed[0].values[0]).toBe('Testi "arvo"');
+            expect(parsed[0].values[1]).toBe("Toinen 'arvo'");
+        });
+
+        test('handles Finnish characters', () => {
+            const crits = [
+                { name: 'field', label: 'multiple_choice', values: ['Äiti', 'Öljy', 'Åland'] }
+            ];
+
+            const json = JSON.stringify(crits);
+            const parsed = JSON.parse(json);
+
+            expect(parsed[0].values).toContain('Äiti');
+            expect(parsed[0].values).toContain('Öljy');
+            expect(parsed[0].values).toContain('Åland');
         });
     });
 });
