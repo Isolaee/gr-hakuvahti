@@ -61,7 +61,14 @@
                 var name = it.name || '';
                 var values = it.values || [];
                 var display = '';
-                if (it.label === 'range') {
+                if (it.label === 'word_search') {
+                    // Word search - display the search terms
+                    if (Array.isArray(values)) {
+                        display = values.join(' ');
+                    } else {
+                        display = values || '';
+                    }
+                } else if (it.label === 'range') {
                     if (Array.isArray(values) && values.length >= 2) {
                         display = values.join(' - ');
                     } else if (Array.isArray(values) && values.length === 1) {
@@ -190,10 +197,15 @@
             if ( criteriaData && criteriaData.length ) {
                 criteriaData.forEach(function(c, idx) {
                     var vals = Array.isArray(c.values) ? c.values.join(', ') : (c.values || '');
+                    var isWordSearch = (c.label === 'word_search' || c.name === '__word_search');
                     html += '<div class="hakuvahti-edit-criterion" data-index="' + idx + '" style="margin-bottom:6px;">';
-                    html += buildFieldDropdown(fields, c.name || '');
-                    html += '<select class="hakuvahti-edit-crit-label" style="width:20%; margin-right:6px;"><option value="multiple_choice">Multiple</option><option value="range">Range</option></select>';
-                    html += '<input type="text" class="hakuvahti-edit-crit-values" placeholder="Arvot (esim. >100, <200 tai 100,200)" value="' + (vals) + '" style="width:40%; margin-right:6px;" />';
+                    if (isWordSearch) {
+                        html += '<span style="width:30%; display:inline-block; margin-right:6px;">' + (hakuvahtiConfig.i18n.wordSearch || 'Sanahaku') + '</span>';
+                    } else {
+                        html += buildFieldDropdown(fields, c.name || '');
+                    }
+                    html += '<select class="hakuvahti-edit-crit-label" style="width:20%; margin-right:6px;"><option value="multiple_choice">Multiple</option><option value="range">Range</option><option value="word_search">' + (hakuvahtiConfig.i18n.wordSearch || 'Sanahaku') + '</option></select>';
+                    html += '<input type="text" class="hakuvahti-edit-crit-values" placeholder="' + (isWordSearch ? (hakuvahtiConfig.i18n.wordSearchPlaceholder || 'esim. auto punainen talo*') : 'Arvot (esim. >100, <200 tai 100,200)') + '" value="' + (vals) + '" style="width:40%; margin-right:6px;" />';
                     html += '<button class="hakuvahti-edit-crit-remove button" type="button">' + (hakuvahtiConfig.i18n.remove || 'Poista') + '</button>';
                     html += '</div>';
                 });
@@ -213,7 +225,12 @@
             $form.find('.hakuvahti-edit-criterion').each(function() {
                 var idx = $(this).data('index');
                 var c = criteriaData[idx] || {};
-                $(this).find('.hakuvahti-edit-crit-label').val(c.label || 'multiple_choice');
+                var label = c.label || 'multiple_choice';
+                // Also detect word_search by field name
+                if (c.name === '__word_search') {
+                    label = 'word_search';
+                }
+                $(this).find('.hakuvahti-edit-crit-label').val(label);
             });
         });
     });
@@ -237,7 +254,7 @@
 
         var html = '<div class="hakuvahti-edit-criterion" data-index="' + idx + '" style="margin-bottom:6px;">';
         html += buildFieldDropdown(fields, '');
-        html += '<select class="hakuvahti-edit-crit-label" style="width:20%; margin-right:6px;"><option value="multiple_choice">Multiple</option><option value="range">Range</option></select>';
+        html += '<select class="hakuvahti-edit-crit-label" style="width:20%; margin-right:6px;"><option value="multiple_choice">Multiple</option><option value="range">Range</option><option value="word_search">' + (hakuvahtiConfig.i18n.wordSearch || 'Sanahaku') + '</option></select>';
         html += '<input type="text" class="hakuvahti-edit-crit-values" placeholder="Arvot (esim. >100, <200 tai 100,200)" value="" style="width:40%; margin-right:6px;" />';
         html += '<button class="hakuvahti-edit-crit-remove button" type="button">' + (hakuvahtiConfig.i18n.remove || 'Poista') + '</button>';
         html += '</div>';
@@ -274,9 +291,20 @@
         // Build criteria array
         var crits = [];
         $form.find('.hakuvahti-edit-criterion').each(function() {
-            var name = $(this).find('.hakuvahti-edit-crit-name').val().trim();
+            var name = $(this).find('.hakuvahti-edit-crit-name').val();
+            name = name ? name.trim() : '';
             var label = $(this).find('.hakuvahti-edit-crit-label').val();
             var rawvals = $(this).find('.hakuvahti-edit-crit-values').val().trim();
+
+            if ( label === 'word_search' ) {
+                // Word search - split by whitespace, use special field name
+                var words = rawvals.split(/\s+/).map(function(s){ return s.trim(); }).filter(Boolean);
+                if (words.length > 0) {
+                    crits.push({ name: '__word_search', label: 'word_search', values: words });
+                }
+                return;
+            }
+
             if ( ! name ) return;
             var values = [];
             if ( label === 'range' ) {

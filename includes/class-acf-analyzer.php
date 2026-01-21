@@ -102,6 +102,16 @@ class ACF_Analyzer {
 
             // Process each post
             foreach ( $query->posts as $post ) {
+                // Check word search criteria first (before loading ACF fields for performance)
+                if ( isset( $criteria['__word_search'] ) ) {
+                    $word_search_words = $criteria['__word_search'];
+                    if ( is_array( $word_search_words ) && ! empty( $word_search_words ) ) {
+                        if ( ! $this->matches_word_search( $post, $word_search_words ) ) {
+                            continue; // Skip this post - word search failed
+                        }
+                    }
+                }
+
                 // Get all ACF fields for this post
                 $acf_fields = get_fields( $post->ID );
 
@@ -121,8 +131,17 @@ class ACF_Analyzer {
                 $matched_criteria = array();
                 $match_count      = 0;
 
+                // Count ACF criteria (excluding special __word_search)
+                $acf_criteria = array_filter(
+                    $criteria,
+                    function( $key ) {
+                        return $key !== '__word_search';
+                    },
+                    ARRAY_FILTER_USE_KEY
+                );
+
                 // Check each criterion against this post's ACF fields
-                foreach ( $criteria as $field_name => $expected_value ) {
+                foreach ( $acf_criteria as $field_name => $expected_value ) {
                     // Check for range comparison (_min or _max suffix)
                     if ( preg_match( '/^(.+)_(min|max)$/', $field_name, $matches ) ) {
                         $base_field = $matches[1];
@@ -202,12 +221,18 @@ class ACF_Analyzer {
                 }
 
                 // Apply match logic to determine if post should be included
+                // Note: word search was already checked above, so we only count ACF criteria here
                 $include_post = false;
-                if ( 'AND' === $options['match_logic'] ) {
-                    // AND: all criteria must match
-                    $include_post = ( $match_count === count( $criteria ) );
+                $acf_criteria_count = count( $acf_criteria );
+
+                if ( $acf_criteria_count === 0 ) {
+                    // No ACF criteria, only word search - if we got here, word search passed
+                    $include_post = true;
+                } elseif ( 'AND' === $options['match_logic'] ) {
+                    // AND: all ACF criteria must match
+                    $include_post = ( $match_count === $acf_criteria_count );
                 } else {
-                    // OR: at least one criterion must match
+                    // OR: at least one ACF criterion must match
                     $include_post = ( $match_count > 0 );
                 }
 
@@ -240,16 +265,102 @@ class ACF_Analyzer {
     }
 
     /**
+     * Check if a post matches word search criteria
+     *
+     * Searches for all specified words in post title and content.
+     * Supports wildcard suffix (*) for prefix matching.
+     * All words must be found (AND logic).
+     *
+     * @since 2.1.0
+     *
+     * @param WP_Post $post  The post object to search
+     * @param array   $words Array of words to search for (may include * wildcards)
+     *
+     * @return bool True if all words are found, false otherwise
+     */
+    private function matches_word_search( $post, $words ) {
+        if ( empty( $words ) || ! is_array( $words ) ) {
+            return true; // No words to match = passes
+        }
+
+        // Combine title and content, normalize to lowercase
+        $text = mb_strtolower( $post->post_title . ' ' . $post->post_content, 'UTF-8' );
+
+        // Strip HTML tags for cleaner matching
+        $text = wp_strip_all_tags( $text );
+
+        foreach ( $words as $word ) {
+            $word = trim( $word );
+            if ( empty( $word ) ) {
+                continue;
+            }
+
+            if ( substr( $word, -1 ) === '*' ) {
+                // Wildcard: word starts with prefix
+                $prefix = substr( $word, 0, -1 );
+                if ( empty( $prefix ) ) {
+                    continue; // Just "*" alone, skip
+                }
+                // Match word boundary followed by prefix and any word characters
+                $pattern = '/\b' . preg_quote( $prefix, '/' ) . '\w*/u';
+                if ( ! preg_match( $pattern, $text ) ) {
+                    return false;
+                }
+            } else {
+                // Exact word match with word boundaries
+                $pattern = '/\b' . preg_quote( $word, '/' ) . '\b/u';
+                if ( ! preg_match( $pattern, $text ) ) {
+                    return false;
+                }
+            }
+        }
+
+        return true; // All words found
+    }
+
+    /**
+     * Sanitize word search input string into array of words
+     *
+     * Splits input by whitespace, sanitizes each word to allow only
+     * alphanumeric characters, Finnish/Swedish characters, and * wildcard.
+     *
+     * @since 2.1.0
+     *
+     * @param string $input Raw input string
+     *
+     * @return array Sanitized array of lowercase words
+     */
+    public function sanitize_word_search_input( $input ) {
+        if ( ! is_string( $input ) || empty( trim( $input ) ) ) {
+            return array();
+        }
+
+        // Split by whitespace
+        $words = preg_split( '/\s+/', trim( $input ), -1, PREG_SPLIT_NO_EMPTY );
+
+        $sanitized = array();
+        foreach ( $words as $word ) {
+            // Allow alphanumeric, Finnish/Swedish chars (äöåÄÖÅ etc), and * wildcard
+            $clean = preg_replace( '/[^a-zA-Z0-9\x{00C0}-\x{017F}*]/u', '', $word );
+            if ( ! empty( $clean ) ) {
+                $sanitized[] = mb_strtolower( $clean, 'UTF-8' );
+            }
+        }
+
+        return array_unique( $sanitized );
+    }
+
+    /**
      * Get nested field value using dot notation
-     * 
+     *
      * Retrieves a field value from a nested array structure using dot notation.
      * For example: 'parent.child.grandchild' will traverse the array hierarchy.
      *
      * @since 1.0.0
-     * 
+     *
      * @param array  $fields     ACF fields array
      * @param string $field_name Field name (supports dot notation: 'parent.child')
-     * 
+     *
      * @return mixed Field value or null if not found
      */
     private function get_nested_field_value( $fields, $field_name ) {

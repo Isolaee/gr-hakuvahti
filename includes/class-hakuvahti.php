@@ -500,7 +500,18 @@ class Hakuvahti {
                 $values = array( $values );
             }
 
-            if ( 'range' === $label ) {
+            if ( 'word_search' === $label ) {
+                // Word search criteria - sanitize and pass through as special key
+                $analyzer = new ACF_Analyzer();
+                $words = array();
+                foreach ( $values as $v ) {
+                    $sanitized = $analyzer->sanitize_word_search_input( $v );
+                    $words = array_merge( $words, $sanitized );
+                }
+                if ( ! empty( $words ) ) {
+                    $search_criteria['__word_search'] = array_unique( $words );
+                }
+            } elseif ( 'range' === $label ) {
                 // Support multiple formats:
                 // - two plain numbers => min/max
                 // - operator-prefixed single values like '<100' or '>=200' => map to _min/_max
@@ -617,6 +628,14 @@ class Hakuvahti {
             $values = $item['values'];
 
             if ( empty( $values ) ) {
+                continue;
+            }
+
+            // Handle word_search specially
+            $label = isset( $item['label'] ) ? $item['label'] : '';
+            if ( 'word_search' === $label || '__word_search' === $name ) {
+                $words = is_array( $values ) ? implode( ' ', $values ) : $values;
+                $parts[] = __( 'Sanahaku', 'acf-analyzer' ) . ': ' . $words;
                 continue;
             }
 

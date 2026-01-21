@@ -88,8 +88,39 @@
             $cat.append($o);
         });
 
+        // Option type selector (ACF field or Word Search)
+        var $typeSelect = $('<select class="option-type" style="margin-right:6px;"></select>');
+        $typeSelect.append($('<option value="acf_field">ACF Field</option>'));
+        $typeSelect.append($('<option value="word_search">Word Search (Sanahaku)</option>'));
+        if (opt.option_type === 'word_search') {
+            $typeSelect.val('word_search');
+        }
+
         var $acf = $('<select class="option-acf-field"><option value="">-- Select ACF field --</option></select>');
         var $valuesContainer = $('<div class="option-values"></div>');
+
+        // Function to update visibility based on option type
+        function updateTypeVisibility() {
+            var type = $typeSelect.val();
+            if (type === 'word_search') {
+                $acf.hide();
+                $valuesContainer.html(
+                    '<input type="text" class="option-word-search-input regular-text" ' +
+                    'placeholder="esim. auto punainen talo*" ' +
+                    'style="width:300px;" ' +
+                    'value="' + (opt.word_search_value || '') + '" />' +
+                    '<p class="description" style="margin-top:4px;">Erota sanat välilyönnillä. Käytä * jokerimerkkiä sanan lopussa (esim. talo* = talo, talot, talossa).</p>'
+                );
+            } else {
+                $acf.show();
+                renderValuesAreaFor($acf, $valuesContainer, opt);
+            }
+        }
+
+        // When type changes
+        $typeSelect.on('change', function() {
+            updateTypeVisibility();
+        });
 
         // When category changes, fetch fields
         $cat.on('change', function() {
@@ -102,7 +133,7 @@
                 $acf.append($('<option value=""></option>').text('-- Select ACF field --'));
                 fields.forEach(function(f) { $acf.append($('<option></option>').attr('value', f.key).text(f.label || f.key)); });
                 if (opt.acf_field) { $acf.val(opt.acf_field); }
-                renderValuesAreaFor($acf, $valuesContainer, opt);
+                updateTypeVisibility();
             });
         });
 
@@ -117,6 +148,7 @@
 
         $row.append($('<div class="field-group"></div>').append($('<label>Display Name:</label>')).append($name));
         $row.append($('<div class="field-group"></div>').append($('<label>Category:</label>')).append($cat));
+        $row.append($('<div class="field-group"></div>').append($('<label>Type:</label>')).append($typeSelect));
         $row.append($('<div class="field-group"></div>').append($('<label>ACF Field:</label>')).append($acf));
         $row.append($('<div class="field-group"></div>').append($('<label>Values:</label>')).append($valuesContainer));
         $row.append($('<div class="field-group field-delete-group"></div>').append($remove));
@@ -132,7 +164,7 @@
                 $acf.append($('<option value=""></option>').text('-- Select ACF field --'));
                 fields.forEach(function(f) { $acf.append($('<option></option>').attr('value', f.key).text(f.label || f.key)); });
                 if (opt.acf_field) { $acf.val(opt.acf_field); }
-                renderValuesAreaFor($acf, $valuesContainer, opt);
+                updateTypeVisibility();
             });
         })();
 
@@ -196,21 +228,40 @@
         $rows.each(function() {
             var $r = $(this);
             var name = $r.find('.option-name').val().trim();
+            var optionType = $r.find('.option-type').val() || 'acf_field';
             var acf = $r.find('.option-acf-field').val();
             var values = null;
-            var $choices = $r.find('.option-values-choices');
+            var wordSearchValue = '';
 
-            if ($choices.length) {
-                values = $choices.val() || [];
+            if (optionType === 'word_search') {
+                // Word search type
+                wordSearchValue = $r.find('.option-word-search-input').val() || '';
+                if (name) {
+                    collected.push({
+                        name: name,
+                        category: currentOptionsTab,
+                        option_type: 'word_search',
+                        acf_field: '__word_search',
+                        word_search_value: wordSearchValue,
+                        values: null
+                    });
+                }
             } else {
-                var min = $r.find('.option-values-min').val();
-                var max = $r.find('.option-values-max').val();
-                var postfix = $r.find('.option-values-postfix').val() || '';
-                values = { min: min, max: max, postfix: postfix };
-            }
+                // ACF field type
+                var $choices = $r.find('.option-values-choices');
 
-            if (name) {
-                collected.push({ name: name, category: currentOptionsTab, acf_field: acf, values: values });
+                if ($choices.length) {
+                    values = $choices.val() || [];
+                } else {
+                    var min = $r.find('.option-values-min').val();
+                    var max = $r.find('.option-values-max').val();
+                    var postfix = $r.find('.option-values-postfix').val() || '';
+                    values = { min: min, max: max, postfix: postfix };
+                }
+
+                if (name) {
+                    collected.push({ name: name, category: currentOptionsTab, option_type: 'acf_field', acf_field: acf, values: values });
+                }
             }
         });
 
@@ -242,11 +293,14 @@
     }
 
     function saveUserOptions() {
-        // Validate that every option includes an acf_field
+        // Validate that every ACF option includes an acf_field (word_search is exempt)
         for (var i = 0; i < userSearchOptions.length; i++) {
             var o = userSearchOptions[i];
+            if (o.option_type === 'word_search') {
+                continue; // Word search doesn't need an ACF field
+            }
             if (!o.acf_field || o.acf_field.toString().trim() === '') {
-                alert('Every search option must have an ACF field selected. Please fill the ACF Field for all options before saving.');
+                alert('Every ACF search option must have an ACF field selected. Please fill the ACF Field for all options before saving.');
                 return;
             }
         }
