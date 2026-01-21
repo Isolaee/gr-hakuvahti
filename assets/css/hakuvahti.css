@@ -45,7 +45,7 @@
 .hakuvahti-results-list a:hover{text-decoration:underline}
 
 /* Search builder */
-.hakuvahti-search-builder{background:var(--haku-bg);padding:1rem;border-radius:.5rem;max-height:300px;overflow:auto}
+.hakuvahti-search-builder{background:var(--haku-bg);padding:1rem;max-height:300px;overflow:auto}
 .search-field-wrapper{padding:.75rem;margin-bottom:.625rem;background:#fff;border:1px solid var(--haku-border);border-radius:.375rem}
 .search-field-label{display:block;font-weight:600;color:var(--haku-primary);margin-bottom:.5rem;font-size:.875rem}
 .search-field-checkboxes{display:flex;flex-wrap:wrap;gap:.5rem}
@@ -58,7 +58,7 @@
 .no-options{color:var(--haku-muted);font-style:italic;text-align:center;padding:1.25rem}
 
 /* Legacy sections simplified/kept minimal for compatibility */
-.hakuvahti-unrestricted-builder{background:var(--haku-bg);padding:1rem;border-radius:.5rem}
+.hakuvahti-unrestricted-builder{background:var(--haku-bg);padding:1rem;}
 .hakuvahti-add-btn{background:var(--haku-primary);color:#fff;padding:.5rem .75rem;border-radius:.375rem;border:none}
 
 /* Responsive adjustments */
@@ -91,7 +91,6 @@
     background: #fff;
     border: 1px solid #ccc;
     padding: 8px 10px;
-    border-radius: 6px;
     cursor: pointer;
     min-width: 180px;
     text-align: left;
@@ -109,14 +108,13 @@
     border: 1px solid #ddd;
     box-shadow: 0 6px 18px rgba(10,10,10,0.08);
     z-index: 9999;
-    border-radius: 6px;
     padding: 8px;
     max-height: 220px;
     overflow: auto;
     min-width: 220px;
 }
 .search-field-dropdown .msd-options { display:flex;flex-direction:column;gap:6px;padding:4px }
-.search-field-dropdown .msd-option { display:flex;align-items:center;gap:8px;padding:6px;border-radius:6px;cursor:pointer }
+.search-field-dropdown .msd-option { display:flex;align-items:center;gap:8px;padding:6px;cursor:pointer }
 .search-field-dropdown .msd-option:hover { background:#f6f7f8 }
 .search-field-dropdown .msd-option input { margin:0 }
 
@@ -186,7 +184,6 @@
 .hakuvahti-unrestricted-builder {
     background: #f8f9fa !important;
     padding: 20px !important;
-    border-radius: 8px !important;
     text-align: left !important;
 }
 
@@ -203,7 +200,6 @@
     flex: 1;
     padding: 10px 12px;
     border: 1px solid #ccc;
-    border-radius: 6px;
     font-size: 14px;
     background: #fff;
 }
