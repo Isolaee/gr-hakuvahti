@@ -105,8 +105,8 @@
 
         // Handle word_search type - user enters their own search terms
         if (optionType === 'word_search') {
-            var $input = $('<input type="text" class="word-search-input" placeholder="esim. auto punainen talo*" style="width:100%;">');
-            var $hint = $('<p class="description" style="margin:4px 0 0; font-size:12px; color:#666;">Erota sanat välilyönnillä. * = jokerimerkki (esim. talo* löytää talo, talot, talossa)</p>');
+            var $input = $('<input type="text" class="word-search-input" placeholder="esim. Tekoäly" style="width:100%;">');
+            var $hint = $('<p class="description" style="margin:4px 0 0; font-size:12px; color:#666;">Erota sanat välilyönnillä. * = jokerimerkki (esim. tekoäl* löytää tekoäly, tekoälyä jne)</p>');
             $wrapper.append($input).append($hint).attr('data-type', 'word_search');
             return $wrapper;
         }

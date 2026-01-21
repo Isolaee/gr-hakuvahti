@@ -22,7 +22,7 @@ $user_search_options = get_option( 'acf_analyzer_user_search_options', array() )
 <div class="hakuvahti-page">
     <h2><?php esc_html_e( 'Hakuvahdit', 'acf-analyzer' ); ?></h2>
     <p class="hakuvahti-description">
-        <?php esc_html_e( 'Täällä näet tallennetut hakuvahtisi. Voit muokata tai poistaa hakuvahdin.', 'acf-analyzer' ); ?>
+        <?php esc_html_e( 'Täällä näet tallennetut hakuvahtisi.', 'acf-analyzer' ); ?>
     </p>
 
     <?php if ( empty( $hakuvahdits ) ) : ?>
