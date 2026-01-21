@@ -44,7 +44,7 @@
         var $editor = $('#search-options-editor');
         $editor.empty();
 
-        // Tabs: wire handlers
+        // Wire tab handlers
         $('.user-search-tabs .tab-btn').off('click').on('click', function() {
             $('.user-search-tabs .tab-btn').removeClass('active');
             $(this).addClass('active');
@@ -52,114 +52,151 @@
             renderSearchOptionsEditor();
         });
 
-        var $list = $('<div class="search-options-list"></div>');
-
-        // Render only options for current tab
-        userSearchOptions.forEach(function(opt, index) {
-            if ((opt.category || '') === currentOptionsTab) {
-                $list.append(renderSearchOptionRow(opt, index));
-            }
+        // Filter options for current tab
+        var tabOptions = userSearchOptions.filter(function(opt) {
+            return (opt.category || '') === currentOptionsTab;
         });
 
-        var $addBtn = $('<button type="button" class="button">+ Add Option</button>');
+        // Build table
+        var $table = $('<table class="search-options-table"></table>');
+
+        // Table header
+        var $thead = $('<thead><tr>' +
+            '<th class="col-name">Nimi</th>' +
+            '<th class="col-type">Tyyppi</th>' +
+            '<th class="col-acf">ACF-kenttä</th>' +
+            '<th class="col-values">Arvot / Asetukset</th>' +
+            '<th class="col-actions"></th>' +
+            '</tr></thead>');
+        $table.append($thead);
+
+        // Table body
+        var $tbody = $('<tbody></tbody>');
+
+        if (tabOptions.length === 0) {
+            $tbody.append('<tr><td colspan="5" class="search-options-empty">Ei hakuehtoja tälle kategorialle. Lisää uusi painamalla "+ Lisää hakuehto".</td></tr>');
+        } else {
+            tabOptions.forEach(function(opt) {
+                // Find the original index in userSearchOptions
+                var originalIndex = userSearchOptions.indexOf(opt);
+                $tbody.append(renderTableRow(opt, originalIndex));
+            });
+        }
+
+        $table.append($tbody);
+        $editor.append($table);
+
+        // Actions bar
+        var $actions = $('<div class="search-options-actions"></div>');
+
+        var $addBtn = $('<button type="button" class="button">+ Lisää hakuehto</button>');
         $addBtn.on('click', function() {
-            userSearchOptions.push({ name: '', category: currentOptionsTab, acf_field: '', values: null });
+            userSearchOptions.push({
+                name: '',
+                category: currentOptionsTab,
+                option_type: 'acf_field',
+                acf_field: '',
+                values: null
+            });
             renderSearchOptionsEditor();
         });
 
-        var $saveBtn = $('<button type="button" class="button button-primary">Save Options</button>');
+        var $saveBtn = $('<button type="button" class="button button-primary">Tallenna</button>');
         $saveBtn.on('click', function() {
             collectUserOptions();
             saveUserOptions();
         });
 
-        $editor.append($list).append($('<p></p>').append($addBtn).append(' ').append($saveBtn));
+        $actions.append($addBtn).append($saveBtn);
+        $editor.append($actions);
     }
 
-    function renderSearchOptionRow(opt, index) {
-        var $row = $('<div class="search-option-row" data-index="' + index + '"></div>');
+    function renderTableRow(opt, index) {
+        var $row = $('<tr data-index="' + index + '"></tr>');
 
-        var $name = $('<input type="text" class="option-name regular-text" placeholder="Display name" />').val(opt.name || '');
+        // Name column
+        var $nameCell = $('<td class="col-name"></td>');
+        var $nameInput = $('<input type="text" class="option-name" placeholder="Näyttönimi" />').val(opt.name || '');
+        $nameCell.append($nameInput);
+        $row.append($nameCell);
 
-        var $cat = $('<select class="option-category"></select>');
-        (acfAnalyzerAdmin.categories || []).forEach(function(c) {
-            var $o = $('<option></option>').attr('value', c).text(c);
-            if (opt.category === c) $o.attr('selected', 'selected');
-            $cat.append($o);
-        });
-
-        // Option type selector (ACF field or Word Search)
-        var $typeSelect = $('<select class="option-type" style="margin-right:6px;"></select>');
-        $typeSelect.append($('<option value="acf_field">ACF Field</option>'));
-        $typeSelect.append($('<option value="word_search">Word Search (Sanahaku)</option>'));
+        // Type column
+        var $typeCell = $('<td class="col-type"></td>');
+        var $typeSelect = $('<select class="option-type"></select>');
+        $typeSelect.append($('<option value="acf_field">ACF-kenttä</option>'));
+        $typeSelect.append($('<option value="word_search">Sanahaku</option>'));
         if (opt.option_type === 'word_search') {
             $typeSelect.val('word_search');
         }
+        $typeCell.append($typeSelect);
+        $row.append($typeCell);
 
-        var $acf = $('<select class="option-acf-field"><option value="">-- Select ACF field --</option></select>');
+        // ACF Field column
+        var $acfCell = $('<td class="col-acf"></td>');
+        var $acfSelect = $('<select class="option-acf-field"><option value="">-- Valitse --</option></select>');
+        $acfCell.append($acfSelect);
+        $row.append($acfCell);
+
+        // Values column
+        var $valuesCell = $('<td class="col-values"></td>');
         var $valuesContainer = $('<div class="option-values"></div>');
+        $valuesCell.append($valuesContainer);
+        $row.append($valuesCell);
+
+        // Actions column
+        var $actionsCell = $('<td class="col-actions"></td>');
+        var $removeBtn = $('<button type="button" class="remove-option" title="Poista">&times;</button>');
+        $removeBtn.on('click', function() {
+            userSearchOptions.splice(index, 1);
+            renderSearchOptionsEditor();
+        });
+        $actionsCell.append($removeBtn);
+        $row.append($actionsCell);
 
         // Function to update visibility based on option type
         function updateTypeVisibility() {
             var type = $typeSelect.val();
             if (type === 'word_search') {
-                $acf.hide();
+                $acfSelect.hide();
+                $acfCell.find('.acf-hidden-note').remove();
+                $acfCell.append('<span class="acf-hidden-note" style="color:#666; font-style:italic;">—</span>');
                 $valuesContainer.html(
-                    '<p class="description" style="margin:0;">Käyttäjä syöttää hakusanat itse hakuvahtia luodessaan. Erota sanat välilyönnillä. * = jokerimerkki (esim. talo* = talo, talot, talossa).</p>'
+                    '<span class="values-description">Käyttäjä syöttää hakusanat itse. Tukee jokerimerkkiä (*) esim. talo* = talo, talot, talossa.</span>'
                 );
             } else {
-                $acf.show();
-                renderValuesAreaFor($acf, $valuesContainer, opt);
+                $acfSelect.show();
+                $acfCell.find('.acf-hidden-note').remove();
+                renderValuesAreaFor($acfSelect, $valuesContainer, opt);
             }
         }
 
-        // When type changes
+        // Type change handler
         $typeSelect.on('change', function() {
             updateTypeVisibility();
         });
 
-        // When category changes, fetch fields
-        $cat.on('change', function() {
-            var category = $(this).val();
-            fetchFieldsForCategory(category, function(fields) {
-                fieldMetaCache[category] = fieldMetaCache[category] || {};
-                fields.forEach(function(f) { fieldMetaCache[category][f.key] = f; });
-
-                $acf.empty();
-                $acf.append($('<option value=""></option>').text('-- Select ACF field --'));
-                fields.forEach(function(f) { $acf.append($('<option></option>').attr('value', f.key).text(f.label || f.key)); });
-                if (opt.acf_field) { $acf.val(opt.acf_field); }
-                updateTypeVisibility();
-            });
+        // ACF change handler
+        $acfSelect.on('change', function() {
+            renderValuesAreaFor($(this), $valuesContainer, opt);
         });
 
-        // When ACF selection changes
-        $acf.on('change', function() { renderValuesAreaFor($(this), $valuesContainer, opt); });
-
-        var $remove = $('<button type="button" class="button-link">Remove</button>');
-        $remove.on('click', function() {
-            userSearchOptions.splice(index, 1);
-            renderSearchOptionsEditor();
-        });
-
-        $row.append($('<div class="field-group"></div>').append($('<label>Display Name:</label>')).append($name));
-        $row.append($('<div class="field-group"></div>').append($('<label>Category:</label>')).append($cat));
-        $row.append($('<div class="field-group"></div>').append($('<label>Type:</label>')).append($typeSelect));
-        $row.append($('<div class="field-group"></div>').append($('<label>ACF Field:</label>')).append($acf));
-        $row.append($('<div class="field-group"></div>').append($('<label>Values:</label>')).append($valuesContainer));
-        $row.append($('<div class="field-group field-delete-group"></div>').append($remove));
-
-        // Trigger initial population of ACF select for this category
+        // Initialize ACF select and values
         (function initPopulate() {
-            var category = $cat.val();
+            var category = currentOptionsTab;
             fetchFieldsForCategory(category, function(fields) {
                 fieldMetaCache[category] = fieldMetaCache[category] || {};
                 fields.forEach(function(f) { fieldMetaCache[category][f.key] = f; });
 
-                $acf.empty();
-                $acf.append($('<option value=""></option>').text('-- Select ACF field --'));
-                fields.forEach(function(f) { $acf.append($('<option></option>').attr('value', f.key).text(f.label || f.key)); });
-                if (opt.acf_field) { $acf.val(opt.acf_field); }
+                $acfSelect.empty();
+                $acfSelect.append($('<option value="">-- Valitse --</option>'));
+                fields.forEach(function(f) {
+                    $acfSelect.append($('<option></option>').attr('value', f.key).text(f.label || f.key));
+                });
+
+                if (opt.acf_field && opt.acf_field !== '__word_search') {
+                    $acfSelect.val(opt.acf_field);
+                }
+
                 updateTypeVisibility();
             });
         })();
@@ -169,19 +206,16 @@
 
     function renderValuesAreaFor($acfSelect, $container, opt) {
         $container.empty();
-        var $row = $acfSelect.closest('.search-option-row');
-        var $catSelect = $row.find('.option-category');
-        var category = $catSelect.length ? $catSelect.val() : ((opt && opt.category) || currentOptionsTab);
+        var category = currentOptionsTab;
         var fieldKey = $acfSelect.val();
 
         if (!fieldKey) {
-            $container.append($('<span class="muted">Select an ACF field</span>'));
+            $container.append('<span class="values-description">Valitse ensin ACF-kenttä</span>');
             return;
         }
 
         var meta = (fieldMetaCache[category] && fieldMetaCache[category][fieldKey]) ? fieldMetaCache[category][fieldKey] : null;
         if (!meta) {
-            // Fetch and retry
             fetchFieldsForCategory(category, function(fields) {
                 fieldMetaCache[category] = fieldMetaCache[category] || {};
                 fields.forEach(function(f) { fieldMetaCache[category][f.key] = f; });
@@ -191,25 +225,30 @@
         }
 
         if (meta.has_choices && meta.choices && Object.keys(meta.choices).length > 0) {
-            var $select = $('<select multiple class="option-values-choices" style="min-width:200px; max-width:400px; height:120px;"></select>');
+            // Multiple choice field
+            var $select = $('<select multiple class="option-values-choices values-choices"></select>');
             Object.keys(meta.choices).forEach(function(k) {
                 var label = meta.choices[k];
                 var $o = $('<option></option>').attr('value', k).text(label);
-                if (opt && opt.values && Array.isArray(opt.values) && opt.values.indexOf(k) !== -1) $o.attr('selected', 'selected');
+                if (opt && opt.values && Array.isArray(opt.values) && opt.values.indexOf(k) !== -1) {
+                    $o.attr('selected', 'selected');
+                }
                 $select.append($o);
             });
             $container.append($select);
         } else {
+            // Range field (min/max)
             var min = (opt && opt.values && typeof opt.values === 'object') ? (opt.values.min || '') : '';
             var max = (opt && opt.values && typeof opt.values === 'object') ? (opt.values.max || '') : '';
             var postfix = (opt && opt.values && typeof opt.values === 'object') ? (opt.values.postfix || '') : '';
-            var $min = $('<input type="text" class="option-values-min small-text" placeholder="min" />').val(min);
-            var $max = $('<input type="text" class="option-values-max small-text" placeholder="max" />').val(max);
 
-            // Postfix / unit text input for display only (free text)
-            var $postfix = $('<input type="text" class="option-values-postfix small-text" placeholder="Postfix (e.g. €)" style="margin-left:8px; width:80px;" />').val(postfix);
+            var $rangeDiv = $('<div class="values-range"></div>');
+            $rangeDiv.append($('<input type="text" class="option-values-min" placeholder="Min" />').val(min));
+            $rangeDiv.append('<span class="range-sep">–</span>');
+            $rangeDiv.append($('<input type="text" class="option-values-max" placeholder="Max" />').val(max));
+            $rangeDiv.append($('<input type="text" class="option-values-postfix postfix-input" placeholder="€, %" />').val(postfix));
 
-            $container.append($('<div></div>').append($min).append(' – ').append($max).append($postfix));
+            $container.append($rangeDiv);
         }
     }
 
@@ -218,7 +257,7 @@
     // ============================================
 
     function collectUserOptions() {
-        var $rows = $('#search-options-editor .search-option-row');
+        var $rows = $('#search-options-editor tbody tr[data-index]');
         var collected = [];
 
         $rows.each(function() {
@@ -229,7 +268,6 @@
             var values = null;
 
             if (optionType === 'word_search') {
-                // Word search type - user will provide words at search time
                 if (name) {
                     collected.push({
                         name: name,
@@ -240,9 +278,7 @@
                     });
                 }
             } else {
-                // ACF field type
                 var $choices = $r.find('.option-values-choices');
-
                 if ($choices.length) {
                     values = $choices.val() || [];
                 } else {
@@ -253,13 +289,21 @@
                 }
 
                 if (name) {
-                    collected.push({ name: name, category: currentOptionsTab, option_type: 'acf_field', acf_field: acf, values: values });
+                    collected.push({
+                        name: name,
+                        category: currentOptionsTab,
+                        option_type: 'acf_field',
+                        acf_field: acf,
+                        values: values
+                    });
                 }
             }
         });
 
         // Merge: keep existing options from other categories
-        var others = userSearchOptions.filter(function(o) { return (o.category || '') !== currentOptionsTab; });
+        var others = userSearchOptions.filter(function(o) {
+            return (o.category || '') !== currentOptionsTab;
+        });
         userSearchOptions = others.concat(collected);
     }
 
@@ -290,10 +334,10 @@
         for (var i = 0; i < userSearchOptions.length; i++) {
             var o = userSearchOptions[i];
             if (o.option_type === 'word_search') {
-                continue; // Word search doesn't need an ACF field
+                continue;
             }
             if (!o.acf_field || o.acf_field.toString().trim() === '') {
-                alert('Every ACF search option must have an ACF field selected. Please fill the ACF Field for all options before saving.');
+                alert('Jokaisella ACF-hakuehdolla täytyy olla ACF-kenttä valittuna.');
                 return;
             }
         }
@@ -305,15 +349,15 @@
             options_json: JSON.stringify(userSearchOptions)
         }, function(resp) {
             if (resp && resp.success) {
-                alert('User search options saved');
+                alert('Hakuehdot tallennettu!');
                 userSearchOptions = resp.data && resp.data.sanitized ? resp.data.sanitized : (resp.data && resp.data.raw ? resp.data.raw : userSearchOptions);
                 renderSearchOptionsEditor();
             } else {
-                alert('Failed to save options: ' + (resp && resp.data ? JSON.stringify(resp.data) : 'unknown'));
+                alert('Tallennus epäonnistui: ' + (resp && resp.data ? JSON.stringify(resp.data) : 'tuntematon virhe'));
             }
         }).fail(function(xhr) {
             console.error('AJAX error saving options', xhr);
-            alert('AJAX error saving options');
+            alert('Verkkovirhe tallennuksessa');
         });
     }
 
