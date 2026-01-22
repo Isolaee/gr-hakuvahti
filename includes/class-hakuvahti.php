@@ -800,9 +800,9 @@ class Hakuvahti {
                                                 </td>
                                                 <!-- Right Column: Image -->
                                                 <?php if ( $thumbnail_url ) : ?>
-                                                <td style="vertical-align: top; width: 120px;">
+                                                <td style="vertical-align: top; width: 84px;">
                                                     <a href="<?php echo esc_url( $post_item['url'] ); ?>" style="display: block;">
-                                                        <img src="<?php echo esc_url( $thumbnail_url ); ?>" alt="<?php echo esc_attr( $post_item['title'] ); ?>" style="width: 120px; height: auto; border-radius: 4px; display: block;">
+                                                        <img src="<?php echo esc_url( $thumbnail_url ); ?>" alt="<?php echo esc_attr( $post_item['title'] ); ?>" style="width: 84px; height: auto; border-radius: 4px; display: block;">
                                                     </a>
                                                 </td>
                                                 <?php endif; ?>
