@@ -776,19 +776,40 @@ class Hakuvahti {
                                 <div style="padding: 0;">
                                     <?php foreach ( $posts as $index => $post_item ) :
                                         $thumbnail_url = get_the_post_thumbnail_url( $post_item['ID'], 'medium' );
+                                        $company_name = get_field( 'Yrityksen_nimi', $post_item['ID'] );
                                         $border_style = $index > 0 ? 'border-top: 1px solid #eee;' : '';
                                     ?>
                                     <div style="padding: 15px 20px; <?php echo $border_style; ?>">
-                                        <?php if ( $thumbnail_url ) : ?>
-                                        <a href="<?php echo esc_url( $post_item['url'] ); ?>" style="display: block; margin-bottom: 12px;">
-                                            <img src="<?php echo esc_url( $thumbnail_url ); ?>" alt="<?php echo esc_attr( $post_item['title'] ); ?>" style="width: 100%; height: auto; border-radius: 4px; display: block;">
-                                        </a>
+                                        <!-- Company Name -->
+                                        <?php if ( $company_name ) : ?>
+                                        <p style="margin: 0 0 10px; color: #666; font-size: 13px;">
+                                            <?php echo esc_html( $company_name ); ?>
+                                        </p>
                                         <?php endif; ?>
-                                        <h3 style="margin: 0 0 10px; font-size: 15px; font-weight: 600;">
-                                            <a href="<?php echo esc_url( $post_item['url'] ); ?>" style="color: #032e5b; text-decoration: none;">
-                                                <?php echo esc_html( $post_item['title'] ); ?>
-                                            </a>
-                                        </h3>
+
+                                        <!-- Two Column Layout -->
+                                        <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 10px;">
+                                            <tr>
+                                                <!-- Left Column: Text -->
+                                                <td style="vertical-align: top; padding-right: 15px;">
+                                                    <h3 style="margin: 0; font-size: 15px; font-weight: 600;">
+                                                        <a href="<?php echo esc_url( $post_item['url'] ); ?>" style="color: #032e5b; text-decoration: none;">
+                                                            <?php echo esc_html( $post_item['title'] ); ?>
+                                                        </a>
+                                                    </h3>
+                                                </td>
+                                                <!-- Right Column: Image -->
+                                                <?php if ( $thumbnail_url ) : ?>
+                                                <td style="vertical-align: top; width: 120px;">
+                                                    <a href="<?php echo esc_url( $post_item['url'] ); ?>" style="display: block;">
+                                                        <img src="<?php echo esc_url( $thumbnail_url ); ?>" alt="<?php echo esc_attr( $post_item['title'] ); ?>" style="width: 120px; height: auto; border-radius: 4px; display: block;">
+                                                    </a>
+                                                </td>
+                                                <?php endif; ?>
+                                            </tr>
+                                        </table>
+
+                                        <!-- Link Row -->
                                         <a href="<?php echo esc_url( $post_item['url'] ); ?>" style="display: inline-block; color: #032e5b; font-size: 13px; text-decoration: none; font-weight: 500;">
                                             <?php esc_html_e( 'Lue lisää →', 'acf-analyzer' ); ?>
                                         </a>
