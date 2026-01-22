@@ -724,7 +724,7 @@ class Hakuvahti {
                 <table width="600" cellpadding="0" cellspacing="0" style="max-width: 600px; width: 100%;">
                     <!-- Header -->
                     <tr>
-                        <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px 40px; border-radius: 8px 8px 0 0;">
+                        <td style="background-color: #032e5b; padding: 30px 40px; border-radius: 8px 8px 0 0;">
                             <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600;">
                                 <?php echo esc_html( $site_name ); ?>
                             </h1>
@@ -785,11 +785,11 @@ class Hakuvahti {
                                         </a>
                                         <?php endif; ?>
                                         <h3 style="margin: 0 0 10px; font-size: 15px; font-weight: 600;">
-                                            <a href="<?php echo esc_url( $post_item['url'] ); ?>" style="color: #667eea; text-decoration: none;">
+                                            <a href="<?php echo esc_url( $post_item['url'] ); ?>" style="color: #032e5b; text-decoration: none;">
                                                 <?php echo esc_html( $post_item['title'] ); ?>
                                             </a>
                                         </h3>
-                                        <a href="<?php echo esc_url( $post_item['url'] ); ?>" style="display: inline-block; color: #667eea; font-size: 13px; text-decoration: none; font-weight: 500;">
+                                        <a href="<?php echo esc_url( $post_item['url'] ); ?>" style="display: inline-block; color: #032e5b; font-size: 13px; text-decoration: none; font-weight: 500;">
                                             <?php esc_html_e( 'Lue lisää →', 'acf-analyzer' ); ?>
                                         </a>
                                     </div>
