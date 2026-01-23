@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Define plugin version constant
  * Used for cache busting and version tracking
  */
-define( 'ACF_ANALYZER_VERSION', '1.0.0' );
+define( 'ACF_ANALYZER_VERSION', '1.2.0' );
 
 /**
  * Define plugin directory path
@@ -131,6 +131,57 @@ function acf_analyzer_deactivate() {
 register_deactivation_hook( __FILE__, 'acf_analyzer_deactivate' );
 
 /**
+ * Check and update database schema if needed
+ *
+ * Runs on plugins_loaded to ensure existing installations get
+ * the new guest hakuvahti columns added to the database table.
+ *
+ * @since 1.2.0
+ * @return void
+ */
+function acf_analyzer_maybe_update_db() {
+    $db_version = get_option( 'acf_analyzer_db_version', '1.0.0' );
+
+    // If already at current version, no update needed
+    if ( version_compare( $db_version, '1.2.0', '>=' ) ) {
+        return;
+    }
+
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'hakuvahdit';
+
+    // Check if guest_email column exists
+    $column_exists = $wpdb->get_var(
+        $wpdb->prepare(
+            "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND COLUMN_NAME = 'guest_email'",
+            DB_NAME,
+            $table_name
+        )
+    );
+
+    if ( ! $column_exists ) {
+        // Add the new columns for guest hakuvahti support
+        $wpdb->query( "ALTER TABLE $table_name ADD COLUMN guest_email varchar(255) DEFAULT NULL" );
+        $wpdb->query( "ALTER TABLE $table_name ADD COLUMN delete_token varchar(64) DEFAULT NULL" );
+        $wpdb->query( "ALTER TABLE $table_name ADD COLUMN expires_at datetime DEFAULT NULL" );
+        $wpdb->query( "ALTER TABLE $table_name ADD COLUMN created_by_ip varchar(45) DEFAULT NULL" );
+
+        // Add indexes
+        $wpdb->query( "ALTER TABLE $table_name ADD KEY guest_email (guest_email)" );
+        $wpdb->query( "ALTER TABLE $table_name ADD KEY delete_token (delete_token)" );
+        $wpdb->query( "ALTER TABLE $table_name ADD KEY expires_at (expires_at)" );
+    }
+
+    // Set default guest TTL if not already set
+    if ( false === get_option( 'acf_analyzer_guest_ttl_days' ) ) {
+        update_option( 'acf_analyzer_guest_ttl_days', 30 );
+    }
+
+    // Update db version
+    update_option( 'acf_analyzer_db_version', '1.2.0' );
+}
+
+/**
  * Initialize the plugin
  * 
  * This function runs after all plugins are loaded and initializes
@@ -140,6 +191,9 @@ register_deactivation_hook( __FILE__, 'acf_analyzer_deactivate' );
  * @return void
  */
 function acf_analyzer_init() {
+    // Check if database schema needs updating (for existing installations)
+    acf_analyzer_maybe_update_db();
+
     // Initialize admin interface (always available so mappings can be managed)
     new ACF_Analyzer_Admin();
 
