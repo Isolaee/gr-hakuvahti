@@ -30,7 +30,7 @@ $ttl_days = (int) get_option( 'acf_analyzer_guest_ttl_days', 30 );
             <p class="hakuvahti-guest-notice" style="font-size: 12px; color: #666; margin: 0 0 12px 0;">
                 <?php
                 echo sprintf(
-                    esc_html__( 'Saat ilmoitukset sähköpostiisi. Hakuvahti on voimassa %d päivää.', 'acf-analyzer' ),
+                    esc_html__( 'Kirjautumattomana käyttäjänä tehdyt hakuvahdit ovat voimassa %d päivää luomisesta. Rekisteröitymällä palveluun voit tehdä hakuvahteja jotka eivät eräänny.', 'acf-analyzer' ),
                     $ttl_days
                 );
                 ?>
