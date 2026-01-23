@@ -64,8 +64,15 @@ function acf_analyzer_activate() {
         seen_post_ids longtext,
         created_at datetime NOT NULL,
         updated_at datetime,
+        guest_email varchar(255) DEFAULT NULL,
+        delete_token varchar(64) DEFAULT NULL,
+        expires_at datetime DEFAULT NULL,
+        created_by_ip varchar(45) DEFAULT NULL,
         PRIMARY KEY (id),
-        KEY user_id (user_id)
+        KEY user_id (user_id),
+        KEY guest_email (guest_email),
+        KEY delete_token (delete_token),
+        KEY expires_at (expires_at)
     ) $charset_collate;";
 
     require_once ABSPATH . 'wp-admin/includes/upgrade.php';
@@ -91,6 +98,11 @@ function acf_analyzer_activate() {
     if ( ! get_option( 'acf_analyzer_secret_key' ) ) {
         $secret = wp_generate_password( 32, false, false );
         update_option( 'acf_analyzer_secret_key', $secret );
+    }
+
+    // Set default guest TTL (days) if not already set
+    if ( false === get_option( 'acf_analyzer_guest_ttl_days' ) ) {
+        update_option( 'acf_analyzer_guest_ttl_days', 30 );
     }
 
     // Schedule daily runner if not already scheduled
@@ -137,6 +149,9 @@ function acf_analyzer_init() {
     // Register a simple HTTP ping handler for true-cron (cPanel)
     add_action( 'init', 'acf_analyzer_handle_ping' );
 
+    // Register hakuvahti delete endpoint handler for guest unsubscribe links
+    add_action( 'init', 'acf_analyzer_handle_hakuvahti_delete' );
+
     // Check if ACF is active for frontend features
     if ( ! function_exists( 'get_fields' ) ) {
         // Display admin notice if ACF is not active
@@ -173,11 +188,61 @@ function acf_analyzer_handle_ping() {
 }
 
 /**
+ * Handle hakuvahti delete endpoint for guest unsubscribe links
+ *
+ * Allows guests to delete their hakuvahti via a unique token link sent in notification emails.
+ * URL format: https://example.com/?hakuvahti_delete=TOKEN
+ *
+ * @since 1.2.0
+ * @return void
+ */
+function acf_analyzer_handle_hakuvahti_delete() {
+    if ( ! isset( $_GET['hakuvahti_delete'] ) ) {
+        return;
+    }
+
+    $token = sanitize_text_field( wp_unslash( $_GET['hakuvahti_delete'] ) );
+
+    if ( empty( $token ) ) {
+        status_header( 400 );
+        wp_die(
+            esc_html__( 'Virheellinen pyyntö.', 'acf-analyzer' ),
+            esc_html__( 'Virhe', 'acf-analyzer' ),
+            array( 'response' => 400 )
+        );
+    }
+
+    $deleted = Hakuvahti::delete_by_token( $token );
+
+    if ( $deleted ) {
+        // Show success page
+        status_header( 200 );
+        wp_die(
+            '<h1>' . esc_html__( 'Hakuvahti poistettu', 'acf-analyzer' ) . '</h1>' .
+            '<p>' . esc_html__( 'Hakuvahtisi on poistettu onnistuneesti. Et saa enää ilmoituksia tästä hakuvahdista.', 'acf-analyzer' ) . '</p>' .
+            '<p><a href="' . esc_url( home_url() ) . '">' . esc_html__( 'Palaa etusivulle', 'acf-analyzer' ) . '</a></p>',
+            esc_html__( 'Hakuvahti poistettu', 'acf-analyzer' ),
+            array( 'response' => 200 )
+        );
+    } else {
+        // Token not found or already deleted
+        status_header( 404 );
+        wp_die(
+            '<h1>' . esc_html__( 'Hakuvahtia ei löytynyt', 'acf-analyzer' ) . '</h1>' .
+            '<p>' . esc_html__( 'Hakuvahtia ei löytynyt tai se on jo poistettu.', 'acf-analyzer' ) . '</p>' .
+            '<p><a href="' . esc_url( home_url() ) . '">' . esc_html__( 'Palaa etusivulle', 'acf-analyzer' ) . '</a></p>',
+            esc_html__( 'Ei löytynyt', 'acf-analyzer' ),
+            array( 'response' => 404 )
+        );
+    }
+}
+
+/**
  * Display admin notice if ACF is not active
- * 
+ *
  * Shows a warning message in the WordPress admin area when
  * Advanced Custom Fields plugin is not installed or activated.
- * 
+ *
  * @since 1.0.0
  * @return void
  */

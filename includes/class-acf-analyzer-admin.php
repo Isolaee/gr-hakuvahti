@@ -152,9 +152,19 @@ class ACF_Analyzer_Admin {
         if ( $results_per_page <= 0 ) { $results_per_page = 20; }
         $debug_by_default = isset( $_POST['debug_by_default'] ) && ( $_POST['debug_by_default'] === '1' || $_POST['debug_by_default'] === 'on' );
 
+        // Guest TTL setting (1-365 days, default 30)
+        $guest_ttl_days = isset( $_POST['guest_ttl_days'] ) ? absint( $_POST['guest_ttl_days'] ) : 30;
+        if ( $guest_ttl_days < 1 ) {
+            $guest_ttl_days = 1;
+        }
+        if ( $guest_ttl_days > 365 ) {
+            $guest_ttl_days = 365;
+        }
+
         update_option( 'acf_analyzer_default_match_logic', $default_match_logic );
         update_option( 'acf_analyzer_results_per_page', $results_per_page );
         update_option( 'acf_analyzer_debug_by_default', $debug_by_default );
+        update_option( 'acf_analyzer_guest_ttl_days', $guest_ttl_days );
 
         wp_redirect( add_query_arg( 'options', 'saved', admin_url( 'tools.php?page=acf-analyzer' ) ) );
         exit;

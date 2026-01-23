@@ -316,18 +316,34 @@
         closeModal();
     });
 
-    // Handle save
+    // Handle save (supports both logged-in users and guests)
     $(document).on('click', '.hakuvahti-save-popup', function(e) {
         e.preventDefault();
         var $btn = $(this);
         var name = $('#hakuvahti-save-name').val().trim();
         var category = lastCollectedCategory || detectCategory() || '';
+        var isLoggedIn = acfWpgbLogger.isLoggedIn;
 
         var $status = $('.hakuvahti-save-status');
 
         if (!name) {
             $status.text('Anna nimi.');
             return;
+        }
+
+        // For guests, validate email
+        var guestEmail = '';
+        if (!isLoggedIn) {
+            guestEmail = $('#hakuvahti-guest-email').val().trim();
+            if (!guestEmail) {
+                $status.text('Anna sähköpostiosoite.');
+                return;
+            }
+            // Basic email validation
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail)) {
+                $status.text('Virheellinen sähköpostiosoite.');
+                return;
+            }
         }
 
         var criteria = collectSearchCriteria();
@@ -340,12 +356,18 @@
         $status.text('Tallennetaan...');
 
         // Build form-style data so jQuery posts criteria as array entries
+        // Use different action for guests vs logged-in users
         var postData = {
-            action: 'hakuvahti_save',
+            action: isLoggedIn ? 'hakuvahti_save' : 'hakuvahti_guest_save',
             nonce: acfWpgbLogger.hakuvahtiNonce,
             name: name,
             category: category
         };
+
+        // Add email for guests
+        if (!isLoggedIn) {
+            postData.email = guestEmail;
+        }
 
         criteria.forEach(function(c, i) {
             postData['criteria[' + i + '][name]'] = c.name;
@@ -365,11 +387,14 @@
         $.post(acfWpgbLogger.ajaxUrl, postData).done(function(resp) {
             if (resp && resp.success) {
                 $status.text(resp.data && resp.data.message ? resp.data.message : 'Tallennettu.');
-                // Optionally redirect if myPageUrl provided
-                if (acfWpgbLogger.myPageUrl) {
+                // For logged-in users, optionally redirect if myPageUrl provided
+                // For guests, just show success and close after delay
+                if (isLoggedIn && acfWpgbLogger.myPageUrl) {
                     window.location.href = acfWpgbLogger.myPageUrl;
                 } else {
-                    setTimeout(function() { closeModal(); }, 800);
+                    // Longer delay for guests so they can read the success message
+                    var closeDelay = isLoggedIn ? 800 : 3000;
+                    setTimeout(function() { closeModal(); }, closeDelay);
                 }
             } else {
                 var msg = resp && resp.data && resp.data.message ? resp.data.message : 'Tallennus epäonnistui.';

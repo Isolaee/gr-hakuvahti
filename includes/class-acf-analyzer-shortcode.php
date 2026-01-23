@@ -43,6 +43,10 @@ class ACF_Analyzer_Shortcode {
         add_action( 'wp_ajax_hakuvahti_run', array( $this, 'ajax_hakuvahti_run' ) );
         add_action( 'wp_ajax_hakuvahti_delete', array( $this, 'ajax_hakuvahti_delete' ) );
 
+        // Guest hakuvahti save handler (for non-logged-in users)
+        add_action( 'wp_ajax_nopriv_hakuvahti_guest_save', array( $this, 'ajax_hakuvahti_guest_save' ) );
+        add_action( 'wp_ajax_hakuvahti_guest_save', array( $this, 'ajax_hakuvahti_guest_save' ) );
+
         // Track if shortcode is used
         $this->shortcode_used = false;
     }
@@ -645,6 +649,101 @@ class ACF_Analyzer_Shortcode {
             wp_send_json_success( array( 'message' => __( 'Hakuvahti poistettu.', 'acf-analyzer' ) ) );
         } else {
             wp_send_json_error( array( 'message' => __( 'Hakuvahdin poisto epäonnistui.', 'acf-analyzer' ) ) );
+        }
+    }
+
+    /**
+     * AJAX handler: Save a new hakuvahti for guest (non-logged-in) users
+     *
+     * Creates a hakuvahti with guest_email, delete_token, and TTL expiration.
+     * Includes rate limiting to prevent abuse.
+     *
+     * Expected POST parameters:
+     * - nonce: Security nonce
+     * - email: Guest's email address
+     * - name: Name for the hakuvahti
+     * - category: Category to search
+     * - criteria: Array of search criteria
+     *
+     * @since 1.2.0
+     * @return void
+     */
+    public function ajax_hakuvahti_guest_save() {
+        // Verify nonce
+        check_ajax_referer( 'hakuvahti_nonce', 'nonce' );
+
+        // Get and validate email
+        $email = isset( $_POST['email'] ) ? sanitize_email( $_POST['email'] ) : '';
+        if ( empty( $email ) || ! is_email( $email ) ) {
+            wp_send_json_error( array( 'message' => __( 'Virheellinen sähköpostiosoite.', 'acf-analyzer' ) ) );
+        }
+
+        // Get client IP for rate limiting
+        $ip = '';
+        if ( ! empty( $_SERVER['HTTP_CLIENT_IP'] ) ) {
+            $ip = sanitize_text_field( wp_unslash( $_SERVER['HTTP_CLIENT_IP'] ) );
+        } elseif ( ! empty( $_SERVER['HTTP_X_FORWARDED_FOR'] ) ) {
+            // May contain multiple IPs, take the first
+            $forwarded = sanitize_text_field( wp_unslash( $_SERVER['HTTP_X_FORWARDED_FOR'] ) );
+            $ip_list = explode( ',', $forwarded );
+            $ip = trim( $ip_list[0] );
+        } elseif ( ! empty( $_SERVER['REMOTE_ADDR'] ) ) {
+            $ip = sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) );
+        }
+
+        // Check rate limits
+        $rate_check = Hakuvahti::check_guest_rate_limit( $email, $ip );
+        if ( ! $rate_check['allowed'] ) {
+            wp_send_json_error( array( 'message' => $rate_check['message'] ) );
+        }
+
+        // Get other parameters
+        $name = isset( $_POST['name'] ) ? sanitize_text_field( $_POST['name'] ) : '';
+        $category = isset( $_POST['category'] ) ? sanitize_text_field( $_POST['category'] ) : '';
+        $criteria = isset( $_POST['criteria'] ) ? $_POST['criteria'] : array();
+
+        // Validate inputs
+        if ( empty( $name ) ) {
+            wp_send_json_error( array( 'message' => __( 'Nimi on pakollinen.', 'acf-analyzer' ) ) );
+        }
+
+        if ( empty( $category ) ) {
+            wp_send_json_error( array( 'message' => __( 'Kategoria on pakollinen.', 'acf-analyzer' ) ) );
+        }
+
+        // Sanitize criteria array
+        $sanitized_criteria = array();
+        if ( is_array( $criteria ) ) {
+            foreach ( $criteria as $item ) {
+                if ( isset( $item['name'] ) && isset( $item['values'] ) ) {
+                    $sanitized_criteria[] = array(
+                        'name'   => sanitize_text_field( $item['name'] ),
+                        'label'  => isset( $item['label'] ) ? sanitize_text_field( $item['label'] ) : 'multiple_choice',
+                        'values' => is_array( $item['values'] ) ? array_map( 'sanitize_text_field', $item['values'] ) : array( sanitize_text_field( $item['values'] ) ),
+                    );
+                }
+            }
+        }
+
+        if ( empty( $sanitized_criteria ) ) {
+            wp_send_json_error( array( 'message' => __( 'Valitse vähintään yksi hakuehto.', 'acf-analyzer' ) ) );
+        }
+
+        // Create guest hakuvahti
+        $new_id = Hakuvahti::create_guest( $email, $name, $category, $sanitized_criteria, $ip );
+
+        if ( $new_id ) {
+            $ttl_days = (int) get_option( 'acf_analyzer_guest_ttl_days', 30 );
+            wp_send_json_success( array(
+                'message' => sprintf(
+                    __( 'Hakuvahti tallennettu! Saat ilmoituksia osoitteeseen %s. Hakuvahti on voimassa %d päivää.', 'acf-analyzer' ),
+                    $email,
+                    $ttl_days
+                ),
+                'id' => $new_id,
+            ) );
+        } else {
+            wp_send_json_error( array( 'message' => __( 'Hakuvahdin tallennus epäonnistui.', 'acf-analyzer' ) ) );
         }
     }
 }

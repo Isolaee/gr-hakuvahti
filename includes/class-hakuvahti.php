@@ -46,6 +46,12 @@ class Hakuvahti {
         $debug_log = array();
         $debug_log[] = '[' . current_time( 'mysql' ) . '] Starting daily search run';
 
+        // Clean up expired guest hakuvahdits before processing
+        $expired_count = self::cleanup_expired_hakuvahdits();
+        if ( $expired_count > 0 ) {
+            $debug_log[] = "Cleaned up {$expired_count} expired guest hakuvahdit";
+        }
+
         $rows = $wpdb->get_results( "SELECT * FROM $table" );
         $debug_log[] = 'Found ' . count( $rows ) . ' hakuvahdit in database';
 
@@ -101,24 +107,53 @@ class Hakuvahti {
 
                 // If rows_affected > 0, we inserted a new match
                 if ( isset( $wpdb->rows_affected ) && $wpdb->rows_affected > 0 ) {
-                    $emails[ $user_id ][] = array(
-                        'hakuvahti' => $result['hakuvahti'],
-                        'post'      => $post_item,
+                    // Use a unique key per email recipient (user_id for registered, email for guests)
+                    $is_guest = ( (int) $user_id === 0 );
+                    $email_key = $is_guest ? 'guest_' . $row->guest_email : 'user_' . $user_id;
+
+                    $emails[ $email_key ][] = array(
+                        'hakuvahti'    => $result['hakuvahti'],
+                        'post'         => $post_item,
+                        'is_guest'     => $is_guest,
+                        'guest_email'  => $is_guest ? $row->guest_email : null,
+                        'delete_token' => $is_guest ? $row->delete_token : null,
+                        'user_id'      => $user_id,
                     );
                 }
             }
         }
 
-        // Send emails per user
+        // Send emails per recipient (user or guest)
         $debug_log[] = '---';
-        $debug_log[] = 'Email queue: ' . count( $emails ) . ' users';
+        $debug_log[] = 'Email queue: ' . count( $emails ) . ' recipients';
 
         if ( ! empty( $emails ) ) {
-            foreach ( $emails as $uid => $items ) {
-                $user = get_userdata( $uid );
-                if ( ! $user || empty( $user->user_email ) ) {
-                    $debug_log[] = "User {$uid}: no email found, skipping";
-                    continue;
+            foreach ( $emails as $email_key => $items ) {
+                // Determine if this is a guest or registered user
+                $first_item = $items[0];
+                $is_guest = $first_item['is_guest'];
+
+                if ( $is_guest ) {
+                    // Guest user - use guest_email directly
+                    $recipient_email = $first_item['guest_email'];
+                    $display_name = ''; // Guests don't have display names
+                    $delete_token = $first_item['delete_token'];
+
+                    if ( empty( $recipient_email ) ) {
+                        $debug_log[] = "Guest hakuvahti: no email found, skipping";
+                        continue;
+                    }
+                } else {
+                    // Registered user - lookup via get_userdata
+                    $uid = $first_item['user_id'];
+                    $user = get_userdata( $uid );
+                    if ( ! $user || empty( $user->user_email ) ) {
+                        $debug_log[] = "User {$uid}: no email found, skipping";
+                        continue;
+                    }
+                    $recipient_email = $user->user_email;
+                    $display_name = $user->display_name;
+                    $delete_token = null;
                 }
 
                 $subject = sprintf( __( 'Hakuvahti: %d uutta tulosta', 'acf-analyzer' ), count( $items ) );
@@ -129,22 +164,23 @@ class Hakuvahti {
                     $hv_id = $it['hakuvahti']['id'];
                     if ( ! isset( $grouped[ $hv_id ] ) ) {
                         $grouped[ $hv_id ] = array(
-                            'hakuvahti' => $it['hakuvahti'],
-                            'posts'     => array(),
+                            'hakuvahti'    => $it['hakuvahti'],
+                            'posts'        => array(),
+                            'delete_token' => $it['delete_token'],
                         );
                     }
                     $grouped[ $hv_id ]['posts'][] = $it['post'];
                 }
 
-                // Build HTML email
-                $message = self::build_email_html( $user, $grouped );
+                // Build HTML email (pass guest info for unsubscribe link)
+                $message = self::build_email_html_for_recipient( $recipient_email, $display_name, $grouped, $is_guest );
 
                 // Set HTML headers
                 $headers = array( 'Content-Type: text/html; charset=UTF-8' );
 
                 // Send email
-                $mail_result = wp_mail( $user->user_email, $subject, $message, $headers );
-                $debug_log[] = "Email to {$user->user_email}: " . ( $mail_result ? 'sent' : 'FAILED' );
+                $mail_result = wp_mail( $recipient_email, $subject, $message, $headers );
+                $debug_log[] = "Email to {$recipient_email}" . ( $is_guest ? ' (guest)' : '' ) . ": " . ( $mail_result ? 'sent' : 'FAILED' );
             }
         }
 
@@ -216,6 +252,180 @@ class Hakuvahti {
         }
 
         return false;
+    }
+
+    /**
+     * Create a new hakuvahti for a guest (non-logged-in user)
+     *
+     * Guest hakuvahdits are stored with user_id = 0, include a guest_email,
+     * a unique delete_token for unsubscribe links, and an expires_at timestamp.
+     *
+     * @since 1.2.0
+     * @param string $email    Guest's email address
+     * @param string $name     User-defined name for the hakuvahti
+     * @param string $category Category to search (Osakeannit, Velkakirjat, Osaketori)
+     * @param array  $criteria Search criteria array
+     * @param string $ip       IP address of the guest (for rate limiting)
+     * @return int|false Insert ID on success, false on failure
+     */
+    public static function create_guest( $email, $name, $category, $criteria, $ip = '' ) {
+        global $wpdb;
+
+        $table = self::get_table_name();
+
+        // Generate unique delete token for unsubscribe link
+        $delete_token = wp_generate_password( 32, false, false );
+
+        // Calculate expiration date based on admin setting
+        $ttl_days = (int) get_option( 'acf_analyzer_guest_ttl_days', 30 );
+        $expires_at = gmdate( 'Y-m-d H:i:s', strtotime( "+{$ttl_days} days" ) );
+
+        // Run initial search to get current matching posts (same as regular create)
+        $analyzer = new ACF_Analyzer();
+        $search_criteria = self::convert_criteria_for_search( $criteria );
+        $options = array(
+            'categories'  => array( $category ),
+            'match_logic' => 'AND',
+        );
+        $results = $analyzer->search_by_criteria( $search_criteria, $options );
+
+        // Extract post IDs from results to mark as seen
+        $seen_post_ids = array();
+        if ( ! empty( $results['posts'] ) ) {
+            foreach ( $results['posts'] as $post ) {
+                $seen_post_ids[] = $post['ID'];
+            }
+        }
+
+        $inserted = $wpdb->insert(
+            $table,
+            array(
+                'user_id'       => 0, // Guest user
+                'name'          => sanitize_text_field( $name ),
+                'category'      => sanitize_text_field( $category ),
+                'criteria'      => wp_json_encode( $criteria ),
+                'seen_post_ids' => wp_json_encode( $seen_post_ids ),
+                'created_at'    => current_time( 'mysql' ),
+                'updated_at'    => current_time( 'mysql' ),
+                'guest_email'   => sanitize_email( $email ),
+                'delete_token'  => $delete_token,
+                'expires_at'    => $expires_at,
+                'created_by_ip' => sanitize_text_field( $ip ),
+            ),
+            array( '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
+        );
+
+        if ( $inserted ) {
+            return $wpdb->insert_id;
+        }
+
+        return false;
+    }
+
+    /**
+     * Delete a hakuvahti by its delete token
+     *
+     * Used for guest unsubscribe links. The delete token is unique per hakuvahti.
+     *
+     * @since 1.2.0
+     * @param string $token The delete token from the unsubscribe link
+     * @return bool True if deleted, false if not found
+     */
+    public static function delete_by_token( $token ) {
+        global $wpdb;
+
+        if ( empty( $token ) ) {
+            return false;
+        }
+
+        $table = self::get_table_name();
+
+        // Find and delete the hakuvahti with this token
+        $deleted = $wpdb->delete(
+            $table,
+            array( 'delete_token' => $token ),
+            array( '%s' )
+        );
+
+        return $deleted !== false && $deleted > 0;
+    }
+
+    /**
+     * Clean up expired guest hakuvahdits
+     *
+     * Deletes all hakuvahdits where expires_at has passed.
+     * Called at the start of run_daily_searches().
+     *
+     * @since 1.2.0
+     * @return int Number of deleted records
+     */
+    public static function cleanup_expired_hakuvahdits() {
+        global $wpdb;
+
+        $table = self::get_table_name();
+
+        // Delete hakuvahdits where expires_at is in the past
+        $deleted = $wpdb->query(
+            $wpdb->prepare(
+                "DELETE FROM $table WHERE expires_at IS NOT NULL AND expires_at < %s",
+                current_time( 'mysql' )
+            )
+        );
+
+        return $deleted !== false ? $deleted : 0;
+    }
+
+    /**
+     * Check rate limit for guest hakuvahti creation
+     *
+     * Enforces limits: max 3 per IP per hour, max 5 total per email
+     *
+     * @since 1.2.0
+     * @param string $email Guest email
+     * @param string $ip    Guest IP address
+     * @return array Array with 'allowed' (bool) and 'message' (string) keys
+     */
+    public static function check_guest_rate_limit( $email, $ip ) {
+        global $wpdb;
+
+        $table = self::get_table_name();
+
+        // Check IP rate limit: max 3 per hour
+        $one_hour_ago = gmdate( 'Y-m-d H:i:s', strtotime( '-1 hour' ) );
+        $ip_count = $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT COUNT(*) FROM $table WHERE created_by_ip = %s AND created_at > %s",
+                $ip,
+                $one_hour_ago
+            )
+        );
+
+        if ( (int) $ip_count >= 3 ) {
+            return array(
+                'allowed' => false,
+                'message' => __( 'Liian monta hakuvahtia lyhyessä ajassa. Yritä myöhemmin uudelleen.', 'acf-analyzer' ),
+            );
+        }
+
+        // Check email limit: max 5 active hakuvahdits per email
+        $email_count = $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT COUNT(*) FROM $table WHERE guest_email = %s",
+                $email
+            )
+        );
+
+        if ( (int) $email_count >= 5 ) {
+            return array(
+                'allowed' => false,
+                'message' => __( 'Tällä sähköpostiosoitteella on jo enimmäismäärä hakuvahteja.', 'acf-analyzer' ),
+            );
+        }
+
+        return array(
+            'allowed' => true,
+            'message' => '',
+        );
     }
 
     /**
@@ -313,8 +523,11 @@ class Hakuvahti {
     public static function run_search( $id, $user_id, &$debug_log = null ) {
         $hakuvahti = self::get_by_id( $id );
 
-        // Verify hakuvahti exists and belongs to user
-        if ( ! $hakuvahti || (int) $hakuvahti->user_id !== (int) $user_id ) {
+        // Verify hakuvahti exists and belongs to user (or is a guest hakuvahti with user_id = 0)
+        $is_guest = $hakuvahti && (int) $hakuvahti->user_id === 0;
+        $user_matches = $hakuvahti && (int) $hakuvahti->user_id === (int) $user_id;
+
+        if ( ! $hakuvahti || ( ! $is_guest && ! $user_matches ) ) {
             if ( is_array( $debug_log ) ) {
                 $debug_log[] = "  -> Hakuvahti not found or user mismatch (hakuvahti user: " . ( $hakuvahti ? $hakuvahti->user_id : 'null' ) . ", given user: {$user_id})";
             }
@@ -696,18 +909,45 @@ class Hakuvahti {
     }
 
     /**
-     * Build HTML email content for hakuvahti notifications
+     * Build HTML email content for hakuvahti notifications (legacy, for registered users)
      *
      * @param WP_User $user    The user receiving the email
      * @param array   $grouped Posts grouped by hakuvahti
      * @return string HTML email content
      */
     private static function build_email_html( $user, $grouped ) {
+        return self::build_email_html_for_recipient(
+            $user->user_email,
+            $user->display_name,
+            $grouped,
+            false
+        );
+    }
+
+    /**
+     * Build HTML email content for hakuvahti notifications
+     *
+     * Supports both registered users and guests. For guests, includes
+     * unsubscribe (delete) links for each hakuvahti.
+     *
+     * @since 1.2.0
+     * @param string $email        Recipient email address
+     * @param string $display_name Recipient display name (empty for guests)
+     * @param array  $grouped      Posts grouped by hakuvahti
+     * @param bool   $is_guest     Whether recipient is a guest (non-logged-in user)
+     * @return string HTML email content
+     */
+    private static function build_email_html_for_recipient( $email, $display_name, $grouped, $is_guest ) {
         $site_name = get_bloginfo( 'name' );
         $total_posts = 0;
         foreach ( $grouped as $g ) {
             $total_posts += count( $g['posts'] );
         }
+
+        // Greeting text differs for guests vs registered users
+        $greeting = $is_guest
+            ? esc_html__( 'Hei,', 'acf-analyzer' )
+            : sprintf( esc_html__( 'Hei %s,', 'acf-analyzer' ), esc_html( $display_name ) );
 
         ob_start();
         ?>
@@ -738,7 +978,7 @@ class Hakuvahti {
                     <tr>
                         <td style="background-color: #ffffff; padding: 40px;">
                             <p style="margin: 0 0 20px; color: #333; font-size: 16px; line-height: 1.5;">
-                                <?php echo sprintf( esc_html__( 'Hei %s,', 'acf-analyzer' ), esc_html( $user->display_name ) ); ?>
+                                <?php echo $greeting; ?>
                             </p>
                             <p style="margin: 0 0 30px; color: #333; font-size: 16px; line-height: 1.5;">
                                 <?php echo sprintf(
@@ -755,6 +995,7 @@ class Hakuvahti {
                             <?php foreach ( $grouped as $group ) :
                                 $hv = $group['hakuvahti'];
                                 $posts = $group['posts'];
+                                $delete_token = isset( $group['delete_token'] ) ? $group['delete_token'] : null;
                             ?>
                             <!-- Hakuvahti Box -->
                             <div style="margin-bottom: 25px; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
@@ -816,12 +1057,38 @@ class Hakuvahti {
                                     </div>
                                     <?php endforeach; ?>
                                 </div>
+
+                                <?php if ( $is_guest && $delete_token ) :
+                                    $delete_url = add_query_arg( 'hakuvahti_delete', $delete_token, home_url() );
+                                ?>
+                                <!-- Guest Unsubscribe Link -->
+                                <div style="background-color: #f8f9fa; padding: 12px 20px; border-top: 1px solid #e0e0e0;">
+                                    <p style="margin: 0; font-size: 12px; color: #666;">
+                                        <?php esc_html_e( 'Etkö halua enää ilmoituksia tästä hakuvahdista?', 'acf-analyzer' ); ?>
+                                        <a href="<?php echo esc_url( $delete_url ); ?>" style="color: #032e5b; text-decoration: underline;">
+                                            <?php esc_html_e( 'Poista hakuvahti', 'acf-analyzer' ); ?>
+                                        </a>
+                                    </p>
+                                </div>
+                                <?php endif; ?>
                             </div>
                             <?php endforeach; ?>
 
+                            <?php if ( $is_guest ) : ?>
+                            <p style="margin: 30px 0 0; color: #666; font-size: 14px; line-height: 1.5;">
+                                <?php
+                                $ttl_days = (int) get_option( 'acf_analyzer_guest_ttl_days', 30 );
+                                echo sprintf(
+                                    esc_html__( 'Hakuvahtisi on voimassa %d päivää luomisesta.', 'acf-analyzer' ),
+                                    $ttl_days
+                                );
+                                ?>
+                            </p>
+                            <?php else : ?>
                             <p style="margin: 30px 0 0; color: #666; font-size: 14px; line-height: 1.5;">
                                 <?php esc_html_e( 'Voit hallita hakuvahtejasi kirjautumalla tilillesi.', 'acf-analyzer' ); ?>
                             </p>
+                            <?php endif; ?>
                         </td>
                     </tr>
 

@@ -85,6 +85,13 @@ if ( ! defined( 'ABSPATH' ) ) {
                         <label><input type="checkbox" name="debug_by_default" value="1" <?php checked( isset( $search_options ) ? $search_options['debug_by_default'] : false ); ?>> <?php esc_html_e( 'Enable debug mode by default for searches', 'acf-analyzer' ); ?></label>
                     </td>
                 </tr>
+                <tr>
+                    <th scope="row"><label><?php esc_html_e( 'Guest Hakuvahti TTL (days)', 'acf-analyzer' ); ?></label></th>
+                    <td>
+                        <input type="number" name="guest_ttl_days" value="<?php echo esc_attr( get_option( 'acf_analyzer_guest_ttl_days', 30 ) ); ?>" min="1" max="365" class="small-text">
+                        <p class="description"><?php esc_html_e( 'How many days guest (non-logged-in) hakuvahdits remain active before automatic deletion.', 'acf-analyzer' ); ?></p>
+                    </td>
+                </tr>
             </table>
 
             <?php submit_button( __( 'Save Search Options', 'acf-analyzer' ), 'primary', '', false ); ?>
