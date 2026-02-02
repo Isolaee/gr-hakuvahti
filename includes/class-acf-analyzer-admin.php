@@ -39,6 +39,9 @@ class ACF_Analyzer_Admin {
 
         // Admin action to manually trigger daily run
         add_action( 'admin_post_acf_analyzer_run_now', array( $this, 'handle_run_now' ) );
+
+        // Dashboard widget
+        add_action( 'wp_dashboard_setup', array( $this, 'add_dashboard_widget' ) );
     }
 
     /**
@@ -72,7 +75,18 @@ class ACF_Analyzer_Admin {
      * @return void
      */
     public function enqueue_admin_assets( $hook ) {
-        // Only load on our admin page
+        // Load stylesheet on the WP Dashboard for our widget
+        if ( 'index.php' === $hook ) {
+            wp_enqueue_style(
+                'acf-analyzer-admin',
+                ACF_ANALYZER_PLUGIN_URL . 'assets/css/admin.css',
+                array(),
+                ACF_ANALYZER_VERSION
+            );
+            return;
+        }
+
+        // Only load full assets on our admin page
         if ( 'tools_page_acf-analyzer' !== $hook ) {
             return;
         }
@@ -194,6 +208,44 @@ class ACF_Analyzer_Admin {
 
         wp_redirect( add_query_arg( 'run', 'ok', admin_url( 'tools.php?page=acf-analyzer' ) ) );
         exit;
+    }
+
+    /**
+     * Register the Hakuvahti dashboard widget
+     *
+     * @return void
+     */
+    public function add_dashboard_widget() {
+        wp_add_dashboard_widget(
+            'hakuvahti_stats_widget',
+            __( 'Hakuvahdit — Last 7 Days', 'acf-analyzer' ),
+            array( $this, 'render_dashboard_widget' )
+        );
+    }
+
+    /**
+     * Render the Hakuvahti dashboard widget content
+     *
+     * @return void
+     */
+    public function render_dashboard_widget() {
+        $stats = Hakuvahti::get_stats_last_7_days();
+        ?>
+        <div class="hakuvahti-stats-grid">
+            <div class="hakuvahti-stat-card">
+                <span class="hakuvahti-stat-value"><?php echo esc_html( $stats['total'] ); ?></span>
+                <span class="hakuvahti-stat-label"><?php esc_html_e( 'Total created', 'acf-analyzer' ); ?></span>
+            </div>
+            <div class="hakuvahti-stat-card hakuvahti-stat-registered">
+                <span class="hakuvahti-stat-value"><?php echo esc_html( $stats['registered'] ); ?></span>
+                <span class="hakuvahti-stat-label"><?php esc_html_e( 'Registered users', 'acf-analyzer' ); ?></span>
+            </div>
+            <div class="hakuvahti-stat-card hakuvahti-stat-guests">
+                <span class="hakuvahti-stat-value"><?php echo esc_html( $stats['guests'] ); ?></span>
+                <span class="hakuvahti-stat-label"><?php esc_html_e( 'Unregistered users', 'acf-analyzer' ); ?></span>
+            </div>
+        </div>
+        <?php
     }
 
     /**
