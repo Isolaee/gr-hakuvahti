@@ -12,6 +12,25 @@ if ( ! defined( 'ABSPATH' ) ) {
 <div class="wrap acf-analyzer-wrap">
     <h1><?php esc_html_e( 'ACF Field Analyzer', 'acf-analyzer' ); ?></h1>
 
+    <!-- Hakuvahti: Creation stats (last 7 days) -->
+    <div class="acf-analyzer-section hakuvahti-stats-section">
+        <h2><?php esc_html_e( 'Hakuvahdit — Last 7 Days', 'acf-analyzer' ); ?></h2>
+        <div class="hakuvahti-stats-grid">
+            <div class="hakuvahti-stat-card">
+                <span class="hakuvahti-stat-value"><?php echo esc_html( $hakuvahti_stats['total'] ); ?></span>
+                <span class="hakuvahti-stat-label"><?php esc_html_e( 'Total created', 'acf-analyzer' ); ?></span>
+            </div>
+            <div class="hakuvahti-stat-card hakuvahti-stat-registered">
+                <span class="hakuvahti-stat-value"><?php echo esc_html( $hakuvahti_stats['registered'] ); ?></span>
+                <span class="hakuvahti-stat-label"><?php esc_html_e( 'Registered users', 'acf-analyzer' ); ?></span>
+            </div>
+            <div class="hakuvahti-stat-card hakuvahti-stat-guests">
+                <span class="hakuvahti-stat-value"><?php echo esc_html( $hakuvahti_stats['guests'] ); ?></span>
+                <span class="hakuvahti-stat-label"><?php esc_html_e( 'Unregistered users', 'acf-analyzer' ); ?></span>
+            </div>
+        </div>
+    </div>
+
     <!-- Hakuvahti: Daily runner status and controls -->
     <div class="acf-analyzer-section" style="margin-bottom:20px;">
         <h2><?php esc_html_e( 'Scheduled Runner', 'acf-analyzer' ); ?></h2>

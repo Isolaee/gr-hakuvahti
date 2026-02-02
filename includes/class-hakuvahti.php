@@ -203,6 +203,38 @@ class Hakuvahti {
     }
 
     /**
+     * Get hakuvahti creation statistics for the last 7 days
+     *
+     * @return array {
+     *     @type int $total      Total hakuvahdits created in last 7 days
+     *     @type int $registered Created by registered (logged-in) users
+     *     @type int $guests     Created by guest (non-logged-in) users
+     * }
+     */
+    public static function get_stats_last_7_days() {
+        global $wpdb;
+
+        $table = self::get_table_name();
+        $since = gmdate( 'Y-m-d H:i:s', strtotime( '-7 days' ) );
+
+        $row = $wpdb->get_row( $wpdb->prepare(
+            "SELECT
+                COUNT(*) AS total,
+                SUM( CASE WHEN user_id > 0 THEN 1 ELSE 0 END ) AS registered,
+                SUM( CASE WHEN user_id = 0 THEN 1 ELSE 0 END ) AS guests
+            FROM $table
+            WHERE created_at >= %s",
+            $since
+        ) );
+
+        return array(
+            'total'      => $row ? (int) $row->total : 0,
+            'registered' => $row ? (int) $row->registered : 0,
+            'guests'     => $row ? (int) $row->guests : 0,
+        );
+    }
+
+    /**
      * Create a new hakuvahti
      *
      * @param int    $user_id  WordPress user ID

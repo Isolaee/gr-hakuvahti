@@ -129,6 +129,9 @@ class ACF_Analyzer_Admin {
             'debug_by_default'    => (bool) get_option( 'acf_analyzer_debug_by_default', false ),
         );
 
+        // Get hakuvahti creation stats for last 7 days
+        $hakuvahti_stats = Hakuvahti::get_stats_last_7_days();
+
         // Load and display the admin template
         include ACF_ANALYZER_PLUGIN_DIR . 'templates/admin-page.php';
     }
