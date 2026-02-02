@@ -232,9 +232,13 @@ class ACF_Analyzer_Admin {
         $stats = Hakuvahti::get_stats_last_7_days();
         ?>
         <div class="hakuvahti-stats-grid">
+            <div class="hakuvahti-stat-card hakuvahti-stat-active">
+                <span class="hakuvahti-stat-value"><?php echo esc_html( $stats['active_total'] ); ?></span>
+                <span class="hakuvahti-stat-label"><?php esc_html_e( 'Active total', 'acf-analyzer' ); ?></span>
+            </div>
             <div class="hakuvahti-stat-card">
                 <span class="hakuvahti-stat-value"><?php echo esc_html( $stats['total'] ); ?></span>
-                <span class="hakuvahti-stat-label"><?php esc_html_e( 'Total created', 'acf-analyzer' ); ?></span>
+                <span class="hakuvahti-stat-label"><?php esc_html_e( 'Created (7 days)', 'acf-analyzer' ); ?></span>
             </div>
             <div class="hakuvahti-stat-card hakuvahti-stat-registered">
                 <span class="hakuvahti-stat-value"><?php echo esc_html( $stats['registered'] ); ?></span>

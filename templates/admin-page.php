@@ -16,9 +16,13 @@ if ( ! defined( 'ABSPATH' ) ) {
     <div class="acf-analyzer-section hakuvahti-stats-section">
         <h2><?php esc_html_e( 'Hakuvahdit — Last 7 Days', 'acf-analyzer' ); ?></h2>
         <div class="hakuvahti-stats-grid">
+            <div class="hakuvahti-stat-card hakuvahti-stat-active">
+                <span class="hakuvahti-stat-value"><?php echo esc_html( $hakuvahti_stats['active_total'] ); ?></span>
+                <span class="hakuvahti-stat-label"><?php esc_html_e( 'Active total', 'acf-analyzer' ); ?></span>
+            </div>
             <div class="hakuvahti-stat-card">
                 <span class="hakuvahti-stat-value"><?php echo esc_html( $hakuvahti_stats['total'] ); ?></span>
-                <span class="hakuvahti-stat-label"><?php esc_html_e( 'Total created', 'acf-analyzer' ); ?></span>
+                <span class="hakuvahti-stat-label"><?php esc_html_e( 'Created (7 days)', 'acf-analyzer' ); ?></span>
             </div>
             <div class="hakuvahti-stat-card hakuvahti-stat-registered">
                 <span class="hakuvahti-stat-value"><?php echo esc_html( $hakuvahti_stats['registered'] ); ?></span>

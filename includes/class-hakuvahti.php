@@ -206,9 +206,10 @@ class Hakuvahti {
      * Get hakuvahti creation statistics for the last 7 days
      *
      * @return array {
-     *     @type int $total      Total hakuvahdits created in last 7 days
-     *     @type int $registered Created by registered (logged-in) users
-     *     @type int $guests     Created by guest (non-logged-in) users
+     *     @type int $total        Total hakuvahdits created in last 7 days
+     *     @type int $registered   Created by registered (logged-in) users
+     *     @type int $guests       Created by guest (non-logged-in) users
+     *     @type int $active_total Total active hakuvahdits (all time, not expired)
      * }
      */
     public static function get_stats_last_7_days() {
@@ -216,6 +217,7 @@ class Hakuvahti {
 
         $table = self::get_table_name();
         $since = gmdate( 'Y-m-d H:i:s', strtotime( '-7 days' ) );
+        $now   = current_time( 'mysql' );
 
         $row = $wpdb->get_row( $wpdb->prepare(
             "SELECT
@@ -227,10 +229,16 @@ class Hakuvahti {
             $since
         ) );
 
+        $active_total = (int) $wpdb->get_var( $wpdb->prepare(
+            "SELECT COUNT(*) FROM $table WHERE expires_at IS NULL OR expires_at > %s",
+            $now
+        ) );
+
         return array(
-            'total'      => $row ? (int) $row->total : 0,
-            'registered' => $row ? (int) $row->registered : 0,
-            'guests'     => $row ? (int) $row->guests : 0,
+            'total'        => $row ? (int) $row->total : 0,
+            'registered'   => $row ? (int) $row->registered : 0,
+            'guests'       => $row ? (int) $row->guests : 0,
+            'active_total' => $active_total,
         );
     }
 

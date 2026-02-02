@@ -493,7 +493,7 @@
 
 .hakuvahti-stats-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 16px;
     margin-top: 15px;
 }
@@ -520,6 +520,10 @@
     margin-top: 8px;
     font-size: 13px;
     color: #666;
+}
+
+.hakuvahti-stat-active {
+    border-left: 3px solid #2e7d32;
 }
 
 .hakuvahti-stat-registered {
