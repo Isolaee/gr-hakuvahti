@@ -174,7 +174,7 @@ function acf_analyzer_maybe_update_db() {
 
     // Set default guest TTL if not already set
     if ( false === get_option( 'acf_analyzer_guest_ttl_days' ) ) {
-        update_option( 'acf_analyzer_guest_ttl_days', 30 );
+        update_option( 'acf_analyzer_guest_ttl_days', 90 );
     }
 
     // Update db version
