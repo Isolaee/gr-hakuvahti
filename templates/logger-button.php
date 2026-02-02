@@ -10,7 +10,7 @@
  */
 
 $is_logged_in = is_user_logged_in();
-$ttl_days = (int) get_option( 'acf_analyzer_guest_ttl_days', 30 );
+$ttl_days = (int) get_option( 'acf_analyzer_guest_ttl_days', 90 );
 ?>
 <button class="hakuvahti-open-popup button"><?php esc_html_e( 'Luo hakuvahti', 'acf-analyzer' ); ?></button>
 

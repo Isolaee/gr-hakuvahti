@@ -169,8 +169,8 @@ class ACF_Analyzer_Admin {
         if ( $results_per_page <= 0 ) { $results_per_page = 20; }
         $debug_by_default = isset( $_POST['debug_by_default'] ) && ( $_POST['debug_by_default'] === '1' || $_POST['debug_by_default'] === 'on' );
 
-        // Guest TTL setting (1-365 days, default 30)
-        $guest_ttl_days = isset( $_POST['guest_ttl_days'] ) ? absint( $_POST['guest_ttl_days'] ) : 30;
+        // Guest TTL setting (1-365 days, default 90)
+        $guest_ttl_days = isset( $_POST['guest_ttl_days'] ) ? absint( $_POST['guest_ttl_days'] ) : 90;
         if ( $guest_ttl_days < 1 ) {
             $guest_ttl_days = 1;
         }

@@ -733,7 +733,7 @@ class ACF_Analyzer_Shortcode {
         $new_id = Hakuvahti::create_guest( $email, $name, $category, $sanitized_criteria, $ip );
 
         if ( $new_id ) {
-            $ttl_days = (int) get_option( 'acf_analyzer_guest_ttl_days', 30 );
+            $ttl_days = (int) get_option( 'acf_analyzer_guest_ttl_days', 90 );
             wp_send_json_success( array(
                 'message' => sprintf(
                     __( 'Hakuvahti tallennettu! Saat ilmoituksia osoitteeseen %s. Hakuvahti on voimassa %d päivää.', 'acf-analyzer' ),

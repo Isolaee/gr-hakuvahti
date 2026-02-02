@@ -102,7 +102,7 @@ function acf_analyzer_activate() {
 
     // Set default guest TTL (days) if not already set
     if ( false === get_option( 'acf_analyzer_guest_ttl_days' ) ) {
-        update_option( 'acf_analyzer_guest_ttl_days', 30 );
+        update_option( 'acf_analyzer_guest_ttl_days', 90 );
     }
 
     // Schedule daily runner if not already scheduled

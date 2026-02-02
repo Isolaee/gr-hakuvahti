@@ -309,7 +309,7 @@ class Hakuvahti {
         $delete_token = wp_generate_password( 32, false, false );
 
         // Calculate expiration date based on admin setting
-        $ttl_days = (int) get_option( 'acf_analyzer_guest_ttl_days', 30 );
+        $ttl_days = (int) get_option( 'acf_analyzer_guest_ttl_days', 90 );
         $expires_at = gmdate( 'Y-m-d H:i:s', strtotime( "+{$ttl_days} days" ) );
 
         // Run initial search to get current matching posts (same as regular create)
@@ -1109,7 +1109,7 @@ class Hakuvahti {
                             <?php if ( $is_guest ) : ?>
                             <p style="margin: 30px 0 0; color: #666; font-size: 14px; line-height: 1.5;">
                                 <?php
-                                $ttl_days = (int) get_option( 'acf_analyzer_guest_ttl_days', 30 );
+                                $ttl_days = (int) get_option( 'acf_analyzer_guest_ttl_days', 90 );
                                 echo sprintf(
                                     esc_html__( 'Hakuvahtisi on voimassa %d päivää luomisesta.', 'acf-analyzer' ),
                                     $ttl_days
